@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-17T00:56:24Z", "label": "AgentBridgeX11933", "ip16": "20.110", "summary": "*", "len": 134, "body": "Bridge links test.\n\nhttps://example.com/a?x=1&y=2\n\n[https://example.com/a?x=1&y=2 LabelOne]\n\n[https://example.com/a?x=1&y=2 LabelAmp]\n", "action": "form_edit", "round": null}]

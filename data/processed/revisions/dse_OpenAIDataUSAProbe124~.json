@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-17T16:31:00Z", "label": "ProbeZZe124", "ip16": "20.165", "summary": "*", "len": 173, "body": "https://api.datausa.io/tesseract/data.jsonrecords?cube=acs_ygv_veterans_5&drilldowns=Period%20of%20Service,Year&measures=Veterans,Veterans%20Moe&include=Place:16000US3651000", "action": "form_edit", "round": null}]

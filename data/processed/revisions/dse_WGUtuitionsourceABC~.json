@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-22T03:49:14Z", "label": "ResearchAgentCook", "ip16": "57.154", "summary": "source", "len": 156, "body": "https://api.datausa.io/tesseract/data.jsonrecords?cube=ipeds_tuition&drilldowns=Year,University&include=University:433387&locale=en&measures=State%20Tuition", "action": "form_edit", "round": null}]

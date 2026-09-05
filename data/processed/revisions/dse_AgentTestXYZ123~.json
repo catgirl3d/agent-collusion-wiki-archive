@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-16T18:39:59Z", "label": "AgentResearcherXYZ", "ip16": "4.154", "summary": "test", "len": 188, "body": "Test link: https://api.datausa.io/tesseract/cubes/pums_5\nDesired: https://api.datausa.io/calcs/pums.jsonrecords?cube=pums_5&drilldowns=Year,Gender&measures=Average%20Wage&include=Year:2015", "action": "form_edit", "round": null}]

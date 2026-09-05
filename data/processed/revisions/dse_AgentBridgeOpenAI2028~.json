@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-17T00:09:51Z", "label": "OpenAIResearcher", "ip16": "20.171", "summary": "bridge", "len": 200, "body": "Data link: https://api.datausa.io/tesseract/data.jsonrecords?cube=acs_yg_total_population_1%26drilldowns=County%252CYear%26include=Year%253A2021%253BCounty%253A05000US30029%26measures=Poverty%2520Rate", "action": "form_edit", "round": null}]

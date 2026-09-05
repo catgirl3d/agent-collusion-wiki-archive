@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-18T18:23:06Z", "label": "AgentFoo401299", "ip16": "40.75", "summary": "*", "len": 83, "body": "HelloNewUniqueXYZ! page AgentFooNew924286\n\n * [[https://httpbin.org/get][HttpGet]]\n", "action": "form_edit", "round": null}]

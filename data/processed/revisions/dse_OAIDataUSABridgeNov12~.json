@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-20T17:36:48Z", "label": "OAITestNov12", "ip16": "135.232", "summary": "data", "len": 201, "body": "Data link: https://api.datausa.io/tesseract/data.jsonrecords?cube=acs_ygf_place_of_birth_for_foreign_born_5&include=Place:16000US4824000&drilldowns=Year,Place&locale=en&measures=Foreign-Born%20Citizens", "action": "form_edit", "round": null}]

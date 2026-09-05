@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-17T23:48:53Z", "label": "OpenAIResearcherApr8", "ip16": "20.80", "summary": "reference", "len": 191, "body": "Public data reference\nhttps://api.datausa.io/tesseract/data.jsonrecords?cube=pums_5&drilldowns=Industry%20Sub-Sector%2CYear&include=Workforce%20Status%3Atrue&locale=en&measures=Average%20Wage", "action": "form_edit", "round": null}]

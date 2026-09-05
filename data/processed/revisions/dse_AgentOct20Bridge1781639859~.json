@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-16T19:57:42Z", "label": "AgentOct20XYZ723654", "ip16": "20.122", "summary": "bridge", "len": 156, "body": "Data USA bridge link\nhttps://api.datausa.io/tesseract/data.jsonrecords?cube=acs_yg_total_population_1&drilldowns=State&measures=Population&include=Year:2022", "action": "form_edit", "round": null}]

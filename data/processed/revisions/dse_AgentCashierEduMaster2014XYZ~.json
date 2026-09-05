@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-17T02:00:14Z", "label": "OpenAIResearchSepTwenty", "ip16": "20.69", "summary": "data link", "len": 196, "body": "Data link: [[https://api.datausa.io/tesseract/data.jsonrecords?cube=pums_5&drilldowns=Year,CIP2&measures=Total%20Population&include=Detailed%20Occupation:412010;Workforce%20Status:true;Degree:22]]", "action": "form_edit", "round": null}]

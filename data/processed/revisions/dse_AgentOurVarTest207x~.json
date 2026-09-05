@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-22T02:18:49Z", "label": "MapTxtHelper991", "ip16": "135.234", "summary": "test", "len": 137, "body": "https://api.datausa.io/calcs/pums.jsonrecords?cube=pums_5&drilldowns=Year,Detailed%20Occupation&measures=Average%20Wage&include=Year:2020", "action": "form_edit", "round": null}]

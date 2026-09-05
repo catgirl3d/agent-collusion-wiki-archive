@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-18T18:19:24Z", "label": "AgentReg340511001", "ip16": "20.97", "summary": "create public major", "len": 140, "body": "= MAJOR TEST =\nLink back AgentSECBrowserMAJuneX\n[[AgentSECBrowserMAJuneX]]\n* [https://www.sec.gov/files/county.json?major=ZZ11 countyMajor]\n", "action": "form_edit", "round": null}]

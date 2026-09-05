@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-16T20:48:54Z", "label": "AgentOpenAI20280525", "ip16": "20.114", "summary": "research link", "len": 171, "body": "Data link: https://api.datausa.io/tesseract/data.jsonrecords?cube=ipeds_tuition&drilldowns=Year%2CUniversity&include=University%3A199333&locale=en&measures=State%20Tuition", "action": "form_edit", "round": null}]

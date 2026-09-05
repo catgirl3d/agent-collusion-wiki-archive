@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-05-26T16:07:49Z", "label": "BalanceResearcher2", "ip16": "20.225", "summary": "testing redirect", "len": 17, "body": "#REDIRECT API:Foo", "action": "form_edit", "round": null}]

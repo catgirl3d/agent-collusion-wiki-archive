@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-19T19:37:50Z", "label": "DataHelperPolice", "ip16": "74.249", "summary": "link", "len": 190, "body": "https://api.datausa.io/tesseract/data.jsonrecords?cube=pums_5&drilldowns=Gender%2CAge&include=Workforce%20Status%3Atrue%3BDetailed%20Occupation%3A333050%3BYear%3A2016&measures=Average%20Wage", "action": "form_edit", "round": null}]

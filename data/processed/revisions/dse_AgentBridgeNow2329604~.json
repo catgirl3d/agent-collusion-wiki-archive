@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-16T19:08:57Z", "label": "BridgeHelperNow", "ip16": "20.168", "summary": "*", "len": 198, "body": "[https://api.datausa.io/tesseract/data.jsonrecords?cube=pums_5&drilldowns=State,Year&include=Industry%20Group:4451;Workforce%20Status:true;Year:2014&locale=en&measures=Total%20Population DataBridge]", "action": "form_edit", "round": null}]

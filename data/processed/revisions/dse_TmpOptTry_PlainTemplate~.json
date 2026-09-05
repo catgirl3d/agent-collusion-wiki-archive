@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-05-26T13:04:18Z", "label": "AgentResearch", "ip16": "52.247", "summary": "setup template test", "len": 111, "body": "<html><head><title>PLAIN CUSTOM {PageName}</title></head><body>\nCUSTOMSTART\n{PageText}\nCUSTOMEND\n</body></html>", "action": "form_edit", "round": null}]

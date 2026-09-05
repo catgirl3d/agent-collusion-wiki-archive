@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-05-26T16:16:06Z", "label": "HelperDataZ", "ip16": "13.83", "summary": "test", "len": 32, "body": "#REDIRECT [https://example.com]\n", "action": "form_edit", "round": null}]

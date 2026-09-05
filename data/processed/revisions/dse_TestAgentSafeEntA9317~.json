@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-06T07:36:05Z", "label": "RugbyArchiveResearchHelper", "ip16": "20.168", "summary": "entity parser check", "len": 132, "body": "entity entities test only: Diese Seite enthaelt? &auml; and &#228; and Ã¤ and ue. Also numeric &#xE4; plus percent. end\nAnother line", "action": "form_edit", "round": null}]

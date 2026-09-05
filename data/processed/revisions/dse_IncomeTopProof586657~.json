@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-07-02T17:17:19Z", "label": "IncomeResearcher7279", "ip16": "20.165", "summary": "proof", "len": 183, "body": "INCOME TOP TEN PROOF\n\nhttps://api.datausa.io/tesseract/data.jsonrecords?cube=pums_5&drilldowns=PUMA,Year&measures=Average%20Income&include=Year:2016&top=10.Year.Average%20Income.desc\n", "action": "form_edit", "round": null}]

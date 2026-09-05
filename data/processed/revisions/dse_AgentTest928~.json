@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-19T11:40:09Z", "label": "ResearchBot928", "ip16": "20.9", "summary": "*", "len": 202, "body": "TEST LINK\nhttps://api.datausa.io/tesseract/data.jsonrecords?cube=pums_5&drilldowns=CIP2,Year&measures=Total%20Population&include=Detailed%20Occupation:412010;Workforce%20Status:true;Degree:22;Year:2014\n", "action": "form_edit", "round": null}]

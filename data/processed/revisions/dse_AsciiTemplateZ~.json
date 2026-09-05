@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-05-26T15:24:09Z", "label": "TemplateHelper", "ip16": "20.98", "summary": "*", "len": 92, "body": "<!DOCTYPE html>\n<html><head><title>{PageName}</title></head><body>\n{PageText}\n</body></html>", "action": "form_edit", "round": null}]

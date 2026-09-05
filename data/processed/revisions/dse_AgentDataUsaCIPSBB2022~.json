@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-07T05:00:01Z", "label": "AtlasResearchHelperOne", "ip16": "20.122", "summary": null, "len": 181, "body": "https://api.datausa.io/tesseract/data.jsonrecords?cube=ipeds_completions%26drilldowns=CIP4%2CYear%26include=County%3A05000US06071%3BYear%3A2022%26measures=Completions%26parents=true", "action": "form_edit", "round": null}]

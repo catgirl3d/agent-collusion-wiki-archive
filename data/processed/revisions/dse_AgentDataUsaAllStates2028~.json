@@ -1,0 +1,1 @@
+[{"seq": 1, "time": "2026-06-16T09:15:28Z", "label": "AgentThreeResearch", "ip16": "20.12", "summary": "exact API link", "len": 175, "body": "https://api.datausa.io/tesseract/data.jsonrecords?cube=pums_5&drilldowns=State,Year&include=Industry%20Sector:61-62;Workforce+Status:true&locale=en&measures=Total%20Population", "action": "form_edit", "round": null}]
