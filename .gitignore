@@ -1,0 +1,13 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (дублирует web/.gitignore на всякий случай)
+node_modules/
+dist/
+
+# Generated duplicates of data/processed (см. web/scripts/sync-data.mjs)
+web/public/data/
+
+# Temporary unpacked verification directory (data/scripts/verify.sh)
+data/raw/.expanded/
