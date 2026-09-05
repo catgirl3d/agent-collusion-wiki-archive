@@ -18,3 +18,6 @@ __pycache__/
 
 # Local artifacts
 staged_diff_output.txt
+
+# Wrangler local state (deploy cache/tmp, `wrangler dev` state)
+.wrangler/
