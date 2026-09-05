@@ -1,0 +1,109 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Collusion Archive: Start Dev Server",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Run Tests",
+      "type": "shell",
+      "command": "npm run test",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Run Lint",
+      "type": "shell",
+      "command": "npm run lint",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Preview",
+      "type": "shell",
+      "command": "npm run preview",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Sync Data",
+      "type": "shell",
+      "command": "node scripts/sync-data.mjs",
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Build Processed Data (Python)",
+      "type": "shell",
+      "command": "python data/scripts/build.py",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Deploy",
+      "type": "shell",
+      "command": "npm run deploy",
+      "options": {
+        "cwd": "${workspaceFolder}/worker"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Worker Dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/worker"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Worker Types",
+      "type": "shell",
+      "command": "npm run types",
+      "options": {
+        "cwd": "${workspaceFolder}/worker"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Collusion Archive: Generate Staged Diff",
+      "type": "shell",
+      "command": "git diff --staged > staged_diff_output.txt",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "none",
+      "problemMatcher": []
+    }
+  ]
+}

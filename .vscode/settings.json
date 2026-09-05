@@ -1,0 +1,93 @@
+{
+  "actionButtons": {
+    "commands": [
+      {
+        "name": "DEV",
+        "color": "#e0f7fa",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Start Dev Server"]
+      },
+      {
+        "name": "WORKER DEV",
+        "color": "#b3e5fc",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Worker Dev"]
+      },
+      {
+        "name": "TEST",
+        "color": "#c8e6c9",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Run Tests"]
+      },
+      {
+        "name": "LINT",
+        "color": "#fff59d",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Run Lint"]
+      },
+      {
+        "name": "BUILD",
+        "color": "#d1c4e9",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Build"]
+      },
+      {
+        "name": "DEPLOY",
+        "color": "#ffcdd2",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Deploy"]
+      },
+      {
+        "name": "PREVIEW",
+        "color": "#b2ebd9",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Preview"]
+      },
+      {
+        "name": "SYNC DATA",
+        "color": "#e1bee7",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Sync Data"]
+      },
+      {
+        "name": "BUILD DATA",
+        "color": "#b3e5fc",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Build Processed Data (Python)"]
+      },
+      {
+        "name": "DIFF",
+        "color": "white",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Generate Staged Diff"]
+      },
+      {
+        "name": "FORCE PUSH",
+        "color": "#ffab91",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Git: Force Push with Lease"]
+      },
+      {
+        "name": "SOFT RESET",
+        "color": "#cfd8dc",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Git: Custom Soft Reset"]
+      }
+    ],
+    "defaultColor": "white",
+    "reloadButton": "↻",
+    "loadNpmCommands": false
+  }
+}

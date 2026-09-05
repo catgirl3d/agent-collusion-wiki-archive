@@ -11,3 +11,10 @@ web/public/data/
 
 # Temporary unpacked verification directory (data/scripts/verify.sh)
 data/raw/.expanded/
+
+# Python
+__pycache__/
+*.pyc
+
+# Local artifacts
+staged_diff_output.txt
