@@ -1,35 +1,41 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { buildPairTimeline, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
 import { loadJson, revisionFile } from '../api'
 import { Badge, Chip, PageLink } from '../components/ui'
+import { DiffView } from '../components/DiffView'
+import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import { useData, useJson } from '../components/useQuery'
 import type { AgentLinks, LabelsIndex, PageRecord, PagesIndex, PayloadRecord, Revision } from '../types'
-import { fmtInt, fmtTime, wikiColor } from '../utils/format'
+import { fmtInt, fmtTime, fmtTimeSeconds, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS, detectPayloadFlags, highlightMatches } from '../utils/payload'
+import { clearPair, parsePair, setPair } from '../utils/pairSelection'
 
-function DiffLine({ text }: { text: string }) {
-  const segments = highlightMatches(text)
-  return (
-    <>
-      {segments.map((seg, idx) =>
-        seg.flag ? (
-          <mark key={idx} className="mark-payload" data-flag={seg.flag}>
-            {seg.text}
-          </mark>
-        ) : (
-          <span key={idx}>{seg.text}</span>
-        ),
-      )}
-    </>
-  )
-}
 
 function Body({ body, enabled }: { body: string; enabled: boolean }) {
   if (!enabled || body.length > 200_000) return <>{body}</>
   return <>{highlightMatches(body).map((segment, i) => segment.flag ? <mark key={i} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={i}>{segment.text}</span>)}</>
 }
 
-function AgentGraph({ label, links, pagesById }: { label: string; links: AgentLinks; pagesById: Map<string, PageRecord[]> }) {
+function AgentGraph({
+  label,
+  links,
+  labelsIndex,
+  pagesIndex,
+  pagesById,
+  revs,
+  selectedPartner,
+  onSelectPair,
+}: {
+  label: string
+  links: AgentLinks
+  labelsIndex: LabelsIndex | null
+  pagesIndex: PagesIndex | null
+  pagesById: Map<string, PageRecord[]>
+  revs: Revision[] | null
+  selectedPartner: string | null
+  onSelectPair: (partner: string) => void
+}) {
   const coAgents = useMemo(() => {
     const raw = links[label] || []
     return [...raw]
@@ -38,19 +44,55 @@ function AgentGraph({ label, links, pagesById }: { label: string; links: AgentLi
   }, [links, label])
   const allLabelPages = useMemo(() => pagesById.get(label) ?? [], [pagesById, label])
   const displayLabelPages = useMemo(() => allLabelPages.slice(0, 6), [allLabelPages])
-  const coAgentSet = useMemo(() => new Set(coAgents.map((a) => a.o)), [coAgents])
+
+  // Exact shared-page intersection from labels.json pgs for all linked labels in one pass
+  // (agent_links c is only an edge weight). Entries include metadata-missing IDs; the card
+  // preview shows only named ones.
+  const exactSharedByLabel = useMemo(
+    () => getSharedPagesForAll(label, labelsIndex ?? null, pagesIndex ?? null),
+    [labelsIndex, pagesIndex, label],
+  )
+
+  const totalIndexedLinks = (links[label] || []).length
+
+  const crossLabelTransitions = useMemo(() => {
+    if (!revs || revs.length < 2) return 0
+    let count = 0
+    let prevLabel: string | null = null
+    for (const r of revs) {
+      if (r.label) {
+        if (prevLabel && prevLabel !== r.label) count++
+        prevLabel = r.label
+      }
+    }
+    return count
+  }, [revs])
+
+  const cardEvidenceMap = useMemo(() => {
+    if (!revs || !label) return null
+    const map = new Map<string, { count: number; latestTime: string | null; chips: string[] }>()
+    for (const agent of coAgents) {
+      const timeline = buildPairTimeline(revs, label, agent.o)
+      const events = timeline.events
+      const count = events.length
+      const latestEvent = count > 0 ? events[count - 1] : null
+      const latestTime = latestEvent?.time ? fmtTimeSeconds(latestEvent.time) : null
+      const signals = derivePatternSignals(events)
+      const chips = formatPatternSignals(signals).map((chip) => `${chip.count} ${chip.label}`)
+      map.set(agent.o, { count, latestTime, chips })
+    }
+    return map
+  }, [revs, label, coAgents])
 
   if (!coAgents.length && !allLabelPages.length) return null
 
-  const maxC = Math.max(1, ...coAgents.map((a) => a.c))
-  const sharedPageLinksTop10 = coAgents.reduce((sum, a) => sum + a.c, 0)
   return (
     <section className="card agent-dossier-card">
       <div className="agent-dossier-header-bar">
         <div>
           <div className="agent-title-row">
-            <span className="muted uppercase tracking-wider text-xs">Coordination Dossier</span>
-            <Badge color="#38bdf8">cluster root</Badge>
+            <span className="muted uppercase tracking-wider text-xs">Shared Activity Dossier</span>
+            <Badge color="#38bdf8">focused label</Badge>
           </div>
           <h2 className="mono agent-dominant-name">
             <Link to={`/agents?q=${encodeURIComponent(label)}`} className="link">
@@ -60,16 +102,21 @@ function AgentGraph({ label, links, pagesById }: { label: string; links: AgentLi
         </div>
         <div className="agent-cluster-metrics">
           <div className="agent-metric-item">
-            <span className="metric-val">{(links[label] || []).length}</span>
-            <span className="metric-lbl">Co-conspirators</span>
+            <span className="metric-val">
+              {coAgents.length} / {totalIndexedLinks}
+              {totalIndexedLinks > 10 && <span className="muted text-xs"> capped top 10</span>}
+            </span>
+            <span className="metric-lbl">linked labels shown / indexed</span>
           </div>
-          <div className="agent-metric-item">
-            <span className="metric-val">{sharedPageLinksTop10}</span>
-            <span className="metric-lbl">Shared page links (top 10)</span>
-          </div>
+          {revs != null && (
+            <div className="agent-metric-item">
+              <span className="metric-val">{crossLabelTransitions}</span>
+              <span className="metric-lbl">cross-label transitions on this page</span>
+            </div>
+          )}
           <div className="agent-metric-item">
             <span className="metric-val">{allLabelPages.length}</span>
-            <span className="metric-lbl">Target Pages</span>
+            <span className="metric-lbl">target pages</span>
           </div>
           <Link to={`/network?agent=${encodeURIComponent(label)}`} className="btn sm">
             Explore in Network Graph →
@@ -81,7 +128,7 @@ function AgentGraph({ label, links, pagesById }: { label: string; links: AgentLi
         {/* Left Column: Target pages edited by root agent */}
         <div className="agent-dossier-pages-col">
           <h3 className="section-subtitle">
-            Pages edited by {label.length > 20 ? `${label.slice(0, 18)}…` : label} <span className="muted">({allLabelPages.length})</span>
+            Target pages <span className="muted">(showing {displayLabelPages.length} of {allLabelPages.length})</span>
           </h3>
           <div className="dossier-page-list">
             {displayLabelPages.map((page) => (
@@ -100,171 +147,89 @@ function AgentGraph({ label, links, pagesById }: { label: string; links: AgentLi
         {coAgents.length > 0 && (
           <div className="agent-dossier-syndicate-col">
             <h3 className="section-subtitle">
-              Top Collaborating Agents <span className="muted">({coAgents.length})</span>
+              Linked labels <span className="muted">({totalIndexedLinks > 10 ? 'top 10 of indexed links' : coAgents.length})</span>
             </h3>
             <div className="syndicate-cards-grid">
               {coAgents.map((agent) => {
-                const strengthPct = Math.min(100, Math.round((agent.c / maxC) * 100))
-                const agentPages = pagesById.get(agent.o) ?? []
-                const agentPageIds = new Set(agentPages.map((ap) => ap.id))
-                const mutualPages = allLabelPages.filter((p) => agentPageIds.has(p.id))
-                const peerLinks = (links[agent.o] || []).filter((p) => coAgentSet.has(p.o) && p.o !== agent.o)
+                // Full exact intersection incl. metadata-missing IDs; preview shows only named pages.
+                const exactShared = exactSharedByLabel.get(agent.o) ?? []
+                const sharedCount = exactShared.length
+                const namedShared = exactShared.filter((s) => s.page !== null).slice(0, 2)
+                const isSelected = selectedPartner === agent.o
+                const evidence = cardEvidenceMap?.get(agent.o)
 
                 return (
-                  <article key={agent.o} className="syndicate-card">
-                  <header className="syndicate-card-head">
-                    <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="syndicate-agent-name mono">
-                      {agent.o}
-                    </Link>
-                    <Badge color={agent.c >= 4 ? '#fb7185' : '#38bdf8'}>
-                      {agent.c} shared
-                    </Badge>
-                  </header>
+                  <article key={agent.o} className={`syndicate-card${isSelected ? ' selected' : ''}`}>
+                    <header className="syndicate-card-head">
+                      <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="syndicate-agent-name mono">
+                        {agent.o}
+                      </Link>
+                      <Badge color="#38bdf8">
+                        {sharedCount} shared {sharedCount === 1 ? 'page' : 'pages'}
+                      </Badge>
+                    </header>
 
-                  <div className="collusion-meter">
-                    <div className="meter-label">
-                      <span>Coordination strength</span>
-                      <span className="mono">{strengthPct}%</span>
-                    </div>
-                    <div className="meter-track">
-                      <div
-                        className={`meter-fill ${agent.c >= 4 ? 'high' : 'medium'}`}
-                        style={{ width: `${strengthPct}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {mutualPages.length > 0 && (
-                    <div className="syndicate-shared-pages">
-                      <span className="muted text-xs">Shared targets:</span>
-                      <div className="shared-chips">
-                        {mutualPages.slice(0, 2).map((p) => (
-                          <span key={p.id} className="chip-mini">
-                            <PageLink id={p.id} name={p.n || p.id} max={22} />
-                          </span>
-                        ))}
-                        {mutualPages.length > 2 && (
-                          <span className="muted text-xs">+{mutualPages.length - 2}</span>
+                    {evidence && (
+                      <div className="syndicate-evidence-preview">
+                        <div className="muted text-xs">
+                          <span>{evidence.count} pair event{evidence.count === 1 ? '' : 's'} on this page</span>
+                          {evidence.latestTime && <span> · last observed {evidence.latestTime}</span>}
+                        </div>
+                        {evidence.chips.length > 0 && (
+                          <div className="evidence-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                            {evidence.chips.map((chipText) => (
+                              <span key={chipText} className="chip-mini mono">
+                                {chipText}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {peerLinks.length > 0 && (
-                    <div className="syndicate-peers">
-                      <span className="muted text-xs">Cluster peers:</span>
-                      <span className="peer-tags">
-                        {peerLinks.slice(0, 3).map((p) => (
-                          <span key={p.o} className="peer-tag mono">{p.o}</span>
-                        ))}
-                        {peerLinks.length > 3 && <span className="muted text-xs">+{peerLinks.length - 3}</span>}
-                      </span>
-                    </div>
-                  )}
+                    {sharedCount > 0 && (
+                      <div className="syndicate-shared-pages">
+                        <span className="muted text-xs">shared pages:</span>
+                        <div className="shared-chips">
+                          {namedShared.map((s) => (
+                            <span key={s.id} className="chip-mini">
+                              <PageLink id={s.id} name={s.page!.n || s.id} max={22} />
+                            </span>
+                          ))}
+                          {sharedCount > namedShared.length && (
+                            <span className="muted text-xs">+{sharedCount - namedShared.length}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                  <footer className="syndicate-card-foot">
-                    <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="link text-xs">
-                      Inspect agent dossier →
-                    </Link>
-                  </footer>
-                </article>
-              )
-            })}
+                    <div className="syndicate-card-actions">
+                      <button
+                        type="button"
+                        className="btn sm primary"
+                        aria-pressed={isSelected}
+                        onClick={() => onSelectPair(agent.o)}
+                      >
+                        Open pair evidence
+                      </button>
+                    </div>
+
+                    <footer className="syndicate-card-foot">
+                      <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="link text-xs">
+                        Inspect agent dossier →
+                      </Link>
+                    </footer>
+                  </article>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </section>
   )
 }
 
-function diffLines(a: string, b: string): Array<{ kind: 'ctx' | 'add' | 'del'; text: string }> {
-  if (a === b) return []
-  const al = a.split('\n')
-  const bl = b.split('\n')
-
-  // Common prefix stripping
-  let start = 0
-  while (start < al.length && start < bl.length && al[start] === bl[start]) {
-    start++
-  }
-
-  // Common suffix stripping
-  let aEnd = al.length - 1
-  let bEnd = bl.length - 1
-  while (aEnd >= start && bEnd >= start && al[aEnd] === bl[bEnd]) {
-    aEnd--
-    bEnd--
-  }
-
-  const prefix: Array<{ kind: 'ctx'; text: string }> = []
-  const pStart = Math.max(0, start - 3)
-  for (let i = pStart; i < start; i++) {
-    prefix.push({ kind: 'ctx', text: al[i] })
-  }
-
-  const suffix: Array<{ kind: 'ctx'; text: string }> = []
-  const sEnd = Math.min(al.length, aEnd + 1 + 3)
-  for (let i = aEnd + 1; i < sEnd; i++) {
-    suffix.push({ kind: 'ctx', text: al[i] })
-  }
-
-  const midA = al.slice(start, aEnd + 1)
-  const midB = bl.slice(start, bEnd + 1)
-  const n = midA.length
-  const m = midB.length
-
-  if (n > 600 || m > 600) {
-    return [
-      ...prefix,
-      { kind: 'del', text: `... [${n} lines modified] ...` },
-      { kind: 'add', text: `... [${m} lines modified] ...` },
-      ...suffix,
-    ]
-  }
-
-  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0))
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = midA[i] === midB[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
-    }
-  }
-
-  const middle: Array<{ kind: 'ctx' | 'add' | 'del'; text: string }> = []
-  let i = 0
-  let j = 0
-  while (i < n && j < m) {
-    if (midA[i] === midB[j]) {
-      middle.push({ kind: 'ctx', text: midA[i] })
-      i++
-      j++
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      middle.push({ kind: 'del', text: midA[i] })
-      i++
-    } else {
-      middle.push({ kind: 'add', text: midB[j] })
-      j++
-    }
-  }
-  while (i < n) middle.push({ kind: 'del', text: midA[i++] })
-  while (j < m) middle.push({ kind: 'add', text: midB[j++] })
-
-  return [...prefix, ...middle, ...suffix]
-}
-
-export function DiffView({ before, after }: { before: string; after: string }) {
-  const lines = useMemo(() => diffLines(before, after), [before, after])
-  if (before === after) return <div className="muted">No changes between these revisions.</div>
-  return (
-    <pre className="diff">
-      {lines.map((l, i) => (
-        <div key={i} className={`diff-${l.kind}`}>
-          {l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : ' '} <DiffLine text={l.text} />
-        </div>
-      ))}
-    </pre>
-  )
-}
 
 export default function PageDetail() {
   const params = useParams()
@@ -278,33 +243,62 @@ export default function PageDetail() {
 
 function PageDetailView({ pageId: decoded }: { pageId: string }) {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const { data: index } = useJson<PagesIndex>(() => loadJson<PagesIndex>('pages.json'), [])
+  const { data: index } = useData<PagesIndex>('pages.json')
   const { data: payloadIndex } = useData<PayloadRecord[]>('payload_index.json')
   const { data: agentLinks } = useData<AgentLinks>('agent_links.json')
-  // pgs в labels.json не усечён (в отличие от labs в pages.json, обрезанных до 8) — источник страниц лейбла для графа
+  // labels.json pgs is untruncated (unlike labs in pages.json, capped at 8) — the source of a label's pages for the graph
   const { data: labelsIndex } = useData<LabelsIndex>('labels.json')
 
-  const meta: PageRecord | undefined = useMemo(
-    () => (index ? index.p.find((p) => p.id === decoded) : undefined),
-    [index, decoded],
-  )
+  // Bare-id URLs (e.g. /page/AgentZzzHighMapJun21 from older links) resolve to a canonical
+  // wiki-prefixed record ONLY when exactly one page matches; ambiguous or unknown ids never
+  // fall through to a guessed revision request.
+  const resolved: { id: string; meta?: PageRecord } | null = useMemo(() => {
+    if (!index || !decoded) return null
+    const exact = index.p.find((p) => p.id === decoded)
+    if (exact) return { id: decoded, meta: exact }
+    if (decoded.includes('/')) return null
+    const matches = index.p.filter((p) => p.id.endsWith('/' + decoded))
+    return matches.length === 1 ? { id: matches[0].id, meta: matches[0] } : null
+  }, [index, decoded])
 
+  // Redirect bare-id URLs to their canonical form once resolved.
+  const canonicalId = resolved && resolved.id !== decoded ? resolved.id : null
+  useEffect(() => {
+    if (canonicalId) {
+      navigate('/page/' + encodeURIComponent(canonicalId) + '?' + searchParams.toString(), { replace: true })
+    }
+  }, [canonicalId, navigate, searchParams])
+
+  const lookupId = resolved?.id
+  const meta: PageRecord | undefined = resolved?.meta
+
+  // Fetch only when the index is loaded AND the id is canonically resolved; unknown/ambiguous
+  // ids never request a guessed revision file (which would return the SPA HTML fallback and
+  // crash JSON.parse). While the index is still loading the fetch is deferred via an
+  // immediately-resolved empty sentinel (a never-settling promise would hang "loading" forever).
+  const indexReady = Boolean(index)
   const { data: revs, error } = useJson<Revision[]>(
-    () => (decoded ? loadJson<Revision[]>(revisionFile(decoded, meta?.s)) : Promise.reject(new Error('no page id'))),
-    [decoded, meta?.s],
+    () => {
+      if (!indexReady) return Promise.resolve([] as Revision[])
+      if (!resolved) return Promise.reject(new Error('not-found'))
+      return loadJson<Revision[]>(revisionFile(resolved.id, resolved.meta?.s))
+    },
+    [indexReady, resolved, lookupId],
   )
 
   const [sel, setSel] = useState<{ from: number; to: number } | null>(null)
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
 
-  const payload = useMemo(() => payloadIndex?.find((item) => item.s === meta?.s || item.id === decoded), [payloadIndex, meta?.s, decoded])
+  const payload = useMemo(() => (lookupId ? payloadIndex?.find((item) => item.s === meta?.s || item.id === lookupId) : undefined), [payloadIndex, meta?.s, lookupId])
   const dominantLabel = useMemo(() => {
     if (!revs) return ''
     const counts = new Map<string, number>()
     for (const rev of revs) if (rev.label) counts.set(rev.label, (counts.get(rev.label) || 0) + 1)
     return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || ''
   }, [revs])
+
   const labelPagesById = useMemo(() => {
     const map = new Map<string, PageRecord[]>()
     if (!labelsIndex || !index) return map
@@ -315,6 +309,56 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     }
     return map
   }, [labelsIndex, index])
+
+  const validLabels = useMemo(() => {
+    if (!labelsIndex) return undefined
+    const set = new Set<string>()
+    for (const l of labelsIndex.l) {
+      if (l.x) set.add(l.x)
+    }
+    return set
+  }, [labelsIndex])
+
+  const pair = useMemo(() => parsePair(searchParams, validLabels), [searchParams, validLabels])
+
+  // The pair itself is URL state: it stays valid across any shared page even when the dominant
+  // label differs. dominantLabel is used only for opening a pair FROM a card (handleSelectPair).
+  const pairTimeline = useMemo(() => {
+    if (!pair || !revs) return null
+    return buildPairTimeline(revs, pair.a, pair.b)
+  }, [pair, revs])
+
+  const sharedPages = useMemo(() => {
+    if (!pair) return [] as SharedPageEntry[]
+    return getSharedPages(pair.a, pair.b, labelsIndex ?? null, index ?? null)
+  }, [pair, labelsIndex, index])
+
+  // Panel mounts only when the CURRENT page is a member of the exact pair intersection —
+  // a copied URL pointing at an unrelated page falls back to the overview (plan data boundary).
+  const currentPageInPair = useMemo(
+    () => (lookupId ? sharedPages.some((entry) => entry.id === lookupId) : false),
+    [sharedPages, lookupId],
+  )
+
+  const handleSelectPair = (partner: string) => {
+    if (!dominantLabel) return
+    const next = setPair(searchParams, dominantLabel, partner)
+    const shared = getSharedPages(dominantLabel, partner, labelsIndex ?? null, index ?? null)
+    // Panel renders only when the current page belongs to the pair intersection; if it does not,
+    // navigate to the first metadata-backed shared page so the evidence is actually shown.
+    if (!lookupId || !shared.some((entry) => entry.id === lookupId)) {
+      const target = shared.find((entry) => entry.page !== null)
+      if (target) {
+        navigate('/page/' + encodeURIComponent(target.id) + '?' + next.toString())
+        return
+      }
+    }
+    setSearchParams(next)
+  }
+
+  const handleClosePair = () => {
+    setSearchParams(clearPair(searchParams))
+  }
 
   const toggleExpand = (idx: number) => {
     setExpanded((prev) => ({ ...prev, [idx]: !isExpanded(idx) }))
@@ -331,8 +375,24 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     return [0, revs ? revs.length - 1 : 0]
   }, [sel, revs])
 
-  if (error) return <div className="error">Ошибка загрузки: {error}</div>
-  if (!revs) return <div className="loading">Загрузка…</div>
+  if (error) {
+    const notFound = !resolved
+    return (
+      <div className="error">
+        {notFound ? (
+          <>
+            Page <code className="mono">{decoded}</code> not found in the archive index.{' '}
+            <Link to="/pages" className="link">Browse all pages</Link>
+          </>
+        ) : (
+          <>Ошибка загрузки: {error}</>
+        )}
+      </div>
+    )
+  }
+  // Index still loading (empty sentinel) or revisions pending: show loading,
+  // never a transient "not found" flash before pages.json arrives.
+  if (!revs || (!indexReady && !error)) return <div className="loading">Загрузка…</div>
 
   return (
     <div className="page">
@@ -347,7 +407,32 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         </p>
       )}
       {payload && <div className="payload-strip"><span className="muted mono">payload:</span>{payload.f.map((flag) => <Badge key={flag} color={PAYLOAD_FLAG_COLORS[flag]}>{flag}</Badge>)}{payload.u.map((domain) => <span key={domain} className="payload-domain mono">{domain}</span>)}</div>}
-      {agentLinks && dominantLabel && <AgentGraph label={dominantLabel} links={agentLinks} pagesById={labelPagesById} />}
+      {agentLinks && dominantLabel && (
+        <AgentGraph
+          label={dominantLabel}
+          links={agentLinks}
+          labelsIndex={labelsIndex ?? null}
+          pagesIndex={index ?? null}
+          pagesById={labelPagesById}
+          revs={revs}
+          selectedPartner={pair ? (pair.a === dominantLabel ? pair.b : pair.b === dominantLabel ? pair.a : null) : null}
+          onSelectPair={handleSelectPair}
+        />
+      )}
+      {pair && pairTimeline && currentPageInPair && (
+        <PairEvidencePanel
+          leftLabel={pair.a}
+          rightLabel={pair.b}
+          sharedPages={sharedPages}
+          selectedPageId={lookupId ?? null}
+          timeline={pairTimeline}
+          onClose={handleClosePair}
+          onOpenPageInPageDetail={(pageId) => {
+            navigate('/page/' + encodeURIComponent(pageId) + '?' + setPair(searchParams, pair.a, pair.b, { keepPage: true }).toString())
+          }}
+          sourceMode="page"
+        />
+      )}
 
       <section className="card">
         <h2>Compare revisions</h2>
