@@ -12,6 +12,7 @@ import {
   fmtCompact,
   fmtInt,
   fmtTime,
+  fmtTimeSeconds,
   toCsv,
   wikiColor,
 } from './format'
@@ -190,6 +191,21 @@ describe('filterPages with tokenSlugs and payloadFlags', () => {
     // без флага-фильтра — все страницы
     const all = filterPages(rows, { query: '', wiki: '', deletedOnly: false, minRevs: 0 })
     expect(all.length).toBe(3)
+  })
+})
+
+describe('fmtTimeSeconds', () => {
+  it('formats timestamp with seconds-preserving UTC precision', () => {
+    expect(fmtTimeSeconds('2026-06-22T08:45:55Z')).toBe('2026-06-22 08:45:55Z')
+  })
+
+  it('returns dash on null and raw input on invalid date', () => {
+    expect(fmtTimeSeconds(null)).toBe('—')
+    expect(fmtTimeSeconds('not-a-date')).toBe('not-a-date')
+  })
+
+  it('preserves existing fmtTime minute precision', () => {
+    expect(fmtTime('2026-06-22T08:45:55Z')).toBe('2026-06-22 08:45Z')
   })
 })
 

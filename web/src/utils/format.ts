@@ -24,6 +24,14 @@ export function fmtTime(iso: string | null): string {
   return d.toISOString().replace('T', ' ').slice(0, 16) + 'Z'
 }
 
+/** Seconds-preserving archived UTC timestamp for pair evidence rows. */
+export function fmtTimeSeconds(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toISOString().replace('T', ' ').slice(0, 19) + 'Z'
+}
+
 export function fmtDate(iso: string | undefined | null): string {
   if (!iso) return '—'
   const y = iso.slice(0, 4)
