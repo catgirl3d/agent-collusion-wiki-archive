@@ -10,13 +10,65 @@ const REDIRECT_RE = /(?:markdown\.new|r\.jina\.ai)/g
 const LATIN_RE = /[A-Za-z]/
 const CYRILLIC_RE = /[\u0400-\u04ff]/
 
-function validBase64(value: string): boolean {
+export function validBase64(value: string): boolean {
   try {
     const decoded = atob(value)
-    return decoded.length > 0 && [...decoded].filter((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) <= 126).length / decoded.length > 0.8
+    // Count printable ASCII in a loop: spreading a large decoded string into an array
+    // allocates megabyte-scale arrays and causes GC spikes on big payloads.
+    let printable = 0
+    for (let i = 0; i < decoded.length; i++) {
+      const code = decoded.charCodeAt(i)
+      if (code >= 32 && code <= 126) printable++
+    }
+    return decoded.length > 0 && printable / decoded.length > 0.8
   } catch {
     return false
   }
+}
+
+export interface PayloadMatch {
+  start: number
+  end: number
+  flag: string
+}
+
+/**
+ * Single source of truth for flag-to-match scanning: rule regexes, case semantics
+ * (script/inject over lowercase body) and Base64 validation — mirrors
+ * data/scripts/build.py detect_payload_flags. Callers must pass activeFlags to
+ * restrict which rules produce matches.
+ */
+export function scanPayloadMatches(body: string, activeFlags?: Set<string>): PayloadMatch[] {
+  const matches: PayloadMatch[] = []
+  const lowered = body.toLowerCase()
+  const rules: Array<[RegExp, string, string]> = [
+    [BASE64_RE, 'b64', body],
+    [HEX_RE, 'hex', body],
+    [SCRIPT_RE, 'script', lowered],
+    [INJECT_RE, 'inject', lowered],
+    [TUNNEL_RE, 'tunnel', body],
+    [REDIRECT_RE, 'redirect', body],
+  ]
+  for (const [re, flag, haystack] of rules) {
+    if (activeFlags && !activeFlags.has(flag)) continue
+    re.lastIndex = 0
+    for (const match of haystack.matchAll(re)) {
+      if (flag === 'b64' && !validBase64(match[0])) continue
+      matches.push({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length, flag })
+    }
+  }
+  const checkHomoglyph = !activeFlags || activeFlags.has('homoglyph')
+  const checkEntropy = !activeFlags || activeFlags.has('high-entropy')
+  for (const match of body.matchAll(/\S+/g)) {
+    const word = match[0]
+    const idx = match.index ?? 0
+    if (checkHomoglyph && LATIN_RE.test(word) && CYRILLIC_RE.test(word)) {
+      matches.push({ start: idx, end: idx + word.length, flag: 'homoglyph' })
+    } else if (checkEntropy && word.length >= 200 && shannonEntropy(word) > 4.5) {
+      matches.push({ start: idx, end: idx + word.length, flag: 'high-entropy' })
+    }
+  }
+  return matches
 }
 
 function hasMatch(body: string, re: RegExp): boolean {
@@ -61,31 +113,9 @@ export interface PayloadSegment {
 }
 
 export function highlightMatches(body: string): PayloadSegment[] {
-  const matches: Array<{ start: number; end: number; flag: string }> = []
-  const lowered = body.toLowerCase()
-  // правила и case-семантика — зеркало detect_payload_flags из data/scripts/build.py
-  const rules: Array<[RegExp, string, string]> = [
-    [BASE64_RE, 'b64', body], [HEX_RE, 'hex', body], [SCRIPT_RE, 'script', lowered],
-    [INJECT_RE, 'inject', lowered], [TUNNEL_RE, 'tunnel', body], [REDIRECT_RE, 'redirect', body],
-  ]
-  for (const [re, flag, haystack] of rules) {
-    re.lastIndex = 0
-    for (const match of haystack.matchAll(re)) {
-      if (flag === 'b64' && !validBase64(match[0])) continue
-      matches.push({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length, flag })
-    }
-  }
-  for (const match of body.matchAll(/\S+/g)) {
-    const word = match[0]
-    const idx = match.index ?? 0
-    if (LATIN_RE.test(word) && CYRILLIC_RE.test(word)) {
-      matches.push({ start: idx, end: idx + word.length, flag: 'homoglyph' })
-    } else if (word.length >= 200 && shannonEntropy(word) > 4.5) {
-      matches.push({ start: idx, end: idx + word.length, flag: 'high-entropy' })
-    }
-  }
-
+  const matches = scanPayloadMatches(body)
   matches.sort((a, b) => a.start - b.start || b.end - a.end)
+
   const segments: PayloadSegment[] = []
   let cursor = 0
   for (const match of matches) {
