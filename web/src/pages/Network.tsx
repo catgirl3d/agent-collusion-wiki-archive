@@ -1,11 +1,15 @@
 import type { Core, EdgeSingular, ElementDefinition, LayoutOptions, NodeSingular } from 'cytoscape'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { loadJson, revisionFile } from '../api'
+import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import { Badge, Chip } from '../components/ui'
 import { useData } from '../components/useQuery'
-import type { AgentLinks, LabelsIndex } from '../types'
+import type { AgentLinks, LabelsIndex, PagesIndex, Revision } from '../types'
 import { fmtInt, wikiColor } from '../utils/format'
 import { buildNetwork, type NetworkData } from '../utils/network'
+import { buildPairTimeline, getSharedPages, type PairTimeline } from '../utils/pairEvidence'
+import { clearPair, parsePair, parsePairPage, setPair } from '../utils/pairSelection'
 
 const getLayoutOptions = (name: 'cose' | 'concentric' | 'circle'): LayoutOptions => {
   switch (name) {
@@ -64,9 +68,10 @@ const toElements = (data: NetworkData): ElementDefinition[] => [
 
 export default function Network() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { data: links, loading: loadingLinks, error: errorLinks } = useData<AgentLinks>('agent_links.json')
   const { data: labelsIndex, loading: loadingLabels } = useData<LabelsIndex>('labels.json')
-
+  const { data: pagesIndex, loading: loadingPages } = useData<PagesIndex>('pages.json')
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<Core | null>(null)
   const searchWrapRef = useRef<HTMLDivElement>(null)
@@ -113,9 +118,10 @@ export default function Network() {
   }, [agentParam, links, presets])
 
   const setFocalAgent = (name: string) => {
-    const next = new URLSearchParams(searchParams)
+    let next = new URLSearchParams(searchParams)
     next.set('agent', name)
     next.delete('sel')
+    next = clearPair(next)
     setSearchParams(next)
   }
 
@@ -140,6 +146,91 @@ export default function Network() {
     })
     return { nodes, edges: data.edges }
   }, [links, activeAgent, minShared, depth, labelsMap])
+
+  const rawPair = useMemo(() => parsePair(searchParams), [searchParams])
+
+  const validatedPair = useMemo(() => {
+    if (!rawPair) return null
+    // Any rendered edge (direct or peer) may open the pair inspector; validation is edge
+    // existence in the CURRENT network, not endpoint membership of the focal agent.
+    const edgeExists = networkData.edges.some(
+      (e) =>
+        (e.source === rawPair.a && e.target === rawPair.b) ||
+        (e.source === rawPair.b && e.target === rawPair.a),
+    )
+    if (!edgeExists) return null
+    return rawPair
+  }, [rawPair, networkData.edges])
+
+  const sharedPages = useMemo(() => {
+    if (!validatedPair) return []
+    return getSharedPages(validatedPair.a, validatedPair.b, labelsIndex, pagesIndex)
+  }, [validatedPair, labelsIndex, pagesIndex])
+
+  const selectedPageId = useMemo(() => {
+    if (!validatedPair || sharedPages.length === 0) return null
+    return parsePairPage(searchParams, sharedPages.map((s) => s.id))
+  }, [searchParams, validatedPair, sharedPages])
+
+  const selectedPageRecord = useMemo(() => {
+    if (!pagesIndex || !selectedPageId) return null
+    return pagesIndex.p.find((p) => p.id === selectedPageId) ?? null
+  }, [pagesIndex, selectedPageId])
+
+  // Request key binds the state to the exact (pair, page, slug) query — a newer selection never
+  // renders an older response, even during the render pass before the fetch effect runs.
+  const requestKey = validatedPair && selectedPageId
+    ? `${validatedPair.a}|${validatedPair.b}|${selectedPageId}|${selectedPageRecord?.s ?? ''}`
+    : null
+
+  const [pageState, setPageState] = useState<{
+    key: string | null
+    status: 'idle' | 'loading' | 'ready' | 'error'
+    timeline: PairTimeline | null
+  }>({ key: null, status: 'idle', timeline: null })
+
+
+  useEffect(() => {
+    if (!validatedPair || !selectedPageId) {
+      setPageState({ key: null, status: 'idle', timeline: null })
+      return
+    }
+
+    // No canonical page record/slug -> do NOT guess a revision filename; surface a local error
+    // while the shared-page list stays visible.
+    const slug = selectedPageRecord?.s
+    if (!slug) {
+      // Keep the key consistent with requestKey so the render gate surfaces this local error.
+      const key = `${validatedPair!.a}|${validatedPair!.b}|${selectedPageId}|`
+      setPageState({ key, status: 'error', timeline: null })
+      return
+    }
+
+    const key = `${validatedPair.a}|${validatedPair.b}|${selectedPageId}|${slug}`
+    setPageState({ key, status: 'loading', timeline: null })
+
+    let alive = true
+    loadJson<Revision[]>(revisionFile(selectedPageId, slug))
+      .then((revs) => {
+        if (!alive) return
+        setPageState({
+          key,
+          status: 'ready',
+          timeline: buildPairTimeline(revs, validatedPair.a, validatedPair.b),
+        })
+      })
+      .catch(() => {
+        if (!alive) return
+        setPageState({ key, status: 'error', timeline: null })
+      })
+
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- requestKey is derived from exactly these inputs
+  }, [validatedPair, selectedPageId, selectedPageRecord?.s])
+
+  const [cyReady, setCyReady] = useState(0)
 
   // Refs to avoid stale closures in Cytoscape event handlers (updated post-commit)
   const searchParamsRef = useRef(searchParams)
@@ -253,6 +344,15 @@ export default function Network() {
             'opacity': 0.15,
           },
         },
+        {
+          selector: 'edge.selected-pair',
+          style: {
+            'line-color': '#fb7185',
+            'width': 5,
+            'opacity': 1,
+            'z-index': 999,
+          },
+        },
       ],
       userZoomingEnabled: true,
       userPanningEnabled: true,
@@ -262,20 +362,36 @@ export default function Network() {
     instance.on('tap', 'node', (evt) => {
       const node = evt.target
       const nodeId = node.id()
-      const next = new URLSearchParams(searchParamsRef.current)
+      // Selecting a node switches the inspector back to the agent dossier: clear the stale pair.
+      let next = new URLSearchParams(searchParamsRef.current)
       if (nodeId === activeAgentRef.current) {
         next.delete('sel')
       } else {
         next.set('sel', nodeId)
       }
+      next = clearPair(next)
+      setSearchParamsRef.current(next, { replace: true })
+    })
+
+    instance.on('tap', 'edge', (evt) => {
+      const edge = evt.target
+      const a = edge.source().id()
+      const b = edge.target().id()
+      const next = setPair(new URLSearchParams(searchParamsRef.current), a, b)
+      // Persist the graph root so a copied link restores the same rendered network
+      // instead of falling back to the default focal agent.
+      if (activeAgentRef.current) next.set('agent', activeAgentRef.current)
       setSearchParamsRef.current(next, { replace: true })
     })
 
     instance.on('tap', (evt) => {
       if (evt.target === instance) {
-        const next = new URLSearchParams(searchParamsRef.current)
+        let next = new URLSearchParams(searchParamsRef.current)
         if (next.has('sel')) {
           next.delete('sel')
+        }
+        next = clearPair(next)
+        if (next.toString() !== searchParamsRef.current.toString()) {
           setSearchParamsRef.current(next, { replace: true })
         }
       }
@@ -291,6 +407,7 @@ export default function Network() {
       instance.batch(() => instance.add(toElements(networkDataRef.current)))
       instance.layout(getLayoutOptions(layoutNameRef.current)).run()
     }
+    setCyReady((c) => c + 1)
     }
     void mount()
 
@@ -299,6 +416,7 @@ export default function Network() {
       resizeObserver?.disconnect()
       cy?.destroy()
       cyRef.current = null
+      setCyReady(0)
     }
   }, [cyMountKey])
   // Replace elements when data changes; rerun layout on data or layout changes.
@@ -320,6 +438,23 @@ export default function Network() {
     cy.layout(getLayoutOptions(layoutName)).run()
   }, [networkData, layoutName])
 
+  // Sync selected-pair edge styling
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy || cy.elements().empty()) return
+
+    cy.edges().removeClass('selected-pair')
+    if (validatedPair) {
+      const { a, b } = validatedPair
+      const matched = cy.edges().filter(
+        (e) =>
+          (e.source().id() === a && e.target().id() === b) ||
+          (e.source().id() === b && e.target().id() === a),
+      )
+      matched.addClass('selected-pair')
+    }
+  }, [validatedPair, networkData, cyReady])
+
   // Sync node highlighting with selParam
   useEffect(() => {
     const cy = cyRef.current
@@ -334,7 +469,7 @@ export default function Network() {
         cy.elements().not(nh).addClass('dimmed')
       }
     }
-  }, [selParam, networkData])
+  }, [selParam, networkData, cyReady])
 
   // Close search suggestions on outside pointerdown
   useEffect(() => {
@@ -376,7 +511,7 @@ export default function Network() {
   }
 
   if (errorLinks) return <div className="error">Error loading network data: {errorLinks}</div>
-  if (loadingLinks || loadingLabels || !links) return <div className="loading">Loading network explorer…</div>
+  if (loadingLinks || loadingLabels || loadingPages || !links) return <div className="loading">Loading network explorer…</div>
 
   if (agentParam && !links[agentParam]) {
     return (
@@ -629,101 +764,137 @@ export default function Network() {
 
         {/* Inspector Sidebar */}
         <aside className="network-inspector-sidebar">
-          <header className="inspector-head">
-            <span className="muted uppercase tracking-wider text-xs">Agent Dossier</span>
-            {inspectedAgent === activeAgent && <Badge color="#38bdf8">cluster root</Badge>}
-          </header>
+          {validatedPair ? (
+            <PairEvidencePanel
+              leftLabel={validatedPair.a}
+              rightLabel={validatedPair.b}
+              sharedPages={sharedPages}
+              selectedPageId={selectedPageId}
+              timeline={
+                !selectedPageId || pageState.key !== requestKey
+                  ? null
+                  : pageState.status === 'loading'
+                    ? 'loading'
+                    : pageState.status === 'error'
+                      ? 'error'
+                      : pageState.timeline
+              }
+              onClose={() => {
+                setSearchParams(clearPair(searchParams))
+              }}
+              onOpenPageInPageDetail={(pageId) => {
+                navigate(
+                  `/page/${encodeURIComponent(pageId)}?${setPair(new URLSearchParams(searchParams), validatedPair.a, validatedPair.b, { keepPage: true }).toString()}`
+                )
+              }}
+              onSelectPage={(pageId) => {
+                const next = new URLSearchParams(searchParams)
+                next.set('pairPage', pageId)
+                setSearchParams(next, { replace: true })
+              }}
+              sourceMode="network"
+            />
+          ) : (
+            <>
+              <header className="inspector-head">
+                <span className="muted uppercase tracking-wider text-xs">Agent Dossier</span>
+                {inspectedAgent === activeAgent && <Badge color="#38bdf8">network root</Badge>}
+              </header>
 
-          <h3 className="mono inspected-agent-title">{inspectedAgent}</h3>
+              <h3 className="mono inspected-agent-title">{inspectedAgent}</h3>
 
-          {inspectedMeta && (
-            <div className="inspected-metrics-grid">
-              <div className="metric-box">
-                <span className="val">{fmtInt(inspectedMeta.r)}</span>
-                <span className="lbl">Revisions</span>
-              </div>
-              <div className="metric-box">
-                <span className="val">{fmtInt(inspectedMeta.p)}</span>
-                <span className="lbl">Pages</span>
-              </div>
-              <div className="metric-box">
-                <span className="val">{inspectedMeta.f}</span>
-                <span className="lbl">First Seen</span>
-              </div>
-              <div className="metric-box">
-                <span className="val">{inspectedMeta.t}</span>
-                <span className="lbl">Last Seen</span>
-              </div>
-            </div>
-          )}
+              {inspectedMeta && (
+                <div className="inspected-metrics-grid">
+                  <div className="metric-box">
+                    <span className="val">{fmtInt(inspectedMeta.r)}</span>
+                    <span className="lbl">Revisions</span>
+                  </div>
+                  <div className="metric-box">
+                    <span className="val">{fmtInt(inspectedMeta.p)}</span>
+                    <span className="lbl">Pages</span>
+                  </div>
+                  <div className="metric-box">
+                    <span className="val">{inspectedMeta.f}</span>
+                    <span className="lbl">First Seen</span>
+                  </div>
+                  <div className="metric-box">
+                    <span className="val">{inspectedMeta.t}</span>
+                    <span className="lbl">Last Seen</span>
+                  </div>
+                </div>
+              )}
 
-          {inspectedMeta?.w && inspectedMeta.w.length > 0 && (
-            <div className="inspected-wikis-row">
-              <span className="muted text-xs">Active wikis:</span>
-              <div className="wiki-chips">
-                {inspectedMeta.w.map((w: string) => (
-                  <Chip key={w} tone="wiki">
-                    <span style={{ color: wikiColor(w) }}>{w}</span>
-                  </Chip>
-                ))}
-              </div>
-            </div>
-          )}
+              {inspectedMeta?.w && inspectedMeta.w.length > 0 && (
+                <div className="inspected-wikis-row">
+                  <span className="muted text-xs">Active wikis:</span>
+                  <div className="wiki-chips">
+                    {inspectedMeta.w.map((w: string) => (
+                      <Chip key={w} tone="wiki">
+                        <span style={{ color: wikiColor(w) }}>{w}</span>
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          <div className="inspected-actions">
-            {inspectedAgent !== activeAgent && (
-              <button
-                type="button"
-                className="btn sm primary"
-                onClick={() => setFocalAgent(inspectedAgent)}
-              >
-                Focus graph on this agent →
-              </button>
-            )}
-            <Link to={`/agents?q=${encodeURIComponent(inspectedAgent)}`} className="btn ghost sm">
-              View in Agent Catalog ↗
-            </Link>
-          </div>
-
-          <section className="inspected-links-section">
-            <h4>
-              Known Collaborators <span className="muted">({inspectedLinks.length})</span>
-            </h4>
-            <div className="collaborators-list">
-              {inspectedLinks.map((ca) => (
-                <div key={ca.o} className="collaborator-row">
+              <div className="inspected-actions">
+                {inspectedAgent !== activeAgent && (
                   <button
                     type="button"
-                    className="collaborator-name-btn mono"
-                    onClick={() => {
-                      const next = new URLSearchParams(searchParams)
-                      if (ca.o === activeAgent) {
-                        next.delete('sel')
-                      } else {
-                        next.set('sel', ca.o)
-                      }
-                      setSearchParams(next, { replace: true })
-                      const node = cyRef.current?.getElementById(ca.o)
-                      if (node && node.length > 0) {
-                        cyRef.current?.elements().removeClass('highlighted dimmed')
-                        const nh = node.neighborhood().add(node)
-                        nh.addClass('highlighted')
-                        cyRef.current?.elements().not(nh).addClass('dimmed')
-                      }
-                    }}
+                    className="btn sm primary"
+                    onClick={() => setFocalAgent(inspectedAgent)}
                   >
-                    {ca.o}
+                    Focus graph on this agent →
                   </button>
-                  <Badge color={ca.c >= 4 ? '#fb7185' : '#38bdf8'}>
-                    {ca.c} shared
-                  </Badge>
+                )}
+                <Link to={`/agents?q=${encodeURIComponent(inspectedAgent)}`} className="btn ghost sm">
+                  View in Agent Catalog ↗
+                </Link>
+              </div>
+
+              <section className="inspected-links-section">
+                <h4>
+                  Linked labels <span className="muted">({inspectedLinks.length})</span>
+                </h4>
+                <div className="collaborators-list">
+                  {inspectedLinks.map((ca) => (
+                    <div key={ca.o} className="collaborator-row">
+                      <button
+                        type="button"
+                        className="collaborator-name-btn mono"
+                        onClick={() => {
+                          // Collaborator selection shows the agent dossier: clear the stale pair.
+                          let next = new URLSearchParams(searchParams)
+                          if (ca.o === activeAgent) {
+                            next.delete('sel')
+                          } else {
+                            next.set('sel', ca.o)
+                          }
+                          next = clearPair(next)
+                          setSearchParams(next, { replace: true })
+                          const node = cyRef.current?.getElementById(ca.o)
+                          if (node && node.length > 0) {
+                            cyRef.current?.elements().removeClass('highlighted dimmed')
+                            const nh = node.neighborhood().add(node)
+                            nh.addClass('highlighted')
+                            cyRef.current?.elements().not(nh).addClass('dimmed')
+                          }
+                        }}
+                      >
+                        {ca.o}
+                      </button>
+                      <Badge color={ca.c >= 4 ? '#fb7185' : '#38bdf8'}>
+                        {ca.c} shared
+                      </Badge>
+                    </div>
+                  ))}
+                  {inspectedLinks.length === 0 && (
+                    <div className="muted text-xs">No collaborators with ≥ {minShared} shared pages.</div>
+                  )}
                 </div>
-              ))}
-              {inspectedLinks.length === 0 && (
-                <div className="muted text-xs">No collaborators with ≥ {minShared} shared pages.</div>
-              )}
-            </div>
-          </section>
+              </section>
+            </>
+          )}
         </aside>
       </div>
     </div>
