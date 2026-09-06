@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   WIKIS,
   eventColor,
+  eventPageId,
   filterEventsByDay,
   filterLabels,
   filterPages,
@@ -192,3 +193,22 @@ describe('filterPages with tokenSlugs and payloadFlags', () => {
   })
 })
 
+
+describe('eventPageId', () => {
+  it('prefixes wiki for canonical ids from recent events', () => {
+    expect(eventPageId({ wiki: 'dse', page: 'AgentZzzHighMapJun21' })).toBe('dse/AgentZzzHighMapJun21')
+  })
+
+  it('keeps ids that already start with the wiki prefix', () => {
+    expect(eventPageId({ wiki: 'dse', page: 'dse/--help' })).toBe('dse/--help')
+  })
+
+  it('prefixes titles containing slashes that are not wiki-prefixed', () => {
+    expect(eventPageId({ wiki: 'dse', page: 'Foo/Bar' })).toBe('dse/Foo/Bar')
+  })
+
+  it('handles empty normalized values from build.py without throwing', () => {
+    expect(eventPageId({ wiki: '', page: 'SomePage' })).toBe('SomePage')
+    expect(eventPageId({ wiki: 'dse', page: '' })).toBe('')
+  })
+})

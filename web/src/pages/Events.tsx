@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { EventType, RecentEvent } from '../types'
-import { eventColor, filterEventsByDay, fmtInt, fmtTime } from '../utils/format'
+import { eventColor, eventPageId, filterEventsByDay, fmtInt, fmtTime } from '../utils/format'
 
 const PAGE_SIZE = 50
 
@@ -81,7 +81,7 @@ export default function Events() {
                 <td>{e.wiki || '—'}</td>
                 <td>
                   {e.page ? (
-                    <PageLink id={e.page} name={e.page} max={70} />
+                    <PageLink id={eventPageId(e)} name={e.page} max={70} />
                   ) : (
                     <span className="muted">—</span>
                   )}

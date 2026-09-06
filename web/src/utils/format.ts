@@ -122,6 +122,18 @@ export function filterLabels(labels: LabelRecord[], query: string): LabelRecord[
   return labels.filter((l) => l.x.toLowerCase().includes(q))
 }
 
+/**
+ * Canonical page id for links from recent events: recent_events.json stores wiki and page
+ * separately, while PageDetail routes and pages.json ids are wiki-prefixed ("dse/PageName").
+ */
+export function eventPageId(e: Pick<RecentEvent, 'wiki' | 'page'>): string {
+  if (!e.page) return ''
+  // Page titles may legitimately contain '/' (e.g. "Foo/Bar"); only treat the page as
+  // already-canonical when it literally starts with "<wiki>/". Empty wiki (build.py
+  // normalization) keeps the bare title.
+  return e.wiki && e.page.startsWith(`${e.wiki}/`) ? e.page : e.wiki ? `${e.wiki}/${e.page}` : e.page
+}
+
 export function toCsv(rows: Record<string, unknown>[], columns?: string[]): string {
   const keys = columns ?? (rows.length > 0 ? Object.keys(rows[0]) : [])
   const escape = (value: unknown): string => {

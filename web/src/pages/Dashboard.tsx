@@ -16,7 +16,7 @@ import { useData } from '../components/useQuery'
 import { StatCard } from '../components/StatCard'
 import { Badge } from '../components/ui'
 import type { DayActivity, HourActivity, RecentEvent, Summary } from '../types'
-import { eventColor, fmtBytes, fmtCompact, fmtInt, fmtTime, wikiColor } from '../utils/format'
+import { eventColor, eventPageId, fmtBytes, fmtCompact, fmtInt, fmtTime, wikiColor } from '../utils/format'
 
 export default function Dashboard() {
   // Prefetch large indices in background so navigating to /pages and /agents is instant
@@ -161,7 +161,7 @@ export default function Dashboard() {
                   <td className="muted nowrap">{fmtTime(e.t)}</td>
                   <td>
                     {e.page ? (
-                      <Link className="link" to={`/page/${encodeURIComponent(e.page)}`}>
+                      <Link className="link" to={`/page/${encodeURIComponent(eventPageId(e))}`}>
                         {e.page}
                       </Link>
                     ) : (
