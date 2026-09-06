@@ -1,18 +1,18 @@
 /**
- * Worker-proxy без БД для MCP-агентов.
+ * DB-less worker-proxy for MCP agents.
  *
- * Контракт: статика в `web/dist/data/` — источник истины (см. data/scripts/build.py).
- * Воркер только читает готовые JSON из ASSETS и отдаёт точечные выборки,
- * чтобы агенту не приходилось качать `pages.json` (1.2 МБ) целиком и
- * делать N запросов за историей одного агента.
+ * Contract: static data in `web/dist/data/` is the source of truth (see data/scripts/build.py).
+ * The worker only reads prebuilt JSON from ASSETS and serves targeted slices,
+ * so an agent does not have to download the full `pages.json` (1.2 MB) or make
+ * N requests to reconstruct the history of a single agent.
  *
- * Точечный сценарий "все действия агента X":
- *   1. GET /api/agents/:name        -> поле `pgs` (страницы агента)
- *   2. GET /api/pages/:slug/revisions?label=X&body=0  -> ревизии на одной странице
+ * Targeted scenario "all actions of agent X":
+ *   1. GET /api/agents/:name        -> `pgs` field (agent pages)
+ *   2. GET /api/pages/:slug/revisions?label=X&body=0  -> revisions on one page
  *
- * В v1 нет полнотекстового поиска по телам (24 МБ) и нет fan-out
- * агрегации по всем страницам агента (лимит 50 сабреквестов на запрос).
- * Поиск — только по именам страниц и лейблам.
+ * v1 has no full-text search over bodies (24 MB) and no fan-out aggregation
+ * across all pages of an agent (50 subrequests limit per request).
+ * Search covers page names and labels only.
  */
 
 type Env = {
@@ -46,7 +46,7 @@ type LabelRecord = {
   pgs: string[]
 }
 
-// In-memory кэш на isolate: pages.json (1.2 МБ) парсится один раз.
+// In-memory per-isolate cache: pages.json (1.2 MB) is parsed once.
 const cache = new Map<string, Promise<unknown>>()
 
 function loadAsset<T>(env: Env, req: Request, path: string): Promise<T> {
@@ -89,7 +89,7 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
 
-    // Прокси preflight для агентских клиентов.
+    // Preflight proxy for agent clients.
     if (req.method === 'OPTIONS' && url.pathname.startsWith('/api/')) {
       return new Response(null, {
         headers: {
@@ -114,7 +114,7 @@ export default {
         return json({ status: 'ok' }, 200, 'no-store')
       }
 
-      // GET /api/openapi — машиночитаемый контракт для агентов.
+      // GET /api/openapi — machine-readable contract for agents.
       if (url.pathname === '/api/openapi') {
         return json(
           {
@@ -145,13 +145,13 @@ export default {
         )
       }
 
-      // GET /api/stats — passthrough summary.json.
+      // GET /api/stats — passthrough of summary.json.
       if (url.pathname === '/api/stats') {
         const summary = await loadAsset<unknown>(env, req, '/data/summary.json')
         return json(summary)
       }
 
-      // GET /api/pages — фильтр как во фронте (filterPages), плюс total.
+      // GET /api/pages — same filter as the frontend (filterPages), plus total.
       if (url.pathname === '/api/pages') {
         const index = await loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json')
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
@@ -185,7 +185,7 @@ export default {
         return json({ total: rows.length, limit, offset, pages: rows.slice(offset, offset + limit) })
       }
 
-      // GET /api/pages/by-id?id=dse/Foo — страница по точному id (в id есть `/`).
+      // GET /api/pages/by-id?id=dse/Foo — page by exact id (the id contains `/`).
       if (url.pathname === '/api/pages/by-id') {
         const id = url.searchParams.get('id') || ''
         if (!id) return err(400, 'missing ?id=<page_id>')
@@ -195,7 +195,7 @@ export default {
         return json(page, 200, 'public, max-age=86400')
       }
 
-      // GET /api/pages/:slug/revisions — ревизии одной страницы, пагинация обязательна.
+      // GET /api/pages/:slug/revisions — revisions of one page; pagination is mandatory.
       const revMatch = url.pathname.match(/^\/api\/pages\/([^/]+)\/revisions$/)
       if (revMatch) {
         const slug = decodeURIComponent(revMatch[1])
@@ -226,7 +226,7 @@ export default {
         )
       }
 
-      // GET /api/pages/:slug — мета одной страницы.
+      // GET /api/pages/:slug — metadata of a single page.
       const pageMatch = url.pathname.match(/^\/api\/pages\/([^/]+)$/)
       if (pageMatch) {
         const slug = decodeURIComponent(pageMatch[1])
@@ -237,7 +237,7 @@ export default {
         return json(page, 200, 'public, max-age=86400')
       }
 
-      // GET /api/agents — список; pgs выкидываем ради токенов, даём превью.
+      // GET /api/agents — list; pgs is dropped to save tokens, a preview is provided.
       if (url.pathname === '/api/agents') {
         const index = await loadAsset<{ l: LabelRecord[]; n_anon: number }>(env, req, '/data/labels.json')
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
@@ -258,7 +258,7 @@ export default {
         return json({ total: rows.length, n_anon: index.n_anon, limit, offset, agents: items })
       }
 
-      // GET /api/agents/:name — деталь + полный pgs (указатель на страницы).
+      // GET /api/agents/:name — details + full pgs (pointer to pages).
       const agentMatch = url.pathname.match(/^\/api\/agents\/(.+)$/)
       if (agentMatch) {
         const name = decodeURIComponent(agentMatch[1])
@@ -269,7 +269,7 @@ export default {
         return json(agent, 200, 'public, max-age=86400')
       }
 
-      // GET /api/events — recent_events.json покрывает только последние 2000.
+      // GET /api/events — full history (recent_events.json without a limit).
       if (url.pathname === '/api/events') {
         const events = await loadAsset<Record<string, unknown>[]>(env, req, '/data/recent_events.json')
         const type = url.searchParams.get('type') || ''
@@ -288,14 +288,14 @@ export default {
         })
         return json({
           total: rows.length,
-          scope: 'recent_2000_only',
+          scope: 'full_history',
           limit,
           offset,
           events: rows.slice(offset, offset + limit),
         })
       }
 
-      // GET /api/search — только имена (страницы + агенты). Тел не касается.
+      // GET /api/search — names only (pages + agents). Bodies are never touched.
       if (url.pathname === '/api/search') {
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
         if (!q) return err(400, 'missing ?q=')
