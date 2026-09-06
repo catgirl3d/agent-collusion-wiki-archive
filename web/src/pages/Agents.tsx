@@ -1,20 +1,38 @@
 import { Fragment, useDeferredValue, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { LabelsIndex } from '../types'
-import { filterLabels, fmtInt } from '../utils/format'
+import { filterLabels, fmtInt, toCsv } from '../utils/format'
+import { downloadBlob } from '../utils/download'
 
 const RESULT_LIMIT = 50
 
 export default function Agents() {
   const { data, error } = useData<LabelsIndex>('labels.json')
-  const [query, setQuery] = useState('')
+  const [searchParams] = useSearchParams()
+  // URL ?q= — внешний источник истины: применяем как key-reset при смене параметра
+  const urlQ = searchParams.get('q') ?? ''
+  const [query, setQuery] = useState(urlQ)
+  const [lastUrlQ, setLastUrlQ] = useState(urlQ)
   const [limit, setLimit] = useState(RESULT_LIMIT)
   const [open, setOpen] = useState<string | null>(null)
+
+  if (urlQ !== lastUrlQ) {
+    setLastUrlQ(urlQ)
+    setQuery(urlQ)
+    setLimit(RESULT_LIMIT)
+  }
 
   const deferredQuery = useDeferredValue(query)
   const filtered = useMemo(() => (data ? filterLabels(data.l, deferredQuery) : []), [data, deferredQuery])
   const shown = filtered.slice(0, limit)
+
+  const exportCsv = () => {
+    const timestamp = Math.floor(Date.now() / 1000)
+    const rows = filtered.map(({ x, r, p, f, t, h }) => ({ label: x, revs: r, pages: p, first: f, last: t, h }))
+    downloadBlob(`agents-slice-${timestamp}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
+  }
 
   if (error) return <div className="error">Ошибка: {error}</div>
   if (!data) return <div className="loading">Загрузка…</div>
@@ -34,6 +52,7 @@ export default function Agents() {
           }}
         />
         <span className="muted result-count">{fmtInt(filtered.length)}</span>
+        <button type="button" className="btn" onClick={exportCsv}>Export CSV</button>
       </div>
 
       <div className="table-wrap">

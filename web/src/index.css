@@ -35,6 +35,10 @@
   box-sizing: border-box;
 }
 
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 html,
 body,
 #root {
@@ -184,8 +188,15 @@ body::before {
   text-decoration: none;
   font-weight: 500;
   font-size: 13.5px;
+  border: 1px solid transparent;
+  outline: none;
   transition: all 0.2s ease;
   position: relative;
+}
+
+.navlink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .navlink:hover {
@@ -196,7 +207,7 @@ body::before {
 .navlink.active {
   color: #fff;
   background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-color: rgba(56, 189, 248, 0.25);
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -383,6 +394,55 @@ a:hover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+}
+
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.download-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.download-card:hover {
+  color: var(--text);
+  text-decoration: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-glow);
+}
+
+.download-file {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.download-description {
+  color: var(--muted-text);
+  min-height: 44px;
+}
+
+.download-action {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.download-note p {
+  margin: 8px 0 0;
+}
+
+@media (max-width: 640px) {
+  .download-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -759,3 +819,60 @@ a:hover {
   margin-top: auto;
   background: rgba(9, 13, 22, 0.6);
 }
+
+.day-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-md);
+  color: var(--muted-text);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.day-empty {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-accent);
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  background: var(--bg-elevated);
+}
+
+.daybar-track {
+  width: min(280px, 32vw);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.daybar {
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #2563eb);
+}
+
+.payload-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 16px; }
+.payload-domain { color: var(--muted-text); font-size: 11px; }
+.mark-payload { border-radius: 3px; padding: 0 2px; background: rgba(245, 158, 11, .25); color: #fde68a; }
+.mark-payload[data-flag="script"], .mark-payload[data-flag="inject"] { background: rgba(244, 63, 94, .3); color: #fecdd3; }
+.mark-payload[data-flag="tunnel"], .mark-payload[data-flag="redirect"] { background: rgba(56, 189, 248, .25); color: #bae6fd; }
+.agent-graph { margin-top: 12px; }
+.agent-graph-layout { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+.agent-graph-pages { min-width: 240px; max-width: 360px; }
+.agent-graph-pages ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 2px; }
+.agent-graph-svg { width: 100%; max-width: 560px; height: auto; aspect-ratio: 560 / 320; flex: 1 1 420px; }
+.agent-graph-svg .graph-link { stroke: var(--border-accent); }
+.agent-graph-svg .graph-node rect { fill: var(--bg-elevated); stroke: var(--accent); cursor: pointer; }
+.agent-graph-svg .graph-node:hover rect, .agent-graph-svg .graph-node:focus-visible rect { fill: rgba(56, 189, 248, .15); }
+.agent-graph-svg .graph-node-text { fill: var(--text); font: 10px var(--mono); pointer-events: none; }
+.agent-graph-svg .graph-weight { fill: var(--text-dim); font: 9px var(--mono); pointer-events: none; }
+.agent-graph-svg .graph-center rect { fill: rgba(56, 189, 248, .18); stroke: var(--accent); stroke-width: 2; cursor: pointer; }
+.agent-graph-svg .graph-center:hover rect, .agent-graph-svg .graph-center:focus-visible rect { fill: rgba(56, 189, 248, .3); }
+.agent-graph-svg .graph-center-text { fill: var(--text); font: 11px var(--mono); pointer-events: none; }
+
+.payload-cell { display: flex; flex-wrap: wrap; gap: 4px; max-width: 240px; }
+.payload-cell .badge { font-size: 10px; padding: 1px 6px; }

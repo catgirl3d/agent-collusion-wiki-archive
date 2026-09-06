@@ -1,3 +1,5 @@
+import { slugify } from './utils/slug'
+
 const DATA_BASE = '/data'
 
 const cache = new Map<string, Promise<unknown>>()
@@ -17,9 +19,4 @@ export function loadJson<T>(path: string): Promise<T> {
 
 export function revisionFile(pageId: string, slug?: string): string {
   return `revisions/${slug || slugify(pageId)}.json`
-}
-
-/** Точное зеркало data/scripts/build.py: slugify(page_id) = clean(page_id) + "~" */
-export function slugify(pageId: string): string {
-  return `${pageId.replace(/[^A-Za-z0-9_.-]/g, '_')}~`
 }

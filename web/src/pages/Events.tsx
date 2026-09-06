@@ -1,8 +1,9 @@
 import { useDeferredValue, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { EventType, RecentEvent } from '../types'
-import { eventColor, fmtTime } from '../utils/format'
+import { eventColor, filterEventsByDay, fmtInt, fmtTime } from '../utils/format'
 
 const PAGE_SIZE = 50
 
@@ -18,18 +19,20 @@ export default function Events() {
   const [type, setType] = useState<'' | EventType>('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const day = searchParams.get('day') ?? ''
 
   const deferredQuery = useDeferredValue(query)
 
   const filtered = useMemo(() => {
     if (!data) return []
     const q = deferredQuery.trim().toLowerCase()
-    return data.filter((e) => {
+    return filterEventsByDay(data, day).filter((e) => {
       if (type && e.type !== type) return false
       if (q && !(e.page?.toLowerCase().includes(q) || e.ip16?.toLowerCase().includes(q) || e.action?.toLowerCase().includes(q))) return false
       return true
     })
-  }, [data, type, deferredQuery])
+  }, [data, day, type, deferredQuery])
 
   if (error) return <div className="error">Ошибка: {error}</div>
   if (!data) return <div className="loading">Загрузка…</div>
@@ -40,7 +43,9 @@ export default function Events() {
 
   return (
     <div className="page">
-      <h1>Events <span className="muted">({filtered.length} shown of {data.length})</span></h1>
+      <h1>Events <span className="muted">({filtered.length} shown of {fmtInt(data.length)})</span></h1>
+
+      {day && <div className="day-filter">filtered by day: <span className="mono">{day}</span>{' '}<button type="button" className="btn ghost sm" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('day'); setSearchParams(next); setPage(0) }}>clear</button></div>}
 
       <div className="filters">
         <select className="input" value={type} onChange={(e) => { setType(e.target.value as '' | EventType); setPage(0) }}>
@@ -65,6 +70,7 @@ export default function Events() {
               <th>Page / target</th>
               <th>Action</th>
               <th>IP16</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody>
@@ -72,7 +78,7 @@ export default function Events() {
               <tr key={`${e.t}-${i}`}>
                 <td className="muted nowrap">{fmtTime(e.t)}</td>
                 <td><Badge color={eventColor(e.type)}>{e.type}</Badge></td>
-                <td>{e.wiki}</td>
+                <td>{e.wiki || '—'}</td>
                 <td>
                   {e.page ? (
                     <PageLink id={e.page} name={e.page} max={70} />
@@ -82,6 +88,18 @@ export default function Events() {
                 </td>
                 <td className="muted">{e.action ?? '—'}</td>
                 <td className="muted nowrap">{e.ip16 ?? '—'}</td>
+                <td className="muted">
+                  {e.type === 'probe' && e.pf && (
+                    <>
+                      <Badge color="#16a34a">{e.pf}</Badge>{' '}
+                      {e.ok === false && <Badge color="#f87171">failed</Badge>}
+                    </>
+                  )}
+                  {e.type === 'save' && e.rev && <span className="mono" title={e.rev}>{e.rev}</span>}
+                  {(e.type === 'revert' || e.type === 'delete') && e.act && <Badge color="#fbbf24">{e.act}</Badge>}
+                  {e.type === 'revert' && e.rel && <span className="mono" title={e.rel}> {e.rel}</span>}
+                  {!((e.type === 'probe' && e.pf) || (e.type === 'save' && e.rev) || ((e.type === 'revert' || e.type === 'delete') && e.act) || (e.type === 'revert' && e.rel)) && '—'}
+                </td>
               </tr>
             ))}
           </tbody>

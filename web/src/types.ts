@@ -72,6 +72,16 @@ export interface RecentEvent {
   page: string
   action: string | null
   ip16: string | null
+  /** revision_ref: save → привязка к конкретной ревизии (slug@N) */
+  rev?: string | null
+  /** param_family: probe → какой параметр API прощупывали (search, id, msg…) */
+  pf?: string | null
+  /** success_observed: probe → удалась ли попытка */
+  ok?: boolean | null
+  /** related_event_id: revert → какое удаление откатили */
+  rel?: string | null
+  /** actor_label: delete/revert → кто выполнил (например, [Admin1]) */
+  act?: string | null
 }
 
 export interface Revision {
@@ -85,3 +95,34 @@ export interface Revision {
   action: string | null
   round: string | null
 }
+
+export interface ConflictRow {
+  id: string
+  s: string
+  churn: number
+  ttd_med_s: number | null
+  del: number
+  zzz: boolean
+  front: boolean
+}
+
+export interface PayloadRecord {
+  s: string
+  id: string
+  u: string[]
+  f: string[]
+}
+
+export interface AgentLink {
+  o: string
+  c: number
+}
+
+export type AgentLinks = Record<string, AgentLink[]>
+
+export interface SearchIndex {
+  tokens: Record<string, string[]>
+  urls: Record<string, number>
+  meta: { built_from: string; n_tokens: number }
+}
+

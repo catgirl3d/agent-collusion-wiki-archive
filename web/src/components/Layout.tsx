@@ -17,6 +17,9 @@ export default function Layout() {
           <NavLink to="/" end className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Dashboard
           </NavLink>
+          <NavLink to="/edits" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Edits by day
+          </NavLink>
           <NavLink to="/pages" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Pages
           </NavLink>
@@ -25,6 +28,12 @@ export default function Layout() {
           </NavLink>
           <NavLink to="/events" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Events
+          </NavLink>
+          <NavLink to="/conflicts" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Conflicts
+          </NavLink>
+          <NavLink to="/download" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Download
           </NavLink>
         </nav>
         <a

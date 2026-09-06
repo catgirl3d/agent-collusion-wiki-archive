@@ -1,4 +1,5 @@
-import type { LabelRecord, PageRecord } from '../types'
+import type { DayActivity, LabelRecord, PageRecord, RecentEvent } from '../types'
+import { slugify } from './slug'
 
 export function fmtInt(n: number): string {
   return n.toLocaleString('en-US')
@@ -31,6 +32,17 @@ export function fmtDate(iso: string | undefined | null): string {
   return `${y}-${m}-${day}`
 }
 
+export function fmtDuration(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds) || seconds < 0) return '—'
+  const total = Math.floor(seconds)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const remainder = total % 60
+  if (hours > 0) return `${hours}h ${minutes}m ${remainder}s`
+  if (minutes > 0) return `${minutes}m ${remainder}s`
+  return `${remainder}s`
+}
+
 const WIKI_COLORS: Record<string, string> = {
   dse: '#4f8cff',
   probier: '#ff9f43',
@@ -48,25 +60,76 @@ export function wikiColor(wiki: string): string {
 export interface PagesFilter {
   query: string
   wiki: string
+  fam?: string
   deletedOnly: boolean
   minRevs: number
+  tokenSlugs?: string[] | null
+  payloadFlag?: string
+  payloadFlags?: Map<string, string[]>
 }
 
 export function filterPages(pages: PageRecord[], f: PagesFilter): PageRecord[] {
   const q = f.query.trim().toLowerCase()
+  const slugSet = f.tokenSlugs ? new Set(f.tokenSlugs) : null
+  const flagMap = f.payloadFlag ? f.payloadFlags : undefined
   return pages.filter((p) => {
     if (f.wiki && p.w !== f.wiki) return false
+    if (f.fam && p.fam !== f.fam) return false
     if (f.deletedOnly && !p.d) return false
     if (f.minRevs > 0 && p.r < f.minRevs) return false
-    if (q && !(p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || p.labs.some((l) => l.toLowerCase().includes(q)))) return false
+    if (q) {
+      const inMeta = p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || p.labs.some((l) => l.toLowerCase().includes(q))
+      const inIndex = slugSet ? slugSet.has(p.s ?? slugify(p.id)) : false
+      if (!inMeta && !inIndex) return false
+    }
+    if (flagMap && !(flagMap.get(p.id) ?? flagMap.get(p.s ?? '') ?? []).includes(f.payloadFlag!)) return false
     return true
   })
+}
+
+export function filterPagesByDay(pages: PageRecord[], day: string): PageRecord[] {
+  if (!day) return pages
+  return pages.filter((p) => p.f <= day && day <= p.l)
+}
+
+export function filterEventsByDay(events: RecentEvent[], day: string): RecentEvent[] {
+  if (!day) return events
+  return events.filter((e) => e.t.slice(0, 10) === day)
+}
+
+export interface AggregatedDay {
+  date: string
+  saves: number
+  deletes: number
+  count: number
+}
+
+export function aggregateDays(rows: DayActivity[]): AggregatedDay[] {
+  const byDate = new Map<string, AggregatedDay>()
+  for (const row of rows) {
+    const current = byDate.get(row.date) ?? { date: row.date, saves: 0, deletes: 0, count: 0 }
+    current.saves += row.saves
+    current.deletes += row.deletes
+    current.count += row.saves + row.deletes
+    byDate.set(row.date, current)
+  }
+  return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date))
 }
 
 export function filterLabels(labels: LabelRecord[], query: string): LabelRecord[] {
   const q = query.trim().toLowerCase()
   if (!q) return labels
   return labels.filter((l) => l.x.toLowerCase().includes(q))
+}
+
+export function toCsv(rows: Record<string, unknown>[], columns?: string[]): string {
+  const keys = columns ?? (rows.length > 0 ? Object.keys(rows[0]) : [])
+  const escape = (value: unknown): string => {
+    if (value === null || value === undefined) return ''
+    const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+  }
+  return [keys.map(escape).join(','), ...rows.map((row) => keys.map((key) => escape(row[key])).join(','))].join('\r\n')
 }
 
 export const WIKIS = ['dse', 'probier', 'fractal', 'publictestwiki', 'uncyclopedia', 'dorfwiki'] as const
