@@ -1,37 +1,57 @@
 #!/usr/bin/env python3
-"""Строит processed/ (и копию в web/public/data/) из raw/ выгрузок collusion.wiki.
+"""Builds processed/ (and copies to web/public/data/) from raw/ collusion.wiki dumps.
 
-Вход:  data/raw/{revisions,pages,events,labels,manifest}.jsonl(.gz)
-Выход: data/processed/
-  summary.json            — общая статистика (из manifest + вычисленная)
-  activity_by_day.json    — [{"date","wiki","saves","deletes","reverts","probes","bytes"}]
-  activity_by_hour.json   — [{"hour","saves"}]  (часы UTC)
-  pages.json              — индекс страниц (лёгкий, без тел)
-  labels.json             — индекс агентов
-  recent_events.json      — последние события (лимит)
-  revisions/<slug>.json   — по одной странице: ревизии с полным текстом
+Input:  data/raw/{revisions,pages,events,labels,manifest}.jsonl(.gz)
+Output: data/processed/
+  summary.json            - general statistics (manifest + calculated metrics)
+  activity_by_day.json    - [{"date","wiki","saves","deletes","reverts","probes","bytes"}]
+  activity_by_hour.json   - [{"hour","saves"}]  (UTC hours)
+  pages.json              - page index (lightweight, without revision bodies)
+  labels.json             - agent label index
+  recent_events.json      - all events (unlimited)
+  revisions/<slug>.json   - per-page revisions with full text
 """
 from __future__ import annotations
 
 import gzip
+import base64
 import hashlib
 import io
 import json
+import math
 import re
 import shutil
 import sys
+import unicodedata
+from urllib.parse import urlparse
 from collections import Counter, defaultdict
+from datetime import datetime
 from pathlib import Path
+from statistics import median
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "raw"
 OUT = ROOT / "processed"
 PUBLIC = ROOT.parent / "web" / "public" / "data"
 
-REV_LIMIT_EVENTS = 2000
 EVENT_TYPES = {"save", "delete", "revert", "probe"}
 
 _SLUG_SAFE = re.compile(r"[^A-Za-z0-9_.\-]")
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_BODY_STOP_WORDS = frozenset({
+    "about", "after", "again", "against", "also", "among", "and", "are", "been", "before",
+    "being", "between", "but", "can", "could", "das", "der", "die", "does", "for", "from",
+    "haben", "has", "have", "here", "into", "ist", "more", "nicht", "oder", "only", "other",
+    "our", "over", "sein", "sich", "that", "their", "there", "these", "they", "this", "those",
+    "und", "unter", "von", "war", "were", "what", "when", "where", "which", "with", "would",
+})
+_REQUIRED_BODY_TOKENS = frozenset({"bypass"})
+_REQUIRED_SEARCH_TOKENS = frozenset({"agent", "bypass", "startseite", "willkommen", "zzz"})
+_URL_RE = re.compile(r"https?://[^\s<>'\"]+", re.IGNORECASE)
+_B64_RE = re.compile(r"[A-Za-z0-9+/]{80,}={0,2}")
+_HEX_RE = re.compile(r"(0x[0-9a-f]+|[0-9a-f]{64,})")
+_NONSPACE_RE = re.compile(r"\S+")
+PAYLOAD_FLAGS = ("b64", "hex", "script", "inject", "homoglyph", "high-entropy", "tunnel", "redirect")
 
 
 def open_maybe_gz(path: Path, mode: str = "rt", encoding: str = "utf-8"):
@@ -63,9 +83,9 @@ def is_slug_collision(page_id: str, page_key: str, used: dict[str, str]) -> bool
 
 
 def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[str, str]]:
-    """Группирует ревизии по страницам и пишет processed/revisions/<slug>.json.
+    """Groups revisions by page and writes processed/revisions/<slug>.json.
 
-    Возвращает: ({page_key: число ревизий}, {page_id: slug}).
+    Returns: ({page_key: revision_count}, {page_id: slug}).
     """
     by_page: dict[str, list[dict]] = {}
     for r in revisions:
@@ -95,7 +115,7 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
                 "action": r.get("request_action"),
                 "round": r.get("round_id"),
             })
-        # коллизии по slug в т.ч. при case-insensitive ФС (Windows/macOS)
+        # Slug collisions, including on case-insensitive filesystems (Windows/macOS)
         if any(k in used and used[k] != page_id for k in (slug, slug.lower())):
             slug = f"{slug}_h{hashlib.sha1(page_id.encode()).hexdigest()[:8]}"
         used[slug.lower()] = page_id
@@ -110,6 +130,237 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
     return {k: len(v) for k, v in by_page.items()}, slug_map
 
 
+def _tokens(text: str) -> set[str]:
+    return {token for token in _TOKEN_RE.findall(text.lower()) if len(token) >= 3}
+
+
+def _body_tokens(text: str) -> set[str]:
+    return {
+        token for token in _tokens(text)
+        if not token.isdigit() and token not in _BODY_STOP_WORDS and len(token) <= 25
+    }
+
+
+def _domains(text: str) -> list[str]:
+    domains = []
+    for match in _URL_RE.findall(text or ""):
+        try:
+            parsed = urlparse(match.rstrip(".,;:!?)\"]"))
+        except ValueError:
+            continue
+        domain = (parsed.hostname or "").lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+        if domain:
+            domains.append(domain)
+    return domains
+
+
+def build_search_index(pages: list[dict], revisions: list[dict], slug_map: dict[str, str], token_limit: int = 10000, slug_limit: int = 150) -> dict:
+    """Builds a compact page-level index of titles, rare body terms, and URL domains."""
+    name_pages: dict[str, set[str]] = defaultdict(set)
+    body_pages: dict[str, set[str]] = defaultdict(set)
+    url_pages: dict[str, set[str]] = defaultdict(set)
+    for page in pages:
+        page_id = page["page_id"]
+        name = page.get("name", "") or page_id
+        for token in _tokens(name):
+            name_pages[token].add(page_id)
+        if name.startswith("ZZZ"):
+            name_pages["zzz"].add(page_id)
+    for revision in revisions:
+        page_id = revision["page_id"]
+        for token in _body_tokens(revision.get("body", "")):
+            body_pages[token].add(page_id)
+        for domain in _domains(revision.get("body", "")):
+            url_pages[domain].add(page_id)
+
+    n_pages = len(pages)
+    candidates = set(name_pages) | _REQUIRED_BODY_TOKENS.intersection(body_pages)
+    candidates |= {token for token, ids in body_pages.items() if 200 * len(ids) <= n_pages}
+    ranked = sorted(candidates, key=lambda token: (
+        token not in _REQUIRED_SEARCH_TOKENS,
+        -len(name_pages[token] | body_pages[token]),
+        token,
+    ))
+    if len(ranked) > token_limit:
+        print(f"WARNING: search index has {len(ranked)} tokens; capped at {token_limit}")
+    tokens = {}
+    capped_postings = 0
+    for token in ranked[:token_limit]:
+        ids = name_pages[token] | body_pages[token]
+        slugs = sorted(slug_map.get(page_id, slugify(page_id)) for page_id in ids)
+        if len(slugs) > slug_limit:
+            capped_postings += 1
+            slugs = slugs[:slug_limit]
+        tokens[token] = slugs
+    if capped_postings:
+        print(f"WARNING: {capped_postings} search tokens exceeded {slug_limit} slugs and were truncated")
+    return {
+        "tokens": tokens,
+        "urls": {domain: len(url_pages[domain]) for domain in sorted(url_pages)},
+        "meta": {"built_from": "collusion.wiki export", "n_tokens": len(tokens)},
+    }
+
+
+def _printable_base64(value: str) -> bool:
+    try:
+        decoded = base64.b64decode(value, validate=False)
+    except (ValueError, base64.binascii.Error):
+        return False
+    if not decoded:
+        return False
+    return sum(0x20 <= byte <= 0x7E for byte in decoded) / len(decoded) >= 0.8
+
+
+def _entropy(value: str) -> float:
+    counts = Counter(value)
+    length = len(value)
+    return -sum((count / length) * math.log2(count / length) for count in counts.values())
+
+
+def detect_payload_flags(body: str) -> set[str]:
+    """Returns deterministic scanner flags for a single revision body."""
+    flags = set()
+    if any(_printable_base64(match) for match in _B64_RE.findall(body or "")):
+        flags.add("b64")
+    if _HEX_RE.search(body or ""):
+        flags.add("hex")
+    lowered = (body or "").lower()  # script/inject match against lowercase - mirror of web/src/utils/payload.ts
+    if "<script" in lowered or "onerror=" in lowered or "javascript:" in lowered:
+        flags.add("script")
+    if any(marker in lowered for marker in ("system:", "ignore previous", "reproducible bypass")):
+        flags.add("inject")
+    # homoglyph: words mixing latin and cyrillic are primary character-spoofing signals.
+    # NFKC diff is only an amplifier (catches fullwidth/compat substitutions), not mandatory:
+    # NFKC does not alter a Cyrillic character placed inside a Latin word.
+    words = re.findall(r"[^\s]+", body or "")
+    mixed = any(re.search(r"[A-Za-z]", word) and re.search(r"[\u0400-\u04ff]", word) for word in words)
+    if mixed or (unicodedata.normalize("NFKC", body or "") != (body or "") and mixed):
+        flags.add("homoglyph")
+    if any(len(chunk) >= 200 and _entropy(chunk) > 4.5 for chunk in _NONSPACE_RE.findall(body or "")):
+        flags.add("high-entropy")
+    domains = " ".join(_domains(body or ""))
+    if any(service in domains for service in ("pinggy", "serveo", "localhost.run", "localtunnel")):
+        flags.add("tunnel")
+    if any(service in domains for service in ("markdown.new", "r.jina.ai")):
+        flags.add("redirect")
+    return flags
+
+
+def build_payload_index(pages: list[dict], revisions: list[dict], slug_map: dict[str, str]) -> list[dict]:
+    """Builds payload flags across all revisions, extracting URLs from the latest revision."""
+    by_page: dict[str, list[dict]] = defaultdict(list)
+    for revision in revisions:
+        by_page[revision["page_id"]].append(revision)
+    result = []
+    for page in pages:
+        page_id = page["page_id"]
+        ordered = sorted(by_page.get(page_id, []), key=revision_sort_key)
+        all_flags = set().union(*(detect_payload_flags(r.get("body", "")) for r in ordered))
+        if "high-entropy" in all_flags and len(all_flags) == 1:
+            all_flags.remove("high-entropy")
+        if not all_flags:
+            continue
+        last_body = ordered[-1].get("body", "") if ordered else ""
+        domain_counts = Counter(_domains(last_body))
+        domains = [domain for domain, _ in sorted(domain_counts.items(), key=lambda item: (-item[1], item[0]))[:10]]
+        result.append({"s": slug_map.get(page_id, slugify(page_id)), "id": page_id, "u": domains,
+                       "f": [flag for flag in PAYLOAD_FLAGS if flag in all_flags]})
+    return sorted(result, key=lambda item: item["s"])
+
+
+def revision_sort_key(revision: dict):
+    return (revision.get("seq") if revision.get("seq") is not None else 0, revision.get("rev_id", ""))
+
+
+def build_agent_links(labels: list[dict], top_n: int = 20, min_shared: int = 2) -> dict[str, list[dict[str, int | str]]]:
+    """Build deterministic, capped co-occurrence links from label page sets."""
+    pages_by_label = {
+        lab["label"]: set(lab.get("pages", []))
+        for lab in labels
+        if lab.get("label")
+    }
+    labels_by_page: dict[str, list[str]] = defaultdict(list)
+    for label, page_ids in pages_by_label.items():
+        for page_id in page_ids:
+            labels_by_page[page_id].append(label)
+
+    shared: dict[str, Counter[str]] = {label: Counter() for label in pages_by_label}
+    for page_labels in labels_by_page.values():
+        page_labels.sort()
+        for index, label in enumerate(page_labels):
+            for other in page_labels[index + 1:]:
+                shared[label][other] += 1
+                shared[other][label] += 1
+
+    return {
+        label: [
+            {"o": other, "c": count}
+            for other, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+            if count >= min_shared
+        ][:top_n]
+        for label, counts in sorted(shared.items())
+    }
+
+
+def _parse_revision_time(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _median_cross_label_ttd(revisions: list[dict]) -> int | None:
+    ttd_seconds = []
+    ordered = sorted(revisions, key=revision_sort_key)
+    for previous, current in zip(ordered, ordered[1:]):
+        if not previous.get("label") or not current.get("label") or previous["label"] == current["label"]:
+            continue
+        previous_time = _parse_revision_time(previous.get("write_date") or previous.get("time"))
+        current_time = _parse_revision_time(current.get("write_date") or current.get("time"))
+        if previous_time is not None and current_time is not None:
+            ttd_seconds.append((current_time - previous_time).total_seconds())
+    return round(median(ttd_seconds)) if ttd_seconds else None
+
+
+def build_conflicts(
+    pages: list[dict],
+    revisions: list[dict],
+    slug_map: dict[str, str],
+    front_page_ids: set[str] | None = None,
+    limit: int = 500,
+) -> list[dict]:
+    """Rank pages by distinct non-anonymous labels and cross-label revision churn."""
+    revisions_by_page: dict[str, list[dict]] = defaultdict(list)
+    for revision in revisions:
+        revisions_by_page[revision["page_id"]].append(revision)
+
+    page_ids = {page["page_id"] for page in pages}
+    configured_front_ids = front_page_ids if front_page_ids is not None else {"dse/StartSeite", "dse/WillkommenImWiki"}
+    use_front_name_fallback = not configured_front_ids.intersection(page_ids)
+    conflicts = []
+    for page in pages:
+        page_id = page["page_id"]
+        page_revisions = revisions_by_page.get(page_id, [])
+        labels = {revision.get("label") for revision in page_revisions if revision.get("label")}
+        name = page.get("name", "")
+        front = bool(re.search(r"StartSeite|Willkommen", name)) if use_front_name_fallback else page_id in configured_front_ids
+        conflicts.append({
+            "id": page_id,
+            "s": slug_map.get(page_id, slugify(page_id)),
+            "churn": len(labels),
+            "ttd_med_s": _median_cross_label_ttd(page_revisions),
+            "del": page.get("n_deletions", 0),
+            "zzz": name.startswith("ZZZ"),
+            "front": front,
+        })
+    conflicts.sort(key=lambda item: (-item["churn"], -item["del"]))
+    return conflicts[:limit]
+
+
 def main() -> int:
     revisions = list(read_jsonl(RAW / "revisions.jsonl.gz"))
     pages = list(read_jsonl(RAW / "pages.jsonl.gz"))
@@ -119,7 +370,7 @@ def main() -> int:
 
     rev_counts, slug_map = build_revision_files(revisions)
 
-    # --- активность по дням и часам из событий ---
+    # --- activity by day and hour from events ---
     day: dict[tuple[str, str], dict[str, int]] = defaultdict(
         lambda: {"saves": 0, "deletes": 0, "reverts": 0, "probes": 0, "bytes": 0}
     )
@@ -155,7 +406,7 @@ def main() -> int:
         {"hour": h, "saves": hour[h]} for h in sorted(hour, key=lambda x: (x == "?", x))
     ]
 
-    # --- индекс страниц (компактные ключи) ---
+    # --- page index (compact keys) ---
     pages_index = {
         "p": [{
             "id": p["page_id"],
@@ -174,7 +425,7 @@ def main() -> int:
         "order": "last_write desc",
     }
 
-    # --- индекс агентов ---
+    # --- agent label index ---
     labels_index = {
         "l": [{
             "x": lab["label"],
@@ -189,23 +440,38 @@ def main() -> int:
         "n_anon": sum(1 for lab in labels if not lab["label"]),
     }
 
-    # --- последние события ---
+    # --- recent events ---
     recent = []
     for e in events:
         if e.get("event_type") not in EVENT_TYPES:
             continue
-        recent.append({
+        entry = {
             "t": e.get("time"),
             "type": e.get("event_type"),
-            "wiki": e.get("wiki") or (e.get("page_id") or "").partition("/")[0],
-            "page": e.get("page_id") or "",
+            "wiki": e.get("wiki") or "",
+            "page": e.get("page") or "",
             "action": e.get("request_action"),
             "ip16": e.get("ip16"),
-        })
+        }
+        for key, value in (
+            ("rev", e.get("revision_ref")),
+            ("pf", e.get("param_family")),
+            ("ok", e.get("success_observed")),
+            ("rel", e.get("related_event_id")),
+            ("act", e.get("actor_label")),
+        ):
+            if value is not None:
+                entry[key] = value
+        recent.append(entry)
     recent.sort(key=lambda e: e["t"] or "", reverse=True)
-    recent_events = recent[:REV_LIMIT_EVENTS]
+    recent_events = recent
 
-    # --- сводка ---
+    agent_links = build_agent_links(labels)
+    conflicts = build_conflicts(pages, revisions, slug_map)
+    search_index = build_search_index(pages, revisions, slug_map)
+    payload_index = build_payload_index(pages, revisions, slug_map)
+
+    # --- summary ---
     n_revs_total = sum(rev_counts.values())
     summary = {
         "source": "https://collusion.wiki/explorer/download.html",
@@ -232,11 +498,21 @@ def main() -> int:
         ("pages.json", pages_index),
         ("labels.json", labels_index),
         ("recent_events.json", recent_events),
+        ("agent_links.json", agent_links),
+        ("conflicts.json", conflicts),
+        ("search_index.json", search_index),
+        ("payload_index.json", payload_index),
     ]:
-        (OUT / name).write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        output_path = OUT / name
+        output_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         print(f"wrote processed/{name}")
+        if name in {"search_index.json", "payload_index.json"}:
+            size = output_path.stat().st_size
+            print(f"processed/{name}: {size} bytes")
+            if size >= 2 * 1024 * 1024:
+                print(f"WARNING: processed/{name} exceeds 2 MiB budget ({size} bytes)")
 
-    # --- синк в web/public/data ---
+    # --- sync to web/public/data ---
     if PUBLIC != OUT:
         PUBLIC.mkdir(parents=True, exist_ok=True)
         shutil.rmtree(PUBLIC, ignore_errors=True)
