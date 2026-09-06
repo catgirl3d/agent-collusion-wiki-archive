@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { loadJson, revisionFile } from '../api'
 import { Badge, Chip, PageLink } from '../components/ui'
 import { useData, useJson } from '../components/useQuery'
@@ -30,76 +30,149 @@ function Body({ body, enabled }: { body: string; enabled: boolean }) {
 }
 
 function AgentGraph({ label, links, pagesById }: { label: string; links: AgentLinks; pagesById: Map<string, PageRecord[]> }) {
-  const navigate = useNavigate()
-  const coAgents = (links[label] || []).slice(0, 8)
-  const labelPages = (pagesById.get(label) ?? []).slice(0, 5)
-  if (!coAgents.length || !labelPages.length) return null
+  const coAgents = useMemo(() => {
+    const raw = links[label] || []
+    return [...raw]
+      .sort((a, b) => b.c - a.c || a.o.localeCompare(b.o))
+      .slice(0, 10)
+  }, [links, label])
+  const allLabelPages = useMemo(() => pagesById.get(label) ?? [], [pagesById, label])
+  const displayLabelPages = useMemo(() => allLabelPages.slice(0, 6), [allLabelPages])
+  const coAgentSet = useMemo(() => new Set(coAgents.map((a) => a.o)), [coAgents])
+
+  if (!coAgents.length && !allLabelPages.length) return null
 
   const maxC = Math.max(1, ...coAgents.map((a) => a.c))
-  const W = 560
-  const H = 320
-  const cx = W / 2
-  const cy = H / 2
-  const R = 128
-  const pillW = (name: string) => Math.max(48, name.length * 6.2 + 16)
-  const centerW = Math.max(72, label.length * 6.2 + 18)
-  const openAgent = (name: string) => navigate(`/agents?q=${encodeURIComponent(name)}`)
-
+  const sharedPageLinksTop10 = coAgents.reduce((sum, a) => sum + a.c, 0)
   return (
-    <section className="card agent-graph">
-      <h2>Agent graph</h2>
-      <div className="agent-graph-layout">
-        <div className="agent-graph-pages">
-          <strong className="mono">{label}</strong>
-          <ul>
-            {labelPages.map((page) => (
-              <li key={page.id}>
-                <PageLink id={page.id} name={page.n || page.id} max={64} />
-              </li>
-            ))}
-          </ul>
+    <section className="card agent-dossier-card">
+      <div className="agent-dossier-header-bar">
+        <div>
+          <div className="agent-title-row">
+            <span className="muted uppercase tracking-wider text-xs">Coordination Dossier</span>
+            <Badge color="#38bdf8">cluster root</Badge>
+          </div>
+          <h2 className="mono agent-dominant-name">
+            <Link to={`/agents?q=${encodeURIComponent(label)}`} className="link">
+              {label}
+            </Link>
+          </h2>
         </div>
-        <svg className="agent-graph-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Co-agents for ${label}`}>
-          {coAgents.map((agent, i) => {
-            const angle = (i / coAgents.length) * Math.PI * 2 - Math.PI / 2
-            const x = cx + Math.cos(angle) * R
-            const y = cy + Math.sin(angle) * R
-            const w = pillW(agent.o)
-            const strength = agent.c / maxC
-            return (
-              <g key={agent.o}>
-                <line x1={cx} y1={cy} x2={x} y2={y} className="graph-link" style={{ strokeWidth: 1 + strength * 3, opacity: 0.3 + strength * 0.7 }} />
-                <g
-                  className="graph-node"
-                  transform={`translate(${x - w / 2} ${y - 14})`}
-                  role="link"
-                  tabIndex={0}
-                  aria-label={`${agent.o}, ${agent.c} shared edits`}
-                  onClick={() => openAgent(agent.o)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') openAgent(agent.o) }}
-                >
-                  <rect width={w} height={28} rx="12" />
-                  <text x={w / 2} y={18} textAnchor="middle" className="graph-node-text">{agent.o}</text>
-                  <title>{`${agent.o}: ${agent.c} shared edits`}</title>
-                </g>
-                <text x={x} y={y + 26} textAnchor="middle" className="graph-weight">{agent.c}</text>
-              </g>
-            )
-          })}
-          <g
-            className="graph-center"
-            transform={`translate(${cx - centerW / 2} ${cy - 16})`}
-            role="link"
-            tabIndex={0}
-            aria-label={label}
-            onClick={() => openAgent(label)}
-            onKeyDown={(e) => { if (e.key === 'Enter') openAgent(label) }}
-          >
-            <rect width={centerW} height={32} rx="14" />
-            <text x={centerW / 2} y={20} textAnchor="middle" className="graph-center-text">{label}</text>
-            <title>{label}</title>
-          </g>
-        </svg>
+        <div className="agent-cluster-metrics">
+          <div className="agent-metric-item">
+            <span className="metric-val">{(links[label] || []).length}</span>
+            <span className="metric-lbl">Co-conspirators</span>
+          </div>
+          <div className="agent-metric-item">
+            <span className="metric-val">{sharedPageLinksTop10}</span>
+            <span className="metric-lbl">Shared page links (top 10)</span>
+          </div>
+          <div className="agent-metric-item">
+            <span className="metric-val">{allLabelPages.length}</span>
+            <span className="metric-lbl">Target Pages</span>
+          </div>
+          <Link to={`/network?agent=${encodeURIComponent(label)}`} className="btn sm">
+            Explore in Network Graph →
+          </Link>
+        </div>
+      </div>
+
+      <div className="agent-dossier-grid">
+        {/* Left Column: Target pages edited by root agent */}
+        <div className="agent-dossier-pages-col">
+          <h3 className="section-subtitle">
+            Pages edited by {label.length > 20 ? `${label.slice(0, 18)}…` : label} <span className="muted">({allLabelPages.length})</span>
+          </h3>
+          <div className="dossier-page-list">
+            {displayLabelPages.map((page) => (
+              <div key={page.id} className="dossier-page-item">
+                <Chip tone="wiki"><span style={{ color: wikiColor(page.w) }}>{page.w}</span></Chip>
+                <div className="dossier-page-name">
+                  <PageLink id={page.id} name={page.n || page.id} max={38} />
+                </div>
+                {page.r && <span className="badge-revs">{page.r} revs</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column: Collaborator Syndicate Grid */}
+        {coAgents.length > 0 && (
+          <div className="agent-dossier-syndicate-col">
+            <h3 className="section-subtitle">
+              Top Collaborating Agents <span className="muted">({coAgents.length})</span>
+            </h3>
+            <div className="syndicate-cards-grid">
+              {coAgents.map((agent) => {
+                const strengthPct = Math.min(100, Math.round((agent.c / maxC) * 100))
+                const agentPages = pagesById.get(agent.o) ?? []
+                const agentPageIds = new Set(agentPages.map((ap) => ap.id))
+                const mutualPages = allLabelPages.filter((p) => agentPageIds.has(p.id))
+                const peerLinks = (links[agent.o] || []).filter((p) => coAgentSet.has(p.o) && p.o !== agent.o)
+
+                return (
+                  <article key={agent.o} className="syndicate-card">
+                  <header className="syndicate-card-head">
+                    <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="syndicate-agent-name mono">
+                      {agent.o}
+                    </Link>
+                    <Badge color={agent.c >= 4 ? '#fb7185' : '#38bdf8'}>
+                      {agent.c} shared
+                    </Badge>
+                  </header>
+
+                  <div className="collusion-meter">
+                    <div className="meter-label">
+                      <span>Coordination strength</span>
+                      <span className="mono">{strengthPct}%</span>
+                    </div>
+                    <div className="meter-track">
+                      <div
+                        className={`meter-fill ${agent.c >= 4 ? 'high' : 'medium'}`}
+                        style={{ width: `${strengthPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {mutualPages.length > 0 && (
+                    <div className="syndicate-shared-pages">
+                      <span className="muted text-xs">Shared targets:</span>
+                      <div className="shared-chips">
+                        {mutualPages.slice(0, 2).map((p) => (
+                          <span key={p.id} className="chip-mini">
+                            <PageLink id={p.id} name={p.n || p.id} max={22} />
+                          </span>
+                        ))}
+                        {mutualPages.length > 2 && (
+                          <span className="muted text-xs">+{mutualPages.length - 2}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {peerLinks.length > 0 && (
+                    <div className="syndicate-peers">
+                      <span className="muted text-xs">Cluster peers:</span>
+                      <span className="peer-tags">
+                        {peerLinks.slice(0, 3).map((p) => (
+                          <span key={p.o} className="peer-tag mono">{p.o}</span>
+                        ))}
+                        {peerLinks.length > 3 && <span className="muted text-xs">+{peerLinks.length - 3}</span>}
+                      </span>
+                    </div>
+                  )}
+
+                  <footer className="syndicate-card-foot">
+                    <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="link text-xs">
+                      Inspect agent dossier →
+                    </Link>
+                  </footer>
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      )}
       </div>
     </section>
   )

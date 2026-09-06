@@ -26,6 +26,9 @@ export default function Layout() {
           <NavLink to="/agents" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Agents
           </NavLink>
+          <NavLink to="/network" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Network
+          </NavLink>
           <NavLink to="/events" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Events
           </NavLink>
