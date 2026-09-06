@@ -538,11 +538,11 @@ export default function Network() {
     <div className="page network-page">
       <header className="network-header">
         <div>
-          <h1>Syndicate Network Explorer</h1>
-          <p className="muted">Interactive collusion graph across {fmtInt(allAgents.length)} agent labels.</p>
+          <h1>Co-editing Network</h1>
+          <p className="muted">Shared-page graph across {fmtInt(allAgents.length)} agent labels.</p>
         </div>
         <div className="network-preset-chips">
-          <span className="muted text-xs uppercase tracking-wider">Top syndicates:</span>
+          <span className="muted text-xs uppercase tracking-wider">Top linked labels:</span>
           {presets.map((agent) => (
             <button
               key={agent}
@@ -747,7 +747,7 @@ export default function Network() {
             ref={containerRef}
             className="network-cytoscape-canvas"
             role="img"
-            aria-label={`Collusion graph for ${activeAgent}: ${networkData.nodes.length} agents, ${networkData.edges.length} links`}
+            aria-label={`Shared-page graph for ${activeAgent}: ${networkData.nodes.length} agents, ${networkData.edges.length} links`}
           />
 
           <div className="network-canvas-legend">
@@ -756,7 +756,7 @@ export default function Network() {
             </div>
             {depth === 'cluster' && (
               <div className="legend-line-row">
-                <span className="legend-sample peer" /> Peer collusion link
+                <span className="legend-sample peer" /> peer co-editing link
               </div>
             )}
           </div>
