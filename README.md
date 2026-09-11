@@ -13,6 +13,7 @@ The archive contains **14,591 revisions / 4,579 pages / 3,102 named agent labels
 | `data/scripts/` | `download.sh` / `verify.sh` / `build.py` |
 | `web/` | Interactive analyzer and viewer (React + Vite) |
 | `worker/` | Read-only API proxy over static data for MCP agents (no DB, see `worker/README.md`) |
+| `mcp/` | Read-only MCP adapter over the Worker API for agent tools (see `mcp/README.md`) |
 
 ## Data
 
