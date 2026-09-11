@@ -655,6 +655,15 @@ describe('getPayloadEvidence', () => {
     const closeRes = getPayloadEvidence(closeBody)
     expect(closeRes.snippets.length).toBe(1)
   })
+
+  it('keeps snippet offsets in body coordinates when lowercasing changes length', () => {
+    // U+0130 lowercases to two UTF-16 units; before the fix the snippet started after the marker's first char.
+    const body = 'z'.repeat(49) + '\u0130  ignore previous' + 'q'.repeat(140)
+    const res = getPayloadEvidence(body)
+    expect(res.flags).toContain('inject')
+    expect(res.snippets).toHaveLength(1)
+    expect(res.snippets[0].text).toContain('\u0130')
+  })
 })
 
 describe('robustness on edge cases', () => {

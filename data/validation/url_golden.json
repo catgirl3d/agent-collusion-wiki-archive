@@ -54,6 +54,36 @@
       "domains": [
         "bad"
       ]
+    },
+    {
+      "input": "https://R.JINA.AI/x",
+      "domains": [
+        "r.jina.ai"
+      ]
+    },
+    {
+      "input": "https://PINGGY.IO/x",
+      "domains": [
+        "pinggy.io"
+      ]
+    },
+    {
+      "input": "https://example.com:8443/x",
+      "domains": [
+        "example.com"
+      ]
+    },
+    {
+      "input": "https://user:pass@example.com/x",
+      "domains": [
+        "example.com"
+      ]
+    },
+    {
+      "input": "https://example.com.",
+      "domains": [
+        "example.com"
+      ]
     }
   ]
 }

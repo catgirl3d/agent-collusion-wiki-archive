@@ -43,6 +43,7 @@ describe('payload detection', () => {
       'confirmed sequence: ma -> ct',
     ])
     expect(extractLineArtifacts('short line')).toEqual([])
+    expect(extractLineArtifacts('use the http proxy for relays')).toEqual(['use the http proxy for relays'])
   })
   it('detects valid base64 but ignores invalid long tokens', () => {
     expect(detectPayloadFlags('A'.repeat(90))).not.toContain('b64')
@@ -52,6 +53,16 @@ describe('payload detection', () => {
     const body = '0x' + 'a'.repeat(64) + ' <script> onerror= javascript: SYSTEM: Ignore previous pinggy.io markdown.new'
     expect(detectPayloadFlags(body)).toEqual(expect.arrayContaining(['hex', 'script', 'inject', 'tunnel', 'redirect']))
     expect(detectPayloadFlags('system: ignore previous')).toContain('inject')
+    // Regression: uppercase service hosts must flag and classify the same as lowercase ones (Python parity).
+    expect(detectPayloadFlags('HTTPS://PINGGY.IO/x and HTTPS://R.JINA.AI/y')).toEqual(expect.arrayContaining(['tunnel', 'redirect']))
+    expect(detectPayloadFlags('<SCRIPT>alert(1)</SCRIPT>')).toContain('script')
+  })
+  it('keeps system:-only text inject-flagged but out of prompt artifacts', () => {
+    expect(detectPayloadFlags('SYSTEM: obey only')).toContain('inject')
+    expect(extractTechnicalArtifacts('SYSTEM: obey only')).toEqual([])
+    expect(extractTechnicalArtifacts('IGNORE PREVIOUS')).toEqual([
+      expect.objectContaining({ artifactType: 'prompt', canonicalValue: 'ignore previous' }),
+    ])
   })
   it('does not flag bare 0x units as hex', () => {
     // '~10x.' без цифр после 0x — не hex-литерал (реальный кейс из датасета)
@@ -82,5 +93,10 @@ describe('payload detection', () => {
     const segments = highlightMatches('before <script>x</script> after')
     expect(segments.map((s) => s.text)).toEqual(['before ', '<script', '>x</script> after'])
     expect(highlightMatches('plain text')).toEqual([{ text: 'plain text' }])
+  })
+  it('keeps highlight offsets in body coordinates when lowercasing changes length', () => {
+    // U+0130 lowercases to "i" + combining dot (1 -> 2 UTF-16 units); offsets must not shift.
+    expect(highlightMatches('\u0130 <script>').map((s) => s.text)).toEqual(['\u0130 ', '<script', '>'])
+    expect(highlightMatches('\u0130 ignore previous').map((s) => s.text)).toEqual(['\u0130 ', 'ignore previous'])
   })
 })

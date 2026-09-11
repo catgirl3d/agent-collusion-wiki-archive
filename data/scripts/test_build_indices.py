@@ -1,9 +1,10 @@
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from build import build_payload_index, build_search_index, detect_payload_flags
+from build import _domains, build_payload_index, build_search_index, detect_payload_flags
 
 
 def _page(page_id, name):
@@ -84,3 +85,9 @@ def test_payload_structure_aggregates_revisions_and_sorts_domains_and_slugs():
     assert index[0] == {"s": "a", "id": "w/a", "u": ["a.test", "markdown.new", "z.test"], "f": ["redirect"]}
     entry = index[1]
     assert entry == {"s": "b", "id": "w/b", "u": ["example.com"], "f": ["inject"]}
+
+
+def test_domains_match_shared_url_golden_fixture():
+    golden = json.loads((Path(__file__).resolve().parents[1] / "validation" / "url_golden.json").read_text(encoding="utf-8"))
+    for entry in golden["urls"]:
+        assert _domains(entry["input"]) == entry["domains"], entry["input"]
