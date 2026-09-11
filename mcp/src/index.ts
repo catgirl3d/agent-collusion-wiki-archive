@@ -1,5 +1,5 @@
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
-import { createArchiveMcpServer } from './server.js'
+import { createArchiveMcpServer, installShutdownHandlers } from './server.js'
 
 const handle = serveStdio(() => createArchiveMcpServer(), {
   onerror: (error) => {
@@ -7,9 +7,4 @@ const handle = serveStdio(() => createArchiveMcpServer(), {
   },
 })
 
-process.on('SIGINT', () => {
-  handle.close().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error)
-    process.exit(1)
-  })
-})
+installShutdownHandlers(handle)
