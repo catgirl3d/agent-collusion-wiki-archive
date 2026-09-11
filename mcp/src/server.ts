@@ -18,6 +18,29 @@ const pageLimit = z.number().int().min(1).max(100).optional().describe('Number o
 const pageOffset = z.number().int().min(0).max(100_000).optional().describe('Number of rows to skip.')
 const MAX_TOOL_RESULT_BYTES = 2_000_000
 
+type ClosableHandle = { close(): Promise<unknown> }
+type ShutdownTarget = {
+  on(signal: 'SIGINT' | 'SIGTERM', listener: () => void): unknown
+  exit(code: number): void
+}
+
+export function installShutdownHandlers(handle: ClosableHandle, proc: ShutdownTarget = process): void {
+  let closing = false
+  const shutdown = () => {
+    if (closing) return
+    closing = true
+    handle.close().then(
+      () => proc.exit(0),
+      (error: unknown) => {
+        console.error(error instanceof Error ? error.message : error)
+        proc.exit(1)
+      },
+    )
+  }
+  proc.on('SIGINT', shutdown)
+  proc.on('SIGTERM', shutdown)
+}
+
 function failure(error: unknown) {
   const message = error instanceof ArchiveApiError ? error.message : 'MCP request failed'
   return { content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }], isError: true }
@@ -118,7 +141,7 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
     'get_page',
     {
       title: 'Get page metadata',
-      description: 'Return metadata for one generated page slug. Use the s field from this result for revision queries.',
+      description: 'Return metadata for one generated page slug.',
       inputSchema: { slug: nonEmptyText('Exact generated page slug.') },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
