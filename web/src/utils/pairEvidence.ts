@@ -484,7 +484,9 @@ export function derivePairEvidence(
   }
   // Technique rows are class-level: each actor's eligible additions are accumulated
   // independently over ALL artifacts of the class/family — an exact artifact shared by
-  // both actors is not required, and exact overlap suppresses the row as a duplicate.
+  // both actors is not required. Suppress the row only when both sides added exactly the
+  // same value set (a pure duplicate of the shared exact artifacts); a partial overlap
+  // keeps the row because it still reports class-level diversity.
   const leftTechniqueValues = new Map<string, Set<string>>()
   const rightTechniqueValues = new Map<string, Set<string>>()
   const techniqueFirstEvent = new Map<string, number>()
@@ -512,11 +514,12 @@ export function derivePairEvidence(
   for (const [key, leftValues] of leftTechniqueValues) {
     const rightValues = rightTechniqueValues.get(key)
     if (!rightValues || rightValues.size === 0) continue
-    if ([...leftValues].some((value) => rightValues.has(value))) continue
+    const fullyShared = leftValues.size === rightValues.size && [...leftValues].every((value) => rightValues.has(value))
+    if (fullyShared) continue
     techniques.set(key, { key, kind: key === 'tunnel' || key === 'redirect' ? 'payload-class' : 'service-family', counts: { [leftLabel]: leftValues.size, [rightLabel]: rightValues.size }, exactValues: [...new Set([...leftValues, ...rightValues])].sort(), firstEvent: techniqueFirstEvent.get(key)! })
   }
   const allShared = sortedSignatureItems(shared)
-  const artifacts = allShared.filter((item) => item.artifactType !== 'domain' && item.artifactType !== 'line' || item.techniqueKey || item.payloadClass)
+  const artifacts = allShared.filter((item) => (item.artifactType !== 'domain' && item.artifactType !== 'line') || item.techniqueKey || item.payloadClass)
   const coordinationLines = allShared.filter((item) => item.artifactType === 'line')
   const additionsArtifactByKey = new Map<string, TechnicalArtifact>()
   for (const [key, byActor] of additions) {

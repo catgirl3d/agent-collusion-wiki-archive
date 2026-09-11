@@ -458,10 +458,23 @@ describe('derivePairEvidence', () => {
     expect(evidence.techniques.find((row) => row.key === 'tunnel')).toMatchObject({ kind: 'payload-class' })
   })
 
-  it('suppresses a technique row that duplicates an exact shared artifact', () => {
+  it('keeps a partially shared technique row that still adds class-level diversity', () => {
     const revisions: Revision[] = [
       { seq: 1, time: '2026-06-01T00:00:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
       { seq: 2, time: '2026-06-01T00:01:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://markdown.new/a https://r.jina.ai/b', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
+      { seq: 4, time: '2026-06-01T00:03:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://markdown.new/c', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.artifacts.map((item) => item.canonicalValue)).toEqual(['markdown.new'])
+    expect(evidence.techniques).toHaveLength(1)
+    expect(evidence.techniques[0]).toMatchObject({ key: 'redirect', counts: { A: 2, B: 1 }, exactValues: ['markdown.new', 'r.jina.ai'] })
+  })
+
+  it('suppresses a technique row only when both actors added exactly the same values', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://markdown.new/a', action: null, round: null },
       { seq: 3, time: '2026-06-01T00:02:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
       { seq: 4, time: '2026-06-01T00:03:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://markdown.new/c', action: null, round: null },
     ]
