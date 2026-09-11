@@ -49,8 +49,8 @@ API only accepts `GET` requests, plus `OPTIONS` for API preflight requests.
 
 - Revision bodies are not included in `/api/search`; full-text search over the
   revision corpus is intentionally out of scope for v1.
-- `/api/events` covers only the latest 2,000 events and returns
-  `scope: "recent_2000_only"`.
+- `/api/events` serves the complete event history from `recent_events.json`
+  (a legacy file name) and returns `scope: "full_history"`.
 - Agent history is not aggregated across pages in one request. Fetch the
   `pgs` list first, then request revisions for each page.
 - The Worker is stateless and has no D1 or other database binding.
