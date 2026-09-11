@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import type { PairEvent, PairTimeline, SharedPageEntry } from '../utils/pairEvidence'
-import { derivePatternSignals, formatPatternSignals, getPayloadEvidence } from '../utils/pairEvidence'
+import { derivePairEvidence, derivePatternSignals, formatPatternSignals, getPayloadEvidence } from '../utils/pairEvidence'
 import { fmtTimeSeconds, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS } from '../utils/payload'
 import { DiffView } from './DiffView'
@@ -209,12 +209,44 @@ export function PairEvidencePanel({
     return null
   }, [isReady, timeline])
 
+  const signatures = useMemo(
+    () => (isReady ? derivePairEvidence(selectedPageId ?? '', timeline, leftLabel, rightLabel) : null),
+    [isReady, timeline, selectedPageId, leftLabel, rightLabel],
+  )
+
   const reversedEvents = useMemo(() => {
     if (!isReady) return []
     return [...timeline.events].reverse()
   }, [isReady, timeline])
 
   const visibleEvents = useMemo(() => reversedEvents.slice(0, limit), [reversedEvents, limit])
+
+  const renderDisclosure = (label: string, children: ReactElement) => (
+    <details className="pair-signature-disclosure"><summary>{label}</summary>{children}</details>
+  )
+
+  const signatureChip = (item: NonNullable<typeof signatures>['artifacts'][number], key: string) => (
+    <span key={key} className="pair-signature-chip" title={item.canonicalValue}>
+      <span className="pair-signature-kind">{item.artifactType}</span>
+      <span className="mono pair-signature-value">{item.canonicalValue}</span>
+      <span className="pair-signature-count">{leftLabel} {item.counts[leftLabel] ?? 0} · {rightLabel} {item.counts[rightLabel] ?? 0}</span>
+      <span className="pair-signature-refs">{item.refs.slice(0, 2).map((ref) => `${ref.label} · rev #${ref.seq ?? ref.revIndex + 1}`).join(' · ')}</span>
+    </span>
+  )
+
+  const techniqueChip = (technique: NonNullable<typeof signatures>['techniques'][number]) => (
+    <span key={technique.key} className="pair-technique-chip"><span>technique</span> {technique.key}</span>
+  )
+
+  const lineChip = (item: NonNullable<typeof signatures>['coordinationLines'][number], truncate: boolean) => (
+    <span key={item.canonicalValue} className="pair-technique-chip"><span>line</span> <span className="mono">{truncate ? `${item.canonicalValue.slice(0, 80)}${item.canonicalValue.length > 80 ? '…' : ''}` : item.canonicalValue}</span></span>
+  )
+
+  const retainedChip = (domain: NonNullable<typeof signatures>['retainedDomains'][number], truncate: boolean) => (
+    <span key={domain.canonicalValue} className="pair-technique-chip"><span>retained</span> {truncate ? `${domain.canonicalValue.slice(0, 60)}${domain.canonicalValue.length > 60 ? '…' : ''}` : domain.canonicalValue} <span className="muted">({domain.labels.length} label{domain.labels.length > 1 ? 's' : ''})</span></span>
+  )
+
+  const hasSharedEvidence = signatures !== null && (signatures.artifacts.length > 0 || signatures.techniques.length > 0 || signatures.coordinationLines.length > 0 || signatures.retainedDomains.length > 0 || signatures.commonHosts.length > 0)
 
   return (
     <section className="card pair-evidence-panel" aria-label="Shared pair evidence">
@@ -260,7 +292,30 @@ export function PairEvidencePanel({
         </button>
       </div>
 
-      {/* 2. Observed patterns */}
+      {/* 2. Shared technical signatures */}
+      <div className="pair-section pair-signatures-section">
+        <div className="pair-section-head">
+          <h3 className="section-subtitle">Shared technical signatures</h3>
+          <p className="pair-signature-definition">Shared means observed in new additions by both selected labels; it does not establish information transfer.</p>
+          <p className="pair-signature-scope muted text-xs">Selected page only · {sharedPages.length} shared pages total · other pages not analyzed</p>
+        </div>
+        {timeline === 'loading' ? <div className="muted text-xs">Loading signatures…</div> : timeline === 'error' ? <div className="muted text-xs">Signatures unavailable</div> : !signatures ? <div className="muted text-xs">Select a shared page to view signatures.</div> : (
+          <>
+            {signatures.firstPairEvent && <div className="pair-sequence-summary"><strong>Observed sequence</strong>: First pair edit: {signatures.firstPairEvent.label} · rev #{signatures.firstPairEvent.seq ?? signatures.firstPairEvent.revIndex + 1} · Preceding third-party revisions: {signatures.firstPairEvent.interveningOther}</div>}
+            {signatures.pairObservations.length > 0 && <div className="pair-sequence-observations">{signatures.pairObservations.slice(0, 4).map((observation) => <div key={`${observation.artifact}:${observation.status}:${observation.observationRefs[0]}`}><span className="pair-status-label">{observation.status}</span> <span className="mono">{observation.artifact.split(':').slice(1).join(':')}</span></div>)}{signatures.pairObservations.length > 4 && renderDisclosure(`Show ${signatures.pairObservations.length - 4} more sequence observations`, <div>{signatures.pairObservations.slice(4).map((observation) => <div key={`${observation.artifact}:${observation.status}:${observation.observationRefs[0]}`}><span className="pair-status-label">{observation.status}</span> <span className="mono">{observation.artifact.split(':').slice(1).join(':')}</span></div>)}</div>)}</div>}
+            {signatures.artifacts.length > 0 && <div className="pair-signature-list">{signatures.artifacts.slice(0, 4).map((item) => signatureChip(item, `${item.artifactType}:${item.canonicalValue}`))}</div>}
+            {!hasSharedEvidence && <div className="pair-signature-empty">No shared technical signatures observed on this page. Cross-page recurrence, unrecognized phrases/families, bare service mentions, subnet/ASN/provider inference, and wholesale-copy distinction are not checked here.</div>}
+            {signatures.artifacts.length > 4 && renderDisclosure(`Show ${signatures.artifacts.length - 4} more flagged signatures`, <div className="pair-signature-list">{signatures.artifacts.slice(4).map((item) => signatureChip(item, `${item.artifactType}:${item.canonicalValue}`))}</div>)}
+            {signatures.commonHosts.length > 0 && renderDisclosure(`Common hosts (${signatures.commonHosts.length})`, <div className="pair-signature-list">{signatures.commonHosts.map((item) => signatureChip(item, item.canonicalValue))}</div>)}
+            {signatures.techniques.length > 0 && <div className="pair-techniques"><strong>Shared techniques</strong><span className="muted text-xs"> Class-level evidence; different exact values can underlie one row.</span><div className="pair-signature-list">{signatures.techniques.slice(0, 4).map((technique) => techniqueChip(technique))}</div>{signatures.techniques.length > 4 && renderDisclosure(`Show ${signatures.techniques.length - 4} more techniques`, <div className="pair-signature-list">{signatures.techniques.slice(4).map((technique) => techniqueChip(technique))}</div>)}</div>}
+            {signatures.coordinationLines.length > 0 && <div className="pair-coordination-lines"><strong>Coordination lines</strong><span className="muted text-xs"> Same short line added by both labels; wording is observed, intent is not inferred.</span><div className="pair-signature-list">{signatures.coordinationLines.slice(0, 4).map((item) => lineChip(item, true))}</div>{signatures.coordinationLines.length > 4 && renderDisclosure(`Show ${signatures.coordinationLines.length - 4} more lines`, <div className="pair-signature-list">{signatures.coordinationLines.slice(4).map((item) => lineChip(item, false))}</div>)}</div>}
+            {signatures.retainedDomains.length > 0 && <div className="pair-retained-domains"><strong>Retained domains</strong><span className="muted text-xs"> Added by one label, kept by the other; infrastructure reuse, not shared addition.</span><div className="pair-signature-list">{signatures.retainedDomains.slice(0, 4).map((domain) => retainedChip(domain, true))}</div>{signatures.retainedDomains.length > 4 && renderDisclosure(`Show ${signatures.retainedDomains.length - 4} more domains`, <div className="pair-signature-list">{signatures.retainedDomains.slice(4).map((domain) => retainedChip(domain, false))}</div>)}</div>}
+            {signatures.coverageStatus === 'unknown-genesis' && <div className="pair-unknown-genesis">Page history starts before the archive; the earliest revision body was not attributed.</div>}
+          </>
+        )}
+      </div>
+
+      {/* 3. Observed patterns */}
       <div className="pair-section pair-patterns-section">
         <div className="pair-section-head">
           <h3 className="section-subtitle">Observed patterns</h3>
@@ -295,7 +350,7 @@ export function PairEvidencePanel({
         )}
       </div>
 
-      {/* 3. Shared-page list (full, never capped) */}
+      {/* 4. Shared-page list (full, never capped) */}
       <div className="pair-section pair-page-list-section">
         <div className="pair-section-head">
           <h3 className="section-subtitle">Shared pages ({sharedPages.length})</h3>
@@ -376,7 +431,7 @@ export function PairEvidencePanel({
         </div>
       </div>
 
-      {/* 4. Timeline section */}
+      {/* 5. Timeline section */}
       {timeline === 'loading' && (
         <div className="pair-timeline-loading muted text-sm">
           Loading revisions for {selectedPageName ?? 'selected page'}…
@@ -437,7 +492,7 @@ export function PairEvidencePanel({
         </div>
       )}
 
-      {/* 5. Footer line */}
+      {/* 6. Footer line */}
       {(!timeline || !selectedPageId) && (
         <footer className="pair-panel-footer text-xs muted">
           open a page to see its full revision history

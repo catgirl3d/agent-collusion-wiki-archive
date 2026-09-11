@@ -4,6 +4,7 @@ import {
   analyzeRevisionChange,
   buildPairTimeline,
   derivePatternSignals,
+  derivePairEvidence,
   getPayloadEvidence,
   getSharedPages,
   type PairEvent,
@@ -357,6 +358,19 @@ describe('buildPairTimeline', () => {
     expect(ev.analysis.op).toBe('destructive')
   })
 
+  it('reports preceding third-party revisions for the first pair edit and leaves its gap unknown', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T09:00:00Z', label: 'AgentX', ip16: null, summary: null, len: 5, body: 'one', action: null, round: null },
+      { seq: 2, time: '2026-06-01T10:00:00Z', label: 'AgentA', ip16: null, summary: null, len: 5, body: 'two', action: null, round: null },
+      { seq: 3, time: '2026-06-01T11:00:00Z', label: 'AgentB', ip16: null, summary: null, len: 5, body: 'three', action: null, round: null },
+    ]
+    const tl = buildPairTimeline(revisions, 'AgentA', 'AgentB')
+
+    expect(tl.events[0].interveningOther).toBe(1)
+    expect(tl.events[0].gapSeconds).toBeNull()
+    expect(tl.events[1].gapSeconds).toBe(3600)
+  })
+
   it('orders null-seq revisions by timestamp against known-seq neighbors', () => {
     const revisions: Revision[] = [
       { seq: 1, time: '2026-06-01T10:00:00Z', label: 'AgentA', ip16: null, summary: null, len: 5, body: 'one', action: null, round: null },
@@ -377,6 +391,165 @@ describe('buildPairTimeline', () => {
     ]
     const tl = buildPairTimeline(revisions, 'AgentA', 'AgentB')
     expect(tl.orderedRevisions.map((r) => r.body)).toEqual(['early', 'one'])
+  })
+})
+
+describe('derivePairEvidence', () => {
+  it('attributes identical flagged hosts and prompt markers by presence, not line diff', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a ignore previous', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:00:00Z', label: 'X', ip16: null, summary: null, len: 0, body: '', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:01:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a ignore previous', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.artifacts.map((item) => item.canonicalValue)).toEqual(expect.arrayContaining(['pinggy.io', 'ignore previous']))
+    expect(evidence.coverageStatus).toBe('complete')
+    expect(evidence.pairObservations.some((item) => item.status === 're-added-after-third-party')).toBe(true)
+    expect(evidence.artifactObservations).toHaveLength(4)
+    const pinggy = evidence.artifacts.find((item) => item.canonicalValue === 'pinggy.io')!
+    expect(pinggy.refs).toEqual([{ revIndex: 0, label: 'A', seq: 1 }, { revIndex: 2, label: 'B', seq: 3 }])
+  })
+
+  it('does not attribute an unknown-genesis initial body and handles zero/invalid gaps', () => {
+    const revisions: Revision[] = [
+      { seq: 7, time: 'invalid', label: 'A', ip16: null, summary: null, len: 0, body: 'https://example.test', action: null, round: null },
+      { seq: 8, time: '2026-06-01T00:00:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://example.test https://other.test', action: null, round: null },
+    ]
+    const timeline = buildPairTimeline(revisions, 'A', 'B')
+    expect(timeline.events[1].gapSeconds).toBeNull()
+    const evidence = derivePairEvidence('page', timeline, 'A', 'B')
+    expect(evidence.coverageStatus).toBe('unknown-genesis')
+    expect(evidence.artifactObservations).toHaveLength(1)
+  })
+
+  it('emits a class-level technique row when the actors add different exact hosts of one class', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'see https://markdown.new/x', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'see https://r.jina.ai/y', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.artifacts).toHaveLength(0)
+    expect(evidence.commonHosts).toHaveLength(0)
+    expect(evidence.techniques).toHaveLength(1)
+    expect(evidence.techniques[0]).toMatchObject({ key: 'redirect', kind: 'payload-class', counts: { A: 1, B: 1 }, exactValues: ['markdown.new', 'r.jina.ai'] })
+  })
+
+  it('keeps flagged hosts out of the secondary common-host list', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://markdown.new/a https://wiki.example.test/page', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
+      { seq: 4, time: '2026-06-01T00:03:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://markdown.new/b https://wiki.example.test/page', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.artifacts.map((item) => item.canonicalValue)).toEqual(['markdown.new'])
+    expect(evidence.commonHosts.map((item) => item.canonicalValue)).toEqual(['wiki.example.test'])
+  })
+
+  it('emits a service-family technique row for different subdomains of one tunnel family', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'ssh over https://x.pinggy.io/a', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'ssh over https://y.pinggy.io/b', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    const keys = evidence.techniques.map((row) => row.key).sort()
+    expect(keys).toEqual(['pinggy', 'tunnel'])
+    expect(evidence.techniques.find((row) => row.key === 'pinggy')).toMatchObject({ kind: 'service-family', counts: { A: 1, B: 1 } })
+    expect(evidence.techniques.find((row) => row.key === 'tunnel')).toMatchObject({ kind: 'payload-class' })
+  })
+
+  it('suppresses a technique row that duplicates an exact shared artifact', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://markdown.new/a https://r.jina.ai/b', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'plain', action: null, round: null },
+      { seq: 4, time: '2026-06-01T00:03:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://markdown.new/c', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.artifacts.map((item) => item.canonicalValue)).toEqual(['markdown.new'])
+    expect(evidence.techniques).toHaveLength(0)
+  })
+
+  it('labels statuses artifact-relative and never marks a same-actor re-add as second-actor-added', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'clean', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a v2', action: null, round: null },
+      { seq: 4, time: '2026-06-01T00:03:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'clean', action: null, round: null },
+      { seq: 5, time: '2026-06-01T00:04:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a v3', action: null, round: null },
+      { seq: 6, time: '2026-06-01T00:05:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'clean', action: null, round: null },
+      { seq: 7, time: '2026-06-01T00:06:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a v4', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    const item = evidence.artifacts.find((entry) => entry.canonicalValue === 'pinggy.io')
+    expect(item).toBeDefined()
+    expect(item!.counts).toEqual({ A: 3, B: 1 })
+    expect(new Set(item!.statuses)).toEqual(new Set(['second-actor-added', 're-added-after-third-party']))
+    const byStatus = new Map(evidence.pairObservations.filter((row) => row.artifact === 'domain:pinggy.io').map((row) => [row.status, row.observationRefs]))
+    expect(byStatus.get('second-actor-added')).toEqual(['page|2|B|domain|pinggy.io|sig-extractor-v2'])
+    expect(byStatus.get('re-added-after-third-party')).toEqual(['page|4|A|domain|pinggy.io|sig-extractor-v2'])
+    // A's re-add at seq 7 (revIndex 6, own selected-label baseline) carries no status
+    expect(evidence.pairObservations.filter((row) => row.artifact === 'domain:pinggy.io')).toHaveLength(2)
+    expect(evidence.artifactObservations).toHaveLength(4)
+  })
+
+  it('matches identical coordination lines added by both labels and keeps them out of flagged artifacts', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'CONFIRMED sequence: MA -> CT -> MI -> WV', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'cleared', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'confirmed   sequence: ma -> ct -> mi -> wv', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.artifacts).toHaveLength(0)
+    expect(evidence.coordinationLines).toHaveLength(1)
+    expect(evidence.coordinationLines[0]).toMatchObject({ artifactType: 'line', canonicalValue: 'confirmed sequence: ma -> ct -> mi -> wv' })
+    expect(evidence.techniques).toHaveLength(0)
+  })
+
+  it('excludes URLs, wiki markup, and short lines from coordination matching', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://markdown.new/x\n== Header ==\nok\nA normal shared coordination sentence here', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'cleared', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://markdown.new/x\n== Header ==\nok\nA normal shared coordination sentence here', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.coordinationLines.map((item) => item.canonicalValue)).toEqual(['a normal shared coordination sentence here'])
+  })
+
+  it('reports tunnel domains added by one label and retained by the other', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'bridge https://bvryr-16-146-184-55.run.pinggy-free.link/', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'bridge https://bvryr-16-146-184-55.run.pinggy-free.link/ updated', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'bridge https://bvryr-16-146-184-55.run.pinggy-free.link/ updated again', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.artifacts).toHaveLength(0)
+    expect(evidence.retainedDomains).toHaveLength(1)
+    expect(evidence.retainedDomains[0]).toMatchObject({ canonicalValue: 'bvryr-16-146-184-55.run.pinggy-free.link', labels: ['B'] })
+  })
+
+  it('does not report ordinary hosts kept by the other label as retained infrastructure', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'see https://wiki.example.test/page', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'see https://wiki.example.test/page now', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    expect(evidence.retainedDomains).toHaveLength(0)
+  })
+
+  it('does not emit a retained observation for an actor that already added the artifact', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'clean', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a v1', action: null, round: null },
+      { seq: 4, time: '2026-06-01T00:03:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://pinggy.io/a v2', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+    const statuses = evidence.pairObservations
+      .filter((row) => row.artifact === 'domain:pinggy.io')
+      .map((row) => row.status)
+
+    expect(statuses).toEqual(['second-actor-added'])
   })
 })
 
@@ -403,6 +576,7 @@ describe('derivePatternSignals', () => {
         truncated: false,
       },
       payloadFlags: [],
+      gapSeconds: null,
     }
   }
 

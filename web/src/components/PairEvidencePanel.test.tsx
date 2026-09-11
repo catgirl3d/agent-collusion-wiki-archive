@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { PairEvent, PairTimeline, SharedPageEntry } from '../utils/pairEvidence'
+import { buildPairTimeline, type PairEvent, type PairTimeline, type SharedPageEntry } from '../utils/pairEvidence'
 import type { PageRecord, Revision } from '../types'
 import { describe, expect, it, vi } from 'vitest'
 import { PairEvidencePanel } from './PairEvidencePanel'
@@ -20,6 +20,7 @@ function event(revIndex: number): PairEvent {
     baselineLabel: revIndex === 0 ? null : 'agent-a', baselineSeq: revIndex === 0 ? null : revIndex, interveningOther: 0,
     analysis: revIndex === 0 ? { op: 'initial', delta: 10, added: 0, removed: 0, truncated: false } : { op: 'replace', delta: 1, added: 1, removed: 1, truncated: false },
     payloadFlags: revIndex === 1 ? ['script'] : [],
+    gapSeconds: revIndex === 0 ? null : 86400,
   }
 }
 
@@ -100,4 +101,100 @@ describe('PairEvidencePanel', () => {
     expect(screen.getByText('showing 50 of 51 pair events')).toBeInTheDocument()
     expect(screen.queryByText('showing 51 of 51 pair events')).not.toBeInTheDocument()
   }, 15_000)
+
+  it('reports preceding third-party revisions for the first pair edit and no gap text', () => {
+    const revisions: Revision[] = [
+      { ...revision('plain', 1), label: 'third-party-x' },
+      { ...revision('body from a', 2), label: 'agent-a' },
+      { ...revision('body from a then b', 3), label: 'agent-b' },
+    ]
+    renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    const summary = document.querySelector('.pair-sequence-summary')
+    expect(summary).toHaveTextContent('First pair edit: agent-a · rev #2 · Preceding third-party revisions: 1')
+    expect(summary).not.toHaveTextContent('after previous pair edit')
+  })
+
+  it('keeps coordination-line React keys unique when lines share the first 24 characters', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const lineA = 'confirmed sequence: alpha bravo charlie delta'
+    const lineB = 'confirmed sequence: alpha bravo charlie echo'
+    try {
+      const revisions: Revision[] = [
+        { ...revision('filler', 1), label: 'x-party' },
+        { ...revision(lineA, 2), label: 'agent-a' },
+        { ...revision('filler', 3), label: 'x-party' },
+        { ...revision(lineA, 4), label: 'agent-b' },
+        { ...revision(`${lineA}\n${lineB}`, 5), label: 'agent-a' },
+        { ...revision('filler', 6), label: 'x-party' },
+        { ...revision(`${lineA}\n${lineB}`, 7), label: 'agent-b' },
+      ]
+      const { container } = renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+      const chips = container.querySelectorAll('.pair-coordination-lines .pair-technique-chip')
+      expect(chips).toHaveLength(2)
+      expect(chips[0]).toHaveTextContent(lineA)
+      expect(chips[1]).toHaveTextContent(lineB)
+      const duplicateKeyWarnings = errorSpy.mock.calls.filter((args) =>
+        args.some((value) => typeof value === 'string' && /same key/i.test(value)),
+      )
+      expect(duplicateKeyWarnings).toHaveLength(0)
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('renders the full common-host list inside the disclosure without wrapper elements', () => {
+    const hosts = Array.from({ length: 6 }, (_, index) => `https://h${index}.example.test/page`).join(' ')
+    const revisions: Revision[] = [
+      { ...revision(hosts, 1), label: 'agent-a' },
+      { ...revision('cleared', 2), label: 'x-party' },
+      { ...revision(hosts, 3), label: 'agent-b' },
+    ]
+    renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    const summary = screen.getByText('Common hosts (6)')
+    expect(summary).toBeInTheDocument()
+    expect(screen.queryByText(/\+1 more/)).not.toBeInTheDocument()
+    const disclosure = summary.closest('details')!
+    expect(disclosure.querySelectorAll('.pair-signature-list > .pair-signature-chip')).toHaveLength(6)
+    expect(disclosure.querySelectorAll('.pair-signature-list > *:not(.pair-signature-chip)')).toHaveLength(0)
+  })
+
+  it('does not claim no signatures when only techniques are observed', () => {
+    const revisions: Revision[] = [
+      { ...revision('bridge https://x.pinggy.io/a', 1), label: 'agent-a' },
+      { ...revision('bridge https://y.pinggy.io/b', 2), label: 'agent-b' },
+    ]
+    renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    expect(screen.queryByText(/No shared technical signatures observed/)).not.toBeInTheDocument()
+    expect(screen.getByText('Shared techniques')).toBeInTheDocument()
+  })
+
+  it('renders disclosed coordination lines as the same chips as the compact list', () => {
+    const lines = Array.from({ length: 6 }, (_, index) => `coordination line number ${index} for pair panel`)
+    const body = lines.join('\n')
+    const revisions: Revision[] = [
+      { ...revision(body, 1), label: 'agent-a' },
+      { ...revision('cleared', 2), label: 'x-party' },
+      { ...revision(body, 3), label: 'agent-b' },
+    ]
+    renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    const disclosure = screen.getByText('Show 2 more lines').closest('details')!
+    expect(disclosure.querySelectorAll('.pair-signature-list > .pair-technique-chip')).toHaveLength(2)
+  })
+
+  it('renders overflow sequence observations with mono values', () => {
+    const hosts = ['a', 'b', 'c', 'd', 'e'].map((prefix) => `https://${prefix}.example.test/page`).join(' ')
+    const revisions: Revision[] = [
+      { ...revision(hosts, 1), label: 'agent-a' },
+      { ...revision('cleared', 2), label: 'x-party' },
+      { ...revision(hosts, 3), label: 'agent-b' },
+    ]
+    const { container } = renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    expect(container.querySelectorAll('.pair-sequence-observations .mono')).toHaveLength(5)
+  })
 })

@@ -77,6 +77,30 @@
   margin: 0;
 }
 
+.pair-signatures-section { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; background: var(--bg-subtle); }
+.pair-signature-definition, .pair-signature-scope { margin: 0; }
+.pair-signature-definition { color: var(--text-dim); font-size: 12px; }
+.pair-signature-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.pair-signature-chip, .pair-technique-chip { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 5px 8px; border: 1px solid var(--border-accent); border-radius: var(--radius-sm); background: var(--bg-elevated); font-size: 11px; }
+.pair-signature-kind, .pair-technique-chip > span { text-transform: uppercase; letter-spacing: .04em; color: var(--accent); font-size: 10px; }
+.pair-signature-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pair-signature-count { color: var(--muted-text); white-space: nowrap; }
+.pair-signature-disclosure { font-size: 12px; }
+.pair-signature-disclosure summary { cursor: pointer; color: var(--accent); padding: 4px 0; }
+.pair-signature-disclosure summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pair-sequence-summary, .pair-unknown-genesis { padding: 8px; border-left: 3px solid var(--accent); background: var(--bg-elevated); font-size: 12px; }
+.pair-unknown-genesis { border-left-color: var(--warn); color: var(--text-dim); }
+.pair-signature-empty { color: var(--muted-text); font-size: 12px; }
+.pair-techniques { display: flex; flex-direction: column; gap: 7px; font-size: 12px; }
+.pair-coordination-lines, .pair-retained-domains { display: flex; flex-direction: column; gap: 7px; font-size: 12px; }
+.pair-coordination-lines .mono, .pair-retained-domains .mono { word-break: break-all; }
+.pair-sequence-observations { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.pair-status-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); }
+.pair-signature-refs { color: var(--muted-text); font-size: 10px; }
+.pair-action-badge, .pair-round-badge { font-size: 10.5px; text-transform: lowercase; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); }
+.pair-truncated-note { font-style: italic; }
+.pair-open-page-btn { white-space: nowrap; }
+
 .pair-patterns {
   display: flex;
   flex-wrap: wrap;

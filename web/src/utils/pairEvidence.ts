@@ -1,6 +1,6 @@
 import type { LabelRecord, LabelsIndex, PageRecord, PagesIndex, Revision } from '../types'
 import { diffLines, isTruncationMarker } from './diff'
-import { detectPayloadFlags, scanPayloadMatches } from './payload'
+import { detectPayloadFlags, extractLineArtifacts, extractTechnicalArtifacts, scanPayloadMatches, type TechnicalArtifact } from './payload'
 
 export type RevisionOperation = 'unchanged' | 'initial' | 'append' | 'additive' | 'destructive' | 'replace' | 'mixed'
 
@@ -32,11 +32,75 @@ export interface PairEvent {
   interveningOther: number
   analysis: RevisionAnalysis
   payloadFlags: string[]
+  gapSeconds: number | null
 }
 
 export interface PairTimeline {
   orderedRevisions: Revision[]
   events: PairEvent[]
+}
+
+export const SIGNATURE_EXTRACTOR_VERSION = 'sig-extractor-v2'
+export type SignatureStatus = 'second-actor-added' | 'retained' | 're-added-after-third-party'
+export interface ArtifactObservation {
+  pageId: string
+  revIndex: number
+  baselineIndex: number | null
+  label: string
+  artifactType: TechnicalArtifact['artifactType']
+  canonicalValue: string
+  beforePresent: boolean
+  afterPresent: boolean
+  time: string | null
+  coverageStatus: 'complete' | 'unknown-genesis'
+  extractorVersion: string
+  identity: string
+}
+export interface PairObservation {
+  leftLabel: string
+  rightLabel: string
+  artifact: string
+  status: SignatureStatus
+  observationRefs: string[]
+  gapSeconds: number | null
+  interveningOther: number
+}
+export interface SharedObservationRef {
+  revIndex: number
+  label: string
+  seq: number | null
+}
+export interface SharedSignatureObservation {
+  artifactType: TechnicalArtifact['artifactType']
+  canonicalValue: string
+  counts: Record<string, number>
+  refs: SharedObservationRef[]
+  statuses: SignatureStatus[]
+  firstEvent: number
+  techniqueKey?: string
+  payloadClass?: 'tunnel' | 'redirect'
+}
+export interface SharedTechniqueObservation {
+  key: string
+  kind: 'service-family' | 'payload-class'
+  counts: Record<string, number>
+  exactValues: string[]
+  firstEvent: number
+}
+export interface RetainedDomainObservation {
+  canonicalValue: string
+  labels: string[]
+}
+export interface PairEvidenceDerivation {
+  artifacts: SharedSignatureObservation[]
+  techniques: SharedTechniqueObservation[]
+  commonHosts: SharedSignatureObservation[]
+  coordinationLines: SharedSignatureObservation[]
+  retainedDomains: RetainedDomainObservation[]
+  artifactObservations: ArtifactObservation[]
+  pairObservations: PairObservation[]
+  firstPairEvent: PairEvent | null
+  coverageStatus: 'complete' | 'unknown-genesis'
 }
 
 export interface PatternSignals {
@@ -251,6 +315,14 @@ function stableSortRevisions(revisions: Revision[]): Revision[] {
   return indexed.map((entry) => entry.rev)
 }
 
+function parsedGap(previous: string | null, current: string | null): number | null {
+  if (!previous || !current) return null
+  const before = Date.parse(previous)
+  const after = Date.parse(current)
+  if (!Number.isFinite(before) || !Number.isFinite(after) || after < before) return null
+  return (after - before) / 1000
+}
+
 /**
  * Build pair timeline for two labels across page revisions.
  * Events exclude revision bodies and resolve baselines against previous chronological revisions.
@@ -304,6 +376,7 @@ export function buildPairTimeline(revisions: Revision[], leftLabel: string, righ
       interveningOther,
       analysis,
       payloadFlags,
+      gapSeconds: parsedGap(events.at(-1)?.time ?? null, rev.time ?? null),
     })
 
     prevPairEventRevIndex = revIndex
@@ -313,6 +386,160 @@ export function buildPairTimeline(revisions: Revision[], leftLabel: string, righ
     orderedRevisions,
     events,
   }
+}
+
+function artifactKey(type: string, value: string): string { return `${type}:${value}` }
+function observationIdentity(pageId: string, revIndex: number, label: string, type: string, value: string): string {
+  return [pageId, revIndex, label, type, value, SIGNATURE_EXTRACTOR_VERSION].join('|')
+}
+
+function sortedSignatureItems(items: SharedSignatureObservation[]): SharedSignatureObservation[] {
+  return items.sort((a, b) => {
+    const count = (Object.values(b.counts).reduce((x, y) => x + y, 0) - Object.values(a.counts).reduce((x, y) => x + y, 0))
+    return count || a.firstEvent - b.firstEvent || a.canonicalValue.localeCompare(b.canonicalValue)
+  })
+}
+
+/** Derives page-local shared signatures without line-diff attribution. */
+export function derivePairEvidence(
+  pageId: string,
+  timeline: PairTimeline,
+  leftLabel: string,
+  rightLabel: string,
+): PairEvidenceDerivation {
+  const coverageStatus = timeline.orderedRevisions[0]?.seq === 1 ? 'complete' : 'unknown-genesis'
+  const bodySets = new Map<number, Map<string, TechnicalArtifact>>()
+  const getSet = (index: number): Map<string, TechnicalArtifact> => {
+    if (!bodySets.has(index)) {
+      const map = new Map<string, TechnicalArtifact>()
+      for (const artifact of extractTechnicalArtifacts(timeline.orderedRevisions[index]?.body ?? '')) map.set(artifactKey(artifact.artifactType, artifact.canonicalValue), artifact)
+      for (const line of extractLineArtifacts(timeline.orderedRevisions[index]?.body ?? '')) map.set(`line:${line}`, { artifactType: 'line', canonicalValue: line })
+      bodySets.set(index, map)
+    }
+    return bodySets.get(index)!
+  }
+  const artifactObservations: ArtifactObservation[] = []
+  const pairObservations: PairObservation[] = []
+  const additions = new Map<string, Map<string, { count: number; firstEvent: number; refs: SharedObservationRef[]; statuses: SignatureStatus[]; artifact: TechnicalArtifact }>>()
+  const firstAdded = new Map<string, string>()
+  const retained = new Set<string>()
+  const retainedLabelsByKey = new Map<string, Set<string>>()
+
+  for (let eventIndex = 0; eventIndex < timeline.events.length; eventIndex++) {
+    const event = timeline.events[eventIndex]
+    const after = getSet(event.revIndex)
+    const isGenesis = event.revIndex === 0 && coverageStatus === 'complete'
+    const before = event.baselineIndex === null ? new Map() : getSet(event.baselineIndex)
+    const candidates = new Set([...after.keys(), ...before.keys()])
+    for (const key of candidates) {
+      const artifact = after.get(key) ?? before.get(key)!
+      const beforePresent = before.has(key)
+      const afterPresent = after.has(key)
+      const eligibleAdd = afterPresent && !beforePresent && (event.revIndex !== 0 || isGenesis)
+      const identity = observationIdentity(pageId, event.revIndex, event.label, artifact.artifactType, artifact.canonicalValue)
+      const isRetained = afterPresent && firstAdded.has(key) && event.label !== firstAdded.get(key) && !additions.get(key)?.has(event.label) && !retained.has(`${key}:${event.label}`)
+      if (eligibleAdd || isRetained) {
+        // second-actor-added is artifact-relative: only the label other than the artifact's
+        // first adder earns it. A same-actor re-add carries no status unless a third-party
+        // revision removed the artifact in between.
+        const isFirstAdder = firstAdded.get(key) === event.label
+        const afterThirdPartyRemoval = event.baselineLabel !== null && event.baselineLabel !== leftLabel && event.baselineLabel !== rightLabel && beforePresent === false
+        const status: SignatureStatus | null = eligibleAdd && firstAdded.has(key)
+          ? (afterThirdPartyRemoval ? 're-added-after-third-party' : isFirstAdder ? null : 'second-actor-added')
+          : isRetained ? 'retained' : null
+        const observation: ArtifactObservation = { pageId, revIndex: event.revIndex, baselineIndex: event.baselineIndex, label: event.label, artifactType: artifact.artifactType, canonicalValue: artifact.canonicalValue, beforePresent, afterPresent, time: event.time, coverageStatus, extractorVersion: SIGNATURE_EXTRACTOR_VERSION, identity }
+        artifactObservations.push(observation)
+        if (eligibleAdd) {
+          const list = additions.get(key) ?? new Map()
+          const actor = list.get(event.label) ?? { count: 0, firstEvent: eventIndex, refs: [], statuses: [], artifact }
+          actor.count++
+          actor.firstEvent = Math.min(actor.firstEvent, eventIndex)
+          actor.refs.push({ revIndex: event.revIndex, label: event.label, seq: event.seq })
+          if (status) actor.statuses.push(status)
+          list.set(event.label, actor)
+          additions.set(key, list)
+        }
+        if (status) pairObservations.push({ leftLabel, rightLabel, artifact: key, status, observationRefs: [identity], gapSeconds: event.gapSeconds, interveningOther: event.interveningOther })
+        if (eligibleAdd && !firstAdded.has(key)) firstAdded.set(key, event.label)
+        if (status === 'retained') {
+          retained.add(`${key}:${event.label}`)
+          const labels = retainedLabelsByKey.get(key) ?? new Set<string>()
+          labels.add(event.label)
+          retainedLabelsByKey.set(key, labels)
+        }
+      }
+    }
+  }
+  const shared: SharedSignatureObservation[] = []
+  const techniques = new Map<string, SharedTechniqueObservation>()
+  for (const [key, byActor] of additions) {
+    if (!byActor.has(leftLabel) || !byActor.has(rightLabel)) continue
+    const left = byActor.get(leftLabel)!
+    const right = byActor.get(rightLabel)!
+    const separator = key.indexOf(':')
+    const artifactType = key.slice(0, separator) as TechnicalArtifact['artifactType']
+    const canonicalValue = key.slice(separator + 1)
+    const item = { artifactType, canonicalValue, counts: { [leftLabel]: left.count, [rightLabel]: right.count }, refs: [...left.refs, ...right.refs], statuses: [...new Set([...left.statuses, ...right.statuses])], firstEvent: Math.min(left.firstEvent, right.firstEvent), ...(left.artifact.techniqueKey ? { techniqueKey: left.artifact.techniqueKey } : {}), ...(left.artifact.payloadClass ? { payloadClass: left.artifact.payloadClass } : {}) }
+    shared.push(item)
+  }
+  // Technique rows are class-level: each actor's eligible additions are accumulated
+  // independently over ALL artifacts of the class/family — an exact artifact shared by
+  // both actors is not required, and exact overlap suppresses the row as a duplicate.
+  const leftTechniqueValues = new Map<string, Set<string>>()
+  const rightTechniqueValues = new Map<string, Set<string>>()
+  const techniqueFirstEvent = new Map<string, number>()
+  for (const byActor of additions.values()) {
+    const left = byActor.get(leftLabel)
+    const right = byActor.get(rightLabel)
+    if (!left && !right) continue
+    const artifact = (left ?? right)!.artifact
+    const techniqueKeys = [artifact.techniqueKey, artifact.payloadClass].filter((value): value is string => Boolean(value))
+    for (const techniqueKey of techniqueKeys) {
+      if (left) {
+        const values = leftTechniqueValues.get(techniqueKey) ?? new Set<string>()
+        values.add(artifact.canonicalValue)
+        leftTechniqueValues.set(techniqueKey, values)
+      }
+      if (right) {
+        const values = rightTechniqueValues.get(techniqueKey) ?? new Set<string>()
+        values.add(artifact.canonicalValue)
+        rightTechniqueValues.set(techniqueKey, values)
+      }
+      const first = Math.min(left ? left.firstEvent : Number.POSITIVE_INFINITY, right ? right.firstEvent : Number.POSITIVE_INFINITY)
+      techniqueFirstEvent.set(techniqueKey, Math.min(techniqueFirstEvent.get(techniqueKey) ?? Number.POSITIVE_INFINITY, first))
+    }
+  }
+  for (const [key, leftValues] of leftTechniqueValues) {
+    const rightValues = rightTechniqueValues.get(key)
+    if (!rightValues || rightValues.size === 0) continue
+    if ([...leftValues].some((value) => rightValues.has(value))) continue
+    techniques.set(key, { key, kind: key === 'tunnel' || key === 'redirect' ? 'payload-class' : 'service-family', counts: { [leftLabel]: leftValues.size, [rightLabel]: rightValues.size }, exactValues: [...new Set([...leftValues, ...rightValues])].sort(), firstEvent: techniqueFirstEvent.get(key)! })
+  }
+  const allShared = sortedSignatureItems(shared)
+  const artifacts = allShared.filter((item) => item.artifactType !== 'domain' && item.artifactType !== 'line' || item.techniqueKey || item.payloadClass)
+  const coordinationLines = allShared.filter((item) => item.artifactType === 'line')
+  const additionsArtifactByKey = new Map<string, TechnicalArtifact>()
+  for (const [key, byActor] of additions) {
+    const first = byActor.values().next().value
+    if (first) additionsArtifactByKey.set(key, first.artifact)
+  }
+  // Within one pair only the non-first label can retain, so "kept by others" reduces
+  // to: the other label kept infrastructure the first label added. Restricted to
+  // tunnel/redirect domains to stay a neutral infrastructure fact, not generic noise.
+  // Exact-shared domains (both labels added) stay in artifacts and are not repeated here.
+  const retainedDomains = [...retainedLabelsByKey.entries()]
+    .filter(([key, labels]) => key.startsWith('domain:') && labels.size >= 1)
+    .filter(([key]) => {
+      const byActor = additions.get(key)
+      return !(byActor?.has(leftLabel) && byActor?.has(rightLabel))
+    })
+    .filter(([key]) => {
+      const artifact = additionsArtifactByKey.get(key)
+      return artifact?.payloadClass === 'tunnel' || artifact?.payloadClass === 'redirect'
+    })
+    .map(([key, labels]) => ({ canonicalValue: key.slice('domain:'.length), labels: [...labels].sort() }))
+    .sort((a, b) => a.canonicalValue.localeCompare(b.canonicalValue))
+  return { artifacts, techniques: [...techniques.values()].sort((a, b) => a.key.localeCompare(b.key)), commonHosts: allShared.filter((item) => item.artifactType === 'domain' && !item.techniqueKey && !item.payloadClass), coordinationLines, retainedDomains, artifactObservations, pairObservations, firstPairEvent: timeline.events[0] ?? null, coverageStatus }
 }
 
 /**
