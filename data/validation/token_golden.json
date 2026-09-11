@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "source": "build.py::_body_tokens",
+    "regenerate": "python data/scripts/build.py --write-token-golden",
+    "comment": "Any tokenizer change must regenerate this fixture in the same change."
+  },
+  "cases": [
+    {
+      "text": "ab abc aaaaaaaaaaaaaaaaaaaaaaaaa  aaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "tokens": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaa",
+        "abc"
+      ]
+    },
+    {
+      "text": "UPPERCASE STATE5-ID agent.v2",
+      "tokens": [
+        "agent",
+        "state5",
+        "uppercase"
+      ]
+    },
+    {
+      "text": "123 123abc abc123",
+      "tokens": [
+        "123abc",
+        "abc123"
+      ]
+    },
+    {
+      "text": "the und and bypass bypass",
+      "tokens": [
+        "bypass"
+      ]
+    },
+    {
+      "text": "naive café Привет",
+      "tokens": [
+        "caf",
+        "naive"
+      ]
+    },
+    {
+      "text": "",
+      "tokens": []
+    },
+    {
+      "text": "under_score __private__",
+      "tokens": [
+        "private",
+        "score",
+        "under"
+      ]
+    }
+  ]
+}

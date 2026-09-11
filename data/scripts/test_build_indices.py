@@ -2,9 +2,12 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent))
 
-from build import _domains, build_payload_index, build_search_index, detect_payload_flags
+import build
+from build import _body_tokens, _domains, build_conflicts, build_fts_index, build_payload_index, build_search_index, detect_payload_flags
 
 
 def _page(page_id, name):
@@ -84,10 +87,85 @@ def test_payload_structure_aggregates_revisions_and_sorts_domains_and_slugs():
     assert [entry["s"] for entry in index] == ["a", "b"]
     assert index[0] == {"s": "a", "id": "w/a", "u": ["a.test", "markdown.new", "z.test"], "f": ["redirect"]}
     entry = index[1]
-    assert entry == {"s": "b", "id": "w/b", "u": ["example.com"], "f": ["inject"]}
+    assert entry == {"s": "b", "id": "w/b", "u": ["example.com", "old.test"], "f": ["inject"]}
+
+
+def test_payload_index_keeps_all_domains_and_ranks_by_occurrence():
+    pages = [_page("w/p", "P")]
+    domains = " ".join(f"https://host{index}.test" for index in range(11))
+    revisions = [_revision("w/p", 1, domains + " Ignore previous"), _revision("w/p", 2, "https://host10.test")]
+    entry = build_payload_index(pages, revisions, {})[0]
+    assert len(entry["u"]) == 11
+    assert entry["u"][0] == "host10.test"
 
 
 def test_domains_match_shared_url_golden_fixture():
     golden = json.loads((Path(__file__).resolve().parents[1] / "validation" / "url_golden.json").read_text(encoding="utf-8"))
     for entry in golden["urls"]:
         assert _domains(entry["input"]) == entry["domains"], entry["input"]
+
+
+def test_fts_is_body_only_with_integer_sorted_unique_postings_and_no_frequency_filter():
+    pages = [_page("w/name-only", "Needle"), _page("w/body", "Other"), _page("w/all", "Third")]
+    revisions = [_revision("w/body", 1, "needle needle"), _revision("w/all", 1, "needle"),
+                 _revision("w/body", 2, "needle"), _revision("w/all", 2, "needle")]
+    index = build_fts_index(pages, revisions)
+    assert set(index["meta"]) == {
+        "pages", "n_tokens", "postings_cap", "truncated_tokens", "truncated_totals", "tokenizer", "built_from",
+    }
+    assert index["meta"]["pages"] == "pages.json"
+    assert index["meta"]["tokenizer"] == "build.py::_body_tokens"
+    assert index["tokens"]["needle"] == [1, 2]
+    assert "name-only" not in index["tokens"]
+    assert all(isinstance(value, int) for values in index["tokens"].values() for value in values)
+    assert all(values == sorted(set(values)) for values in index["tokens"].values())
+    assert all(0 <= value < len(pages) for values in index["tokens"].values() for value in values)
+
+
+def test_fts_adaptive_cap_and_truncation_metadata(monkeypatch):
+    pages = [_page(f"w/p{index}", "Page") for index in range(600)]
+    revisions = [_revision(page["page_id"], 1, "common") for page in pages]
+    monkeypatch.setattr(build, "FTS_BUDGET_BYTES", 2200)
+    index = build_fts_index(pages, revisions)
+    cap = index["meta"]["postings_cap"]
+    assert cap < 500
+    assert index["tokens"]["common"] == list(range(cap))
+    assert index["meta"]["truncated_totals"] == {"common": 600}
+    assert index["meta"]["truncated_tokens"] == 1
+
+
+def test_fts_preserves_tokens_present_on_every_page():
+    pages = [_page(f"w/p{index}", "Page") for index in range(3)]
+    revisions = [_revision(page["page_id"], 1, "everywhere") for page in pages]
+    assert "everywhere" in build_fts_index(pages, revisions)["tokens"]
+
+
+def test_fts_includes_tokens_from_older_revisions():
+    pages = [_page("w/p0", "Page")]
+    revisions = [_revision("w/p0", 1, "oldertoken"), _revision("w/p0", 2, "newertoken")]
+    assert {"oldertoken", "newertoken"} <= build_fts_index(pages, revisions)["tokens"].keys()
+
+
+def test_fts_fails_when_budget_is_too_small_at_lowest_cap(monkeypatch):
+    monkeypatch.setattr(build, "FTS_BUDGET_BYTES", 1)
+    with pytest.raises(RuntimeError, match="postings cap 100"):
+        build_fts_index([_page("w/p0", "Page")], [_revision("w/p0", 1, "token")])
+
+
+def test_conflicts_are_not_truncated_to_old_top_500():
+    pages = [_page(f"w/p{index}", f"Page{index}") for index in range(501)]
+    revisions = [_revision(page["page_id"], 1, "body") for page in pages]
+    conflicts = build_conflicts(pages, revisions, {})
+    assert len(conflicts) == 501
+    assert conflicts[-1]["id"] == "w/p500"
+
+
+def test_token_golden_fixture_matches_tokenizer_and_regeneration(tmp_path):
+    fixture = Path(__file__).resolve().parents[1] / "validation" / "token_golden.json"
+    golden = json.loads(fixture.read_text(encoding="utf-8"))
+    assert golden["_meta"]["source"] == "build.py::_body_tokens"
+    for case in golden["cases"]:
+        assert case["tokens"] == sorted(_body_tokens(case["text"]))
+    output = tmp_path / "token_golden.json"
+    build.write_token_golden(output)
+    assert output.read_bytes() == fixture.read_bytes()
