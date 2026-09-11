@@ -172,6 +172,21 @@ describe('PairEvidencePanel', () => {
     expect(screen.getByText('Shared techniques')).toBeInTheDocument()
   })
 
+  it('labels exact shared flagged hosts by payload class and plain domains as domain', () => {
+    const body = 'tunnel https://x.pinggy.io/a plus https://plain.example.test/page'
+    const revisions: Revision[] = [
+      { ...revision(body, 1), label: 'agent-a' },
+      { ...revision('cleared', 2), label: 'x-party' },
+      { ...revision(body, 3), label: 'agent-b' },
+    ]
+    const { container } = renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    const chipFor = (value: string) => [...container.querySelectorAll('.pair-signature-chip')]
+      .find((chip) => chip.querySelector('.pair-signature-value')?.textContent === value)
+    expect(chipFor('x.pinggy.io')?.querySelector('.pair-signature-kind')).toHaveTextContent('tunnel')
+    expect(chipFor('plain.example.test')?.querySelector('.pair-signature-kind')).toHaveTextContent('domain')
+  })
+
   it('renders disclosed coordination lines as the same chips as the compact list', () => {
     const lines = Array.from({ length: 6 }, (_, index) => `coordination line number ${index} for pair panel`)
     const body = lines.join('\n')

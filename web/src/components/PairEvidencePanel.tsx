@@ -227,7 +227,7 @@ export function PairEvidencePanel({
 
   const signatureChip = (item: NonNullable<typeof signatures>['artifacts'][number], key: string) => (
     <span key={key} className="pair-signature-chip" title={item.canonicalValue}>
-      <span className="pair-signature-kind">{item.artifactType}</span>
+      <span className="pair-signature-kind">{item.payloadClass ?? item.artifactType}</span>
       <span className="mono pair-signature-value">{item.canonicalValue}</span>
       <span className="pair-signature-count">{leftLabel} {item.counts[leftLabel] ?? 0} · {rightLabel} {item.counts[rightLabel] ?? 0}</span>
       <span className="pair-signature-refs">{item.refs.slice(0, 2).map((ref) => `${ref.label} · rev #${ref.seq ?? ref.revIndex + 1}`).join(' · ')}</span>
