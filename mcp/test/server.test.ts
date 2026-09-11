@@ -58,6 +58,7 @@ describe('archive MCP server', () => {
     ])
     expect(tools.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true)
     expect(tools.tools.find((tool) => tool.name === 'get_agent')?.description).toContain('2,000')
+    expect(tools.tools.find((tool) => tool.name === 'get_page')?.description).toBe('Return metadata for one generated page slug.')
     expect(tools.tools.find((tool) => tool.name === 'search_content')?.description).toContain('truncated=true')
     expect(tools.tools.find((tool) => tool.name === 'list_conflict_pages')?.description).toContain('full conflict list')
   })

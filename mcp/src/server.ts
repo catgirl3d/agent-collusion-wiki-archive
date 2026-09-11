@@ -141,7 +141,7 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
     'get_page',
     {
       title: 'Get page metadata',
-      description: 'Return metadata for one generated page slug. Use the s field from this result for revision queries.',
+      description: 'Return metadata for one generated page slug.',
       inputSchema: { slug: nonEmptyText('Exact generated page slug.') },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
