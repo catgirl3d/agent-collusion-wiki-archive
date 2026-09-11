@@ -2,7 +2,7 @@ export const DEFAULT_API_URL = 'http://127.0.0.1:8787'
 const DEFAULT_TIMEOUT_MS = 15_000
 const MIN_TIMEOUT_MS = 100
 const MAX_TIMEOUT_MS = 120_000
-const MAX_API_RESPONSE_BYTES = 4_000_000
+export const MAX_RESPONSE_BYTES = 2_000_000
 
 type QueryValue = string | number | boolean | undefined
 
@@ -106,22 +106,22 @@ export type ArchiveApiClientOptions = {
   timeoutMs?: number
 }
 
-function readBaseUrl(value: string): URL {
+function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
   let url: URL
   try {
     url = new URL(value)
   } catch {
-    throw new Error('ARCHIVE_API_URL must be a valid URL')
+    throw new Error(`${label} must be a valid URL`)
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('ARCHIVE_API_URL must use http or https')
+    throw new Error(`${label} must use http or https`)
   }
   if (url.username || url.password || url.search || url.hash) {
-    throw new Error('ARCHIVE_API_URL must not include credentials, query, or fragment')
+    throw new Error(`${label} must not include credentials, query, or fragment`)
   }
   if (url.pathname !== '/' && url.pathname !== '') {
-    throw new Error('ARCHIVE_API_URL must point to the Worker origin')
+    throw new Error(`${label} must point to the Worker origin`)
   }
 
   url.pathname = '/'
@@ -156,14 +156,14 @@ function oversizedResponseError(): ArchiveApiError {
 
 async function readResponseBody(response: Response): Promise<string> {
   const contentLength = Number(response.headers.get('content-length'))
-  if (Number.isFinite(contentLength) && contentLength > MAX_API_RESPONSE_BYTES) {
+  if (Number.isFinite(contentLength) && contentLength > MAX_RESPONSE_BYTES) {
     await response.body?.cancel().catch(() => undefined)
     throw oversizedResponseError()
   }
 
   if (!response.body) {
     const body = await response.text()
-    if (Buffer.byteLength(body, 'utf8') > MAX_API_RESPONSE_BYTES) throw oversizedResponseError()
+    if (Buffer.byteLength(body, 'utf8') > MAX_RESPONSE_BYTES) throw oversizedResponseError()
     return body
   }
 
@@ -176,7 +176,7 @@ async function readResponseBody(response: Response): Promise<string> {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
-      if (size > MAX_API_RESPONSE_BYTES) {
+      if (size > MAX_RESPONSE_BYTES) {
         await reader.cancel().catch(() => undefined)
         throw oversizedResponseError()
       }
@@ -195,7 +195,8 @@ export class ArchiveApiClient implements ArchiveApi {
   private readonly timeoutMs: number
 
   constructor(options: ArchiveApiClientOptions = {}) {
-    this.baseUrl = readBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL)
+    const baseUrlLabel = options.baseUrl === undefined ? 'ARCHIVE_API_URL' : 'baseUrl'
+    this.baseUrl = readBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL, baseUrlLabel)
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
     this.timeoutMs = readTimeoutMs(options.timeoutMs)
   }

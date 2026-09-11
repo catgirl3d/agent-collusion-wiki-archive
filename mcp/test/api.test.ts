@@ -113,11 +113,18 @@ describe('ArchiveApiClient', () => {
   })
 
   it.each([
-    ['ftp://archive.example', 'ARCHIVE_API_URL must use http or https'],
-    ['https://archive.example/path', 'ARCHIVE_API_URL must point to the Worker origin'],
-    ['https://user:pass@archive.example', 'ARCHIVE_API_URL must not include credentials, query, or fragment'],
+    ['not a url', 'baseUrl must be a valid URL'],
+    ['ftp://archive.example', 'baseUrl must use http or https'],
+    ['https://archive.example/path', 'baseUrl must point to the Worker origin'],
+    ['https://user:pass@archive.example', 'baseUrl must not include credentials, query, or fragment'],
   ])('rejects unsafe base URL %s', (baseUrl, message) => {
     expect(() => new ArchiveApiClient({ baseUrl })).toThrow(message)
+  })
+
+  it('reports an invalid ARCHIVE_API_URL under the environment variable name', () => {
+    vi.stubEnv('ARCHIVE_API_URL', 'ftp://archive.example')
+
+    expect(() => new ArchiveApiClient()).toThrow('ARCHIVE_API_URL must use http or https')
   })
 
   it('reports timeout without exposing the underlying abort error', async () => {
@@ -153,7 +160,7 @@ describe('ArchiveApiClient', () => {
       new Response(
         new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode('x'.repeat(4_000_001)))
+            controller.enqueue(new TextEncoder().encode('x'.repeat(2_000_001)))
             controller.close()
           },
         }),
@@ -172,7 +179,7 @@ describe('ArchiveApiClient', () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      headers: { get: (name: string) => (name === 'content-length' ? '4000001' : null) },
+      headers: { get: (name: string) => (name === 'content-length' ? '2000001' : null) },
       body: { cancel },
     } as unknown as Response)
     const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })

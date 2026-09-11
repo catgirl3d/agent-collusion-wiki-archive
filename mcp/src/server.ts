@@ -11,12 +11,15 @@ import type {
   SearchArtifactsParams,
   SearchFtsParams,
 } from './api.js'
-import { ArchiveApiClient, ArchiveApiError } from './api.js'
+import { ArchiveApiClient, ArchiveApiError, MAX_RESPONSE_BYTES } from './api.js'
 
 const nonEmptyText = (label: string, max = 200) => z.string().trim().min(1).max(max).describe(label)
 const pageLimit = z.number().int().min(1).max(100).optional().describe('Number of rows to return (1-100).')
 const pageOffset = z.number().int().min(0).max(100_000).optional().describe('Number of rows to skip.')
-const MAX_TOOL_RESULT_BYTES = 2_000_000
+
+function errorResult(text: string) {
+  return { content: [{ type: 'text' as const, text: JSON.stringify({ error: text }) }], isError: true }
+}
 
 type ClosableHandle = { close(): Promise<unknown> }
 type ShutdownTarget = {
@@ -42,14 +45,13 @@ export function installShutdownHandlers(handle: ClosableHandle, proc: ShutdownTa
 }
 
 function failure(error: unknown) {
-  const message = error instanceof ArchiveApiError ? error.message : 'MCP request failed'
-  return { content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }], isError: true }
+  return errorResult(error instanceof ArchiveApiError ? error.message : 'MCP request failed')
 }
 
 function result(data: unknown) {
   const text = JSON.stringify(data)
-  if (Buffer.byteLength(text, 'utf8') > MAX_TOOL_RESULT_BYTES) {
-    return failure(new ArchiveApiError('MCP result is too large; reduce limit or omit revision bodies'))
+  if (Buffer.byteLength(text, 'utf8') > MAX_RESPONSE_BYTES) {
+    return errorResult('MCP result is too large; reduce limit or omit revision bodies')
   }
   return { content: [{ type: 'text' as const, text }] }
 }
