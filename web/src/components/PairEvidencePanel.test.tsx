@@ -240,4 +240,17 @@ describe('PairEvidencePanel', () => {
     expect(rows[0]).toHaveTextContent('re-added-after-third-party')
     expect(rows[0].querySelector('.text-xs')).toBeNull()
   })
+
+  it('renders retained domains with the label that kept them', () => {
+    const host = 'https://bvryr-16-146-184-55.run.pinggy-free.link/'
+    const revisions: Revision[] = [
+      revision(`bridge ${host}`, 1),
+      revision(`bridge ${host} updated`, 2),
+    ]
+    renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    const chip = document.querySelector('.pair-retained-domains .pair-technique-chip')!
+    expect(chip).toHaveTextContent('retained')
+    expect(chip).toHaveTextContent('kept by agent-b')
+  })
 })

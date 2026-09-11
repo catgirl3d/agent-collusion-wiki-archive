@@ -531,7 +531,7 @@ export function derivePairEvidence(
   // tunnel/redirect domains to stay a neutral infrastructure fact, not generic noise.
   // Exact-shared domains (both labels added) stay in artifacts and are not repeated here.
   const retainedDomains = [...retainedLabelsByKey.entries()]
-    .filter(([key, labels]) => key.startsWith('domain:') && labels.size >= 1)
+    .filter(([key]) => key.startsWith('domain:'))
     .filter(([key]) => {
       const byActor = additions.get(key)
       return !(byActor?.has(leftLabel) && byActor?.has(rightLabel))

@@ -243,7 +243,7 @@ export function PairEvidencePanel({
   )
 
   const retainedChip = (domain: NonNullable<typeof signatures>['retainedDomains'][number], truncate: boolean) => (
-    <span key={domain.canonicalValue} className="pair-technique-chip"><span>retained</span> {truncate ? `${domain.canonicalValue.slice(0, 60)}${domain.canonicalValue.length > 60 ? '…' : ''}` : domain.canonicalValue} <span className="muted">({domain.labels.length} label{domain.labels.length > 1 ? 's' : ''})</span></span>
+    <span key={domain.canonicalValue} className="pair-technique-chip"><span>retained</span> {truncate ? `${domain.canonicalValue.slice(0, 60)}${domain.canonicalValue.length > 60 ? '…' : ''}` : domain.canonicalValue} <span className="muted">kept by {domain.labels.join(', ')}</span></span>
   )
 
   const observationRow = (observation: NonNullable<typeof signatures>['pairObservations'][number]) => (
