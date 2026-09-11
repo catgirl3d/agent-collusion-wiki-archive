@@ -12,6 +12,7 @@ from validate_signatures_sample import (
     STRATA_QUOTAS,
     STRATIFIED_TARGET,
     _in_strata,
+    _metrics_line,
     draw_sample,
     events,
     main,
@@ -189,11 +190,102 @@ def test_compare_scores_annotated_list_and_writes_nothing(tmp_path, monkeypatch,
     main()
 
     out = capsys.readouterr().out
-    assert "precision=TP/(TP+FP)=0.5000" in out
-    assert "recall=TP/(TP+FN)=0.5000" in out
-    assert "event_false_detection_rate=1/2" in out
+    assert out == (
+        "precision=TP/(TP+FP)=0.5000\n"
+        "recall=TP/(TP+FN)=0.5000\n"
+        "event_false_detection_rate=1/2 (sampled events with at least one false artifact / labeled events)\n"
+        "strata=unavailable; pooled metrics only\n"
+    )
     assert not sample_path.exists()
     assert not strata_path.exists()
+
+
+def test_metrics_formatter_supports_legacy_and_grouped_output():
+    assert _metrics_line(1, 1, 1, 1, 2) == (
+        "precision=TP/(TP+FP)=0.5000\n"
+        "recall=TP/(TP+FN)=0.5000\n"
+        "event_false_detection_rate=1/2 (sampled events with at least one false artifact / labeled events)"
+    )
+    assert _metrics_line(1, 1, 1, 1, 2, label="subset=random") == (
+        "subset=random: n=2 precision=0.5000 recall=0.5000 event_false_detection_rate=1/2"
+    )
+
+
+def test_compare_reports_subset_and_stratum_metrics(tmp_path, monkeypatch, capsys):
+    labels = _labels_file(tmp_path, [
+        {"id": "p:1", "human_artifacts": ["domain:a"], "detected_artifacts": ["domain:a"]},
+        {"id": "p:2", "human_artifacts": ["domain:b"], "detected_artifacts": []},
+        {"id": "p:3", "human_artifacts": [], "detected_artifacts": ["domain:c"]},
+        {"id": "x:9", "human_artifacts": ["domain:d"], "detected_artifacts": []},
+    ])
+    manifest_path = tmp_path / "strata.json"
+    manifest_path.write_text(json.dumps({"events": [
+        {"id": "p:1", "strata": ["tunnel"], "subset": "stratified"},
+        {"id": "p:2", "strata": ["redirect"], "subset": "stratified"},
+        {"id": "p:3", "strata": [], "subset": "random"},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [
+        "validate_signatures_sample.py", "--compare", str(labels), "--strata", str(manifest_path),
+    ])
+
+    main()
+
+    out = capsys.readouterr().out
+    assert "precision=TP/(TP+FP)=0.5000" in out
+    assert "recall=TP/(TP+FN)=0.3333" in out
+    assert "event_false_detection_rate=1/4" in out
+    assert "subset=random: n=1 precision=0.0000 recall=undefined event_false_detection_rate=1/1" in out
+    assert "subset=stratified: n=2 precision=1.0000 recall=0.5000 event_false_detection_rate=0/2" in out
+    assert "stratum=redirect: n=1 precision=undefined recall=0.0000 event_false_detection_rate=0/1" in out
+    assert "stratum=tunnel: n=1 precision=1.0000 recall=1.0000 event_false_detection_rate=0/1" in out
+    assert "unmatched_labels=1" in out
+    assert "note: pooled metrics use an enriched sample" in out
+
+
+def test_compare_treats_unreadable_manifest_as_unavailable(tmp_path, monkeypatch, capsys):
+    labels = _labels_file(tmp_path, [{"id": "p:1", "human_artifacts": [], "detected_artifacts": []}])
+    manifest_path = tmp_path / "strata.json"
+    manifest_path.write_bytes(b"\xff\xfe{not json")
+    monkeypatch.setattr(sys, "argv", [
+        "validate_signatures_sample.py", "--compare", str(labels), "--strata", str(manifest_path),
+    ])
+
+    main()
+
+    assert "strata=unavailable; pooled metrics only" in capsys.readouterr().out
+
+
+def test_compare_treats_duplicate_manifest_ids_as_unavailable(tmp_path, monkeypatch, capsys):
+    labels = _labels_file(tmp_path, [{"id": "p:1", "human_artifacts": [], "detected_artifacts": []}])
+    manifest_path = tmp_path / "strata.json"
+    manifest_path.write_text(json.dumps({"events": [
+        {"id": "p:1", "strata": [], "subset": "stratified"},
+        {"id": "p:1", "strata": [], "subset": "random"},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [
+        "validate_signatures_sample.py", "--compare", str(labels), "--strata", str(manifest_path),
+    ])
+
+    main()
+
+    assert "strata=unavailable; pooled metrics only" in capsys.readouterr().out
+
+
+def test_compare_tolerates_malformed_manifest_fields(tmp_path, monkeypatch, capsys):
+    labels = _labels_file(tmp_path, [{"id": "p:1", "human_artifacts": ["domain:a"], "detected_artifacts": ["domain:a"]}])
+    manifest_path = tmp_path / "strata.json"
+    manifest_path.write_text(json.dumps({"events": [
+        {"id": "p:1", "strata": "tunnel", "subset": ["weird"]},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [
+        "validate_signatures_sample.py", "--compare", str(labels), "--strata", str(manifest_path),
+    ])
+
+    main()
+
+    out = capsys.readouterr().out
+    assert "subset=unknown: n=1 precision=1.0000 recall=1.0000 event_false_detection_rate=0/1" in out
+    assert "stratum=" not in out
 
 
 def test_compare_rejects_dict_sample_and_empty_list(tmp_path, monkeypatch):

@@ -93,6 +93,98 @@ def strata_manifest(chosen):
              "strata": [name for name, _ in STRATA_QUOTAS if row.get(name)],
              "subset": row["subset"]} for row in chosen]
 
+def _validate_labels(labels):
+    if not isinstance(labels, list) or not all(isinstance(row, dict) for row in labels):
+        sys.exit("--compare expects a JSON list of annotation objects with human_artifacts/detected_artifacts")
+    if not labels:
+        sys.exit("--compare got an empty annotation list")
+    for row in labels:
+        for field in ("human_artifacts", "detected_artifacts"):
+            value = row.get(field, [])
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                sys.exit(f"--compare: {field} must be a list of strings")
+
+
+def _score(records):
+    tp = fp = fn = false_events = 0
+    for row in records:
+        expected = set(row.get("human_artifacts") or [])
+        detected = set(row.get("detected_artifacts") or [])
+        tp += len(expected & detected); fp += len(detected - expected); fn += len(expected - detected)
+        false_events += bool(detected - expected)
+    return tp, fp, fn, false_events, len(records)
+
+
+def _precision(tp, fp):
+    return f"{tp / (tp + fp):.4f}" if tp + fp else None
+
+
+def _recall(tp, fn):
+    return f"{tp / (tp + fn):.4f}" if tp + fn else None
+
+
+def _metrics_line(tp, fp, fn, false_events, n, *, label=None):
+    precision, recall = _precision(tp, fp), _recall(tp, fn)
+    if label is None:
+        return "\n".join((
+            f"precision=TP/(TP+FP)={precision}" if precision else "precision=undefined (no detections)",
+            f"recall=TP/(TP+FN)={recall}" if recall else "recall=undefined (no human artifacts)",
+            f"event_false_detection_rate={false_events}/{n} (sampled events with at least one false artifact / labeled events)",
+        ))
+    return (f"{label}: n={n} precision={precision or 'undefined'} recall={recall or 'undefined'} "
+            f"event_false_detection_rate={false_events}/{n}")
+
+
+def _load_strata_manifest(path):
+    if not path.exists():
+        return None
+    # UnicodeDecodeError is a ValueError; JSONDecodeError is too, so one clause covers both.
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    manifest_events = parsed.get("events") if isinstance(parsed, dict) else None
+    if not isinstance(manifest_events, list):
+        return None
+    manifest = {}
+    for event in manifest_events:
+        if not isinstance(event, dict) or not isinstance(event.get("id"), str):
+            continue
+        if event["id"] in manifest:
+            return None  # duplicate ids make subset/stratum attribution ambiguous
+        manifest[event["id"]] = event
+    return manifest
+
+
+def _subset_of(event):
+    subset = event.get("subset")
+    return subset if isinstance(subset, str) and subset else "unknown"
+
+
+def _strata_of(event):
+    strata = event.get("strata")
+    return [name for name in strata if isinstance(name, str)] if isinstance(strata, list) else []
+
+
+def _print_group_metrics(labels, manifest):
+    joined = [row for row in labels if isinstance(row.get("id"), str) and row["id"] in manifest]
+    if not joined:
+        print("strata=unavailable; pooled metrics only")
+        return
+    subsets = sorted({_subset_of(manifest[row["id"]]) for row in joined})
+    for subset in subsets:
+        group = [row for row in joined if _subset_of(manifest[row["id"]]) == subset]
+        print(_metrics_line(*_score(group), label=f"subset={subset}"))
+    for name, _quota in STRATA_QUOTAS:
+        group = [row for row in joined if name in _strata_of(manifest[row["id"]])]
+        if group:
+            print(_metrics_line(*_score(group), label=f"stratum={name}"))
+    unmatched = len(labels) - len(joined)
+    if unmatched:
+        print(f"unmatched_labels={unmatched}")
+    print("note: pooled metrics use an enriched sample; compare per-subset/per-stratum rows")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
@@ -102,24 +194,13 @@ def main():
     args = parser.parse_args()
     if args.compare:
         labels = json.loads(args.compare.read_text(encoding="utf-8"))
-        if not isinstance(labels, list) or not all(isinstance(row, dict) for row in labels):
-            sys.exit("--compare expects a JSON list of annotation objects with human_artifacts/detected_artifacts")
-        if not labels:
-            sys.exit("--compare got an empty annotation list")
-        tp = fp = fn = false_events = 0
-        for row in labels:
-            for field in ("human_artifacts", "detected_artifacts"):
-                value = row.get(field, [])
-                if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-                    sys.exit(f"--compare: {field} must be a list of strings")
-            expected = set(row["human_artifacts"]) if "human_artifacts" in row else set()
-            detected = set(row["detected_artifacts"]) if "detected_artifacts" in row else set()
-            tp += len(expected & detected); fp += len(detected - expected); fn += len(expected - detected)
-            false_events += bool(detected - expected)
-        denominator = len(labels)
-        print(f"precision=TP/(TP+FP)={tp/(tp+fp):.4f}" if tp + fp else "precision=undefined (no detections)")
-        print(f"recall=TP/(TP+FN)={tp/(tp+fn):.4f}" if tp + fn else "recall=undefined (no human artifacts)")
-        print(f"event_false_detection_rate={false_events}/{denominator} (sampled events with at least one false artifact / labeled events)")
+        _validate_labels(labels)
+        print(_metrics_line(*_score(labels)))
+        manifest = _load_strata_manifest(args.strata)
+        if manifest is None:
+            print("strata=unavailable; pooled metrics only")
+        else:
+            _print_group_metrics(labels, manifest)
         return
     rows = events(args.root)
     chosen = draw_sample(rows)
