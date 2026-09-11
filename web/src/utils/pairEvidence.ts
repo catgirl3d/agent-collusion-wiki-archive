@@ -479,7 +479,7 @@ export function derivePairEvidence(
     const separator = key.indexOf(':')
     const artifactType = key.slice(0, separator) as TechnicalArtifact['artifactType']
     const canonicalValue = key.slice(separator + 1)
-    const item = { artifactType, canonicalValue, counts: { [leftLabel]: left.count, [rightLabel]: right.count }, refs: [...left.refs, ...right.refs], statuses: [...new Set([...left.statuses, ...right.statuses])], firstEvent: Math.min(left.firstEvent, right.firstEvent), ...(left.artifact.techniqueKey ? { techniqueKey: left.artifact.techniqueKey } : {}), ...(left.artifact.payloadClass ? { payloadClass: left.artifact.payloadClass } : {}) }
+    const item = { artifactType, canonicalValue, counts: { [leftLabel]: left.count, [rightLabel]: right.count }, refs: [...left.refs, ...right.refs].sort((a, b) => a.revIndex - b.revIndex), statuses: [...new Set([...left.statuses, ...right.statuses])], firstEvent: Math.min(left.firstEvent, right.firstEvent), ...(left.artifact.techniqueKey ? { techniqueKey: left.artifact.techniqueKey } : {}), ...(left.artifact.payloadClass ? { payloadClass: left.artifact.payloadClass } : {}) }
     shared.push(item)
   }
   // Technique rows are class-level: each actor's eligible additions are accumulated

@@ -410,6 +410,21 @@ describe('derivePairEvidence', () => {
     expect(pinggy.refs).toEqual([{ revIndex: 0, label: 'A', seq: 1 }, { revIndex: 2, label: 'B', seq: 3 }])
   })
 
+  it('orders shared refs chronologically when the right label added first', () => {
+    const revisions: Revision[] = [
+      { seq: 1, time: '2026-06-01T00:00:00Z', label: 'B', ip16: null, summary: null, len: 0, body: 'https://same.example/x', action: null, round: null },
+      { seq: 2, time: '2026-06-01T00:01:00Z', label: 'X', ip16: null, summary: null, len: 0, body: 'cleared', action: null, round: null },
+      { seq: 3, time: '2026-06-01T00:02:00Z', label: 'A', ip16: null, summary: null, len: 0, body: 'https://same.example/x', action: null, round: null },
+    ]
+    const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
+
+    const item = evidence.commonHosts.find((entry) => entry.canonicalValue === 'same.example')!
+    expect(item.refs).toEqual([
+      { revIndex: 0, label: 'B', seq: 1 },
+      { revIndex: 2, label: 'A', seq: 3 },
+    ])
+  })
+
   it('does not attribute an unknown-genesis initial body and handles zero/invalid gaps', () => {
     const revisions: Revision[] = [
       { seq: 7, time: 'invalid', label: 'A', ip16: null, summary: null, len: 0, body: 'https://example.test', action: null, round: null },
