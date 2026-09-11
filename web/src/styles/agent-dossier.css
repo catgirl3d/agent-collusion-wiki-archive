@@ -1,0 +1,255 @@
+/* Syndicate Coordination Dossier */
+.agent-dossier-card {
+  margin-top: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.agent-dossier-header-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.agent-dominant-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+}
+
+.agent-cluster-metrics {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.agent-metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.metric-val {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--mono);
+  line-height: 1.2;
+}
+
+.metric-lbl {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-text);
+}
+
+.agent-dossier-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .agent-dossier-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-dossier-pages-col,
+  .dossier-page-item {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+.section-subtitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-text);
+  margin: 0 0 12px;
+}
+
+/* Left: Dossier Pages */
+.dossier-page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dossier-page-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease;
+}
+
+.dossier-page-item:hover {
+  border-color: var(--border-accent);
+}
+
+.dossier-page-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.badge-revs {
+  font-size: 10.5px;
+  color: var(--muted-text);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+/* Right: Syndicate Cards Grid */
+.syndicate-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.syndicate-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.syndicate-card:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.syndicate-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.syndicate-agent-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syndicate-agent-name:hover {
+  color: var(--accent);
+}
+
+.collusion-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--muted-text);
+}
+
+.meter-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.meter-fill.medium {
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+}
+
+.meter-fill.high {
+  background: linear-gradient(90deg, #f59e0b, #fb7185);
+}
+
+.syndicate-shared-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.shared-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip-mini {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+}
+
+.syndicate-peers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.peer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.peer-tag {
+  color: #d8b4fe;
+  background: rgba(168, 85, 247, 0.15);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+.syndicate-card-foot {
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.payload-cell { display: flex; flex-wrap: wrap; gap: 4px; max-width: 240px; }
+.payload-cell .badge { font-size: 10px; padding: 1px 6px; }

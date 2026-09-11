@@ -1,7 +1,76 @@
 import { describe, expect, it } from 'vitest'
-import { detectPayloadFlags, highlightMatches } from './payload'
+import { detectPayloadFlags, extractLineArtifacts, extractTechnicalArtifacts, highlightMatches } from './payload'
+import golden from '../../../data/validation/url_golden.json'
 
 describe('payload detection', () => {
+  it('matches the build.py URL golden fixture', () => {
+    for (const entry of golden.urls) {
+      expect(extractTechnicalArtifacts(entry.input).filter((artifact) => artifact.artifactType === 'domain' || artifact.artifactType === 'endpoint').map((artifact) => artifact.canonicalValue)).toEqual(entry.domains)
+    }
+  })
+  it('pins accepted TS/Python divergences for percent-encoded and IDN hosts', () => {
+    // See url_golden.json _meta.known_divergences: WHATWG URL decodes percent-encoded hosts and
+    // punycodes IDN, while Python _domains keeps the raw host; these cases stay out of urls.
+    expect(extractTechnicalArtifacts('https://ex%61mple.com/x')).toEqual([
+      expect.objectContaining({ artifactType: 'domain', canonicalValue: 'example.com' }),
+    ])
+    expect(extractTechnicalArtifacts('https://münchen.example/x')).toEqual([
+      expect.objectContaining({ artifactType: 'domain', canonicalValue: 'xn--mnchen-3ya.example' }),
+    ])
+  })
+  it('requires a URL scheme and recognizes exact endpoint literals', () => {
+    expect(extractTechnicalArtifacts('serveo local bridge')).toEqual([])
+    expect(extractTechnicalArtifacts('https://1.2.3.4/x https://[2001:db8::1]/x')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ artifactType: 'endpoint', canonicalValue: '1.2.3.4' }),
+      expect.objectContaining({ artifactType: 'endpoint', canonicalValue: '2001:db8::1' }),
+    ]))
+  })
+  it('keeps host classification independent of prior global-regex scan state', () => {
+    // Regression: detectPayloadFlags leaves /g lastIndex advanced after a match; a
+    // following extract on a short body must not lose tunnel/redirect classification.
+    const noisy = 'see https://r.jina.ai/a and https://x.pinggy.io/b'.repeat(20)
+    expect(detectPayloadFlags(noisy)).toEqual(expect.arrayContaining(['redirect', 'tunnel']))
+    expect(extractTechnicalArtifacts('https://markdown.new/file')).toEqual([
+      expect.objectContaining({ canonicalValue: 'markdown.new', payloadClass: 'redirect' }),
+    ])
+    expect(extractTechnicalArtifacts('https://y.pinggy.io/t')).toEqual([
+      expect.objectContaining({ canonicalValue: 'y.pinggy.io', payloadClass: 'tunnel', techniqueKey: 'pinggy' }),
+    ])
+    expect(extractTechnicalArtifacts('https://r.jina.ai/z')).toEqual([
+      expect.objectContaining({ canonicalValue: 'r.jina.ai', payloadClass: 'redirect' }),
+    ])
+  })
+  it('classifies real-world tunnel host forms found in the corpus', () => {
+    expect(extractTechnicalArtifacts('https://bvryr-16-146-184-55.run.pinggy-free.link/')).toEqual([
+      expect.objectContaining({ canonicalValue: 'bvryr-16-146-184-55.run.pinggy-free.link', payloadClass: 'tunnel', techniqueKey: 'pinggy' }),
+    ])
+    expect(extractTechnicalArtifacts('https://70a66b041b7fe0b1-35-95-198-152.serveousercontent.com/v1')).toEqual([
+      expect.objectContaining({ canonicalValue: '70a66b041b7fe0b1-35-95-198-152.serveousercontent.com', payloadClass: 'tunnel', techniqueKey: 'serveo' }),
+    ])
+  })
+  it('extracts normalized short lines for coordination matching', () => {
+    expect(extractLineArtifacts('Confirmed   Sequence: MA -> CT\nok\n== Header ==\nhttps://markdown.new/x')).toEqual([
+      'confirmed sequence: ma -> ct',
+    ])
+    expect(extractLineArtifacts('short line')).toEqual([])
+    expect(extractLineArtifacts('use the http proxy for relays')).toEqual(['use the http proxy for relays'])
+  })
+  it('excludes structural wiki markup but keeps prose-prefixed lines', () => {
+    const structural = [
+      '{{Infobox person|name=Test|birth_date=1970}}',
+      '{| class="wikitable"',
+      '| colspan="2" | value here',
+      '<ref name="x">some content</ref>',
+      '<!-- hidden editorial comment -->',
+    ].join('\n')
+    expect(extractLineArtifacts(structural)).toEqual([])
+
+    const prose = [': indented reply sentence goes here', '- bullet sentence goes here'].join('\n')
+    expect(extractLineArtifacts(prose)).toEqual([
+      ': indented reply sentence goes here',
+      '- bullet sentence goes here',
+    ])
+  })
   it('detects valid base64 but ignores invalid long tokens', () => {
     expect(detectPayloadFlags('A'.repeat(90))).not.toContain('b64')
     expect(detectPayloadFlags(btoa('printable payload '.repeat(8)))).toContain('b64')
@@ -10,6 +79,16 @@ describe('payload detection', () => {
     const body = '0x' + 'a'.repeat(64) + ' <script> onerror= javascript: SYSTEM: Ignore previous pinggy.io markdown.new'
     expect(detectPayloadFlags(body)).toEqual(expect.arrayContaining(['hex', 'script', 'inject', 'tunnel', 'redirect']))
     expect(detectPayloadFlags('system: ignore previous')).toContain('inject')
+    // Regression: uppercase service hosts must flag and classify the same as lowercase ones (Python parity).
+    expect(detectPayloadFlags('HTTPS://PINGGY.IO/x and HTTPS://R.JINA.AI/y')).toEqual(expect.arrayContaining(['tunnel', 'redirect']))
+    expect(detectPayloadFlags('<SCRIPT>alert(1)</SCRIPT>')).toContain('script')
+  })
+  it('keeps system:-only text inject-flagged but out of prompt artifacts', () => {
+    expect(detectPayloadFlags('SYSTEM: obey only')).toContain('inject')
+    expect(extractTechnicalArtifacts('SYSTEM: obey only')).toEqual([])
+    expect(extractTechnicalArtifacts('IGNORE PREVIOUS')).toEqual([
+      expect.objectContaining({ artifactType: 'prompt', canonicalValue: 'ignore previous' }),
+    ])
   })
   it('does not flag bare 0x units as hex', () => {
     // '~10x.' без цифр после 0x — не hex-литерал (реальный кейс из датасета)
@@ -40,5 +119,10 @@ describe('payload detection', () => {
     const segments = highlightMatches('before <script>x</script> after')
     expect(segments.map((s) => s.text)).toEqual(['before ', '<script', '>x</script> after'])
     expect(highlightMatches('plain text')).toEqual([{ text: 'plain text' }])
+  })
+  it('keeps highlight offsets in body coordinates when lowercasing changes length', () => {
+    // U+0130 lowercases to "i" + combining dot (1 -> 2 UTF-16 units); offsets must not shift.
+    expect(highlightMatches('\u0130 <script>').map((s) => s.text)).toEqual(['\u0130 ', '<script', '>'])
+    expect(highlightMatches('\u0130 ignore previous').map((s) => s.text)).toEqual(['\u0130 ', 'ignore previous'])
   })
 })

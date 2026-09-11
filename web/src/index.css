@@ -108,6 +108,25 @@ body::before {
   -webkit-backdrop-filter: blur(16px);
 }
 
+.topbar {
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav {
+    flex-shrink: 0;
+  }
+}
+
 .brand-wrap {
   display: flex;
   align-items: center;
@@ -860,19 +879,3 @@ a:hover {
 .mark-payload { border-radius: 3px; padding: 0 2px; background: rgba(245, 158, 11, .25); color: #fde68a; }
 .mark-payload[data-flag="script"], .mark-payload[data-flag="inject"] { background: rgba(244, 63, 94, .3); color: #fecdd3; }
 .mark-payload[data-flag="tunnel"], .mark-payload[data-flag="redirect"] { background: rgba(56, 189, 248, .25); color: #bae6fd; }
-.agent-graph { margin-top: 12px; }
-.agent-graph-layout { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
-.agent-graph-pages { min-width: 240px; max-width: 360px; }
-.agent-graph-pages ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 2px; }
-.agent-graph-svg { width: 100%; max-width: 560px; height: auto; aspect-ratio: 560 / 320; flex: 1 1 420px; }
-.agent-graph-svg .graph-link { stroke: var(--border-accent); }
-.agent-graph-svg .graph-node rect { fill: var(--bg-elevated); stroke: var(--accent); cursor: pointer; }
-.agent-graph-svg .graph-node:hover rect, .agent-graph-svg .graph-node:focus-visible rect { fill: rgba(56, 189, 248, .15); }
-.agent-graph-svg .graph-node-text { fill: var(--text); font: 10px var(--mono); pointer-events: none; }
-.agent-graph-svg .graph-weight { fill: var(--text-dim); font: 9px var(--mono); pointer-events: none; }
-.agent-graph-svg .graph-center rect { fill: rgba(56, 189, 248, .18); stroke: var(--accent); stroke-width: 2; cursor: pointer; }
-.agent-graph-svg .graph-center:hover rect, .agent-graph-svg .graph-center:focus-visible rect { fill: rgba(56, 189, 248, .3); }
-.agent-graph-svg .graph-center-text { fill: var(--text); font: 11px var(--mono); pointer-events: none; }
-
-.payload-cell { display: flex; flex-wrap: wrap; gap: 4px; max-width: 240px; }
-.payload-cell .badge { font-size: 10px; padding: 1px 6px; }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   WIKIS,
   eventColor,
+  eventPageId,
   filterEventsByDay,
   filterLabels,
   filterPages,
@@ -11,6 +12,7 @@ import {
   fmtCompact,
   fmtInt,
   fmtTime,
+  fmtTimeSeconds,
   toCsv,
   wikiColor,
 } from './format'
@@ -192,3 +194,37 @@ describe('filterPages with tokenSlugs and payloadFlags', () => {
   })
 })
 
+describe('fmtTimeSeconds', () => {
+  it('formats timestamp with seconds-preserving UTC precision', () => {
+    expect(fmtTimeSeconds('2026-06-22T08:45:55Z')).toBe('2026-06-22 08:45:55Z')
+  })
+
+  it('returns dash on null and raw input on invalid date', () => {
+    expect(fmtTimeSeconds(null)).toBe('—')
+    expect(fmtTimeSeconds('not-a-date')).toBe('not-a-date')
+  })
+
+  it('preserves existing fmtTime minute precision', () => {
+    expect(fmtTime('2026-06-22T08:45:55Z')).toBe('2026-06-22 08:45Z')
+  })
+})
+
+
+describe('eventPageId', () => {
+  it('prefixes wiki for canonical ids from recent events', () => {
+    expect(eventPageId({ wiki: 'dse', page: 'AgentZzzHighMapJun21' })).toBe('dse/AgentZzzHighMapJun21')
+  })
+
+  it('keeps ids that already start with the wiki prefix', () => {
+    expect(eventPageId({ wiki: 'dse', page: 'dse/--help' })).toBe('dse/--help')
+  })
+
+  it('prefixes titles containing slashes that are not wiki-prefixed', () => {
+    expect(eventPageId({ wiki: 'dse', page: 'Foo/Bar' })).toBe('dse/Foo/Bar')
+  })
+
+  it('handles empty normalized values from build.py without throwing', () => {
+    expect(eventPageId({ wiki: '', page: 'SomePage' })).toBe('SomePage')
+    expect(eventPageId({ wiki: 'dse', page: '' })).toBe('')
+  })
+})

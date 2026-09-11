@@ -24,6 +24,14 @@ export function fmtTime(iso: string | null): string {
   return d.toISOString().replace('T', ' ').slice(0, 16) + 'Z'
 }
 
+/** Seconds-preserving archived UTC timestamp for pair evidence rows. */
+export function fmtTimeSeconds(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toISOString().replace('T', ' ').slice(0, 19) + 'Z'
+}
+
 export function fmtDate(iso: string | undefined | null): string {
   if (!iso) return '—'
   const y = iso.slice(0, 4)
@@ -120,6 +128,18 @@ export function filterLabels(labels: LabelRecord[], query: string): LabelRecord[
   const q = query.trim().toLowerCase()
   if (!q) return labels
   return labels.filter((l) => l.x.toLowerCase().includes(q))
+}
+
+/**
+ * Canonical page id for links from recent events: recent_events.json stores wiki and page
+ * separately, while PageDetail routes and pages.json ids are wiki-prefixed ("dse/PageName").
+ */
+export function eventPageId(e: Pick<RecentEvent, 'wiki' | 'page'>): string {
+  if (!e.page) return ''
+  // Page titles may legitimately contain '/' (e.g. "Foo/Bar"); only treat the page as
+  // already-canonical when it literally starts with "<wiki>/". Empty wiki (build.py
+  // normalization) keeps the bare title.
+  return e.wiki && e.page.startsWith(`${e.wiki}/`) ? e.page : e.wiki ? `${e.wiki}/${e.page}` : e.page
 }
 
 export function toCsv(rows: Record<string, unknown>[], columns?: string[]): string {

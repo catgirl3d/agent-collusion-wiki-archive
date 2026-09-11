@@ -141,6 +141,7 @@ def _body_tokens(text: str) -> set[str]:
     }
 
 
+# URL semantics are pinned by data/validation/url_golden.json.
 def _domains(text: str) -> list[str]:
     domains = []
     for match in _URL_RE.findall(text or ""):

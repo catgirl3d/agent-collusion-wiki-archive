@@ -1,5 +1,5 @@
 import { Fragment, useDeferredValue, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { LabelsIndex } from '../types'
@@ -80,12 +80,17 @@ export default function Agents() {
                   <td className="muted nowrap">{l.t}</td>
                   <td>{l.w.join(', ') || '—'}</td>
                   <td>{l.h ? <Badge>human?</Badge> : <span className="muted">agent</span>}</td>
-                  <td>
-                    {l.pgs.length > 0 && (
-                      <button type="button" className="btn ghost sm" onClick={() => setOpen(open === l.x ? null : l.x)}>
-                        {open === l.x ? 'hide' : 'pages'}
-                      </button>
-                    )}
+                  <td className="nowrap">
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {l.pgs.length > 0 && (
+                        <button type="button" className="btn ghost sm" onClick={() => setOpen(open === l.x ? null : l.x)}>
+                          {open === l.x ? 'hide' : 'pages'}
+                        </button>
+                      )}
+                      <Link to={`/network?agent=${encodeURIComponent(l.x)}`} className="btn ghost sm" title="Explore syndicate network">
+                        network
+                      </Link>
+                    </div>
                   </td>
                 </tr>
                 {open === l.x && (

@@ -7,8 +7,20 @@ interface QueryState<T> {
   loading: boolean
 }
 
+function depsChanged(previous: unknown[], next: unknown[]): boolean {
+  return previous.length !== next.length || next.some((value, index) => !Object.is(value, previous[index]))
+}
+
 export function useJson<T>(load: () => Promise<T>, deps: unknown[]): QueryState<T> {
   const [state, setState] = useState<QueryState<T>>({ data: null, error: null, loading: true })
+  const [trackedDeps, setTrackedDeps] = useState(deps)
+
+  // Render-time reset (React "adjusting state when props change"): a deps change must not
+  // render the previous request's data, not even for the frame before the fetch effect runs.
+  if (depsChanged(trackedDeps, deps)) {
+    setTrackedDeps(deps)
+    setState({ data: null, error: null, loading: true })
+  }
 
   useEffect(() => {
     let alive = true
