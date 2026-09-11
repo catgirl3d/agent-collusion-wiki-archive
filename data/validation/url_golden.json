@@ -1,6 +1,21 @@
 {
   "_meta": {
-    "source": "data/scripts/build.py::_domains"
+    "source": "data/scripts/build.py::_domains",
+    "known_divergences": [
+      {
+        "kind": "percent-encoded host",
+        "example": "https://ex%61mple.com/x",
+        "ts": "example.com",
+        "python": "ex%61mple.com"
+      },
+      {
+        "kind": "IDN host",
+        "example": "https://münchen.example/x",
+        "ts": "xn--mnchen-3ya.example",
+        "python": "münchen.example"
+      }
+    ],
+    "known_divergences_note": "Accepted, not pinned by the urls list: TS parses with WHATWG URL (percent-decodes hosts, punycodes IDN), Python urlparse keeps the raw host text. The Python parity test iterates urls only, so these cases deliberately stay out of it."
   },
   "urls": [
     {

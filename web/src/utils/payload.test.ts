@@ -8,6 +8,16 @@ describe('payload detection', () => {
       expect(extractTechnicalArtifacts(entry.input).filter((artifact) => artifact.artifactType === 'domain' || artifact.artifactType === 'endpoint').map((artifact) => artifact.canonicalValue)).toEqual(entry.domains)
     }
   })
+  it('pins accepted TS/Python divergences for percent-encoded and IDN hosts', () => {
+    // See url_golden.json _meta.known_divergences: WHATWG URL decodes percent-encoded hosts and
+    // punycodes IDN, while Python _domains keeps the raw host; these cases stay out of urls.
+    expect(extractTechnicalArtifacts('https://ex%61mple.com/x')).toEqual([
+      expect.objectContaining({ artifactType: 'domain', canonicalValue: 'example.com' }),
+    ])
+    expect(extractTechnicalArtifacts('https://münchen.example/x')).toEqual([
+      expect.objectContaining({ artifactType: 'domain', canonicalValue: 'xn--mnchen-3ya.example' }),
+    ])
+  })
   it('requires a URL scheme and recognizes exact endpoint literals', () => {
     expect(extractTechnicalArtifacts('serveo local bridge')).toEqual([])
     expect(extractTechnicalArtifacts('https://1.2.3.4/x https://[2001:db8::1]/x')).toEqual(expect.arrayContaining([
