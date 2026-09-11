@@ -106,22 +106,22 @@ export type ArchiveApiClientOptions = {
   timeoutMs?: number
 }
 
-function readBaseUrl(value: string): URL {
+function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
   let url: URL
   try {
     url = new URL(value)
   } catch {
-    throw new Error('ARCHIVE_API_URL must be a valid URL')
+    throw new Error(`${label} must be a valid URL`)
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('ARCHIVE_API_URL must use http or https')
+    throw new Error(`${label} must use http or https`)
   }
   if (url.username || url.password || url.search || url.hash) {
-    throw new Error('ARCHIVE_API_URL must not include credentials, query, or fragment')
+    throw new Error(`${label} must not include credentials, query, or fragment`)
   }
   if (url.pathname !== '/' && url.pathname !== '') {
-    throw new Error('ARCHIVE_API_URL must point to the Worker origin')
+    throw new Error(`${label} must point to the Worker origin`)
   }
 
   url.pathname = '/'
@@ -195,7 +195,8 @@ export class ArchiveApiClient implements ArchiveApi {
   private readonly timeoutMs: number
 
   constructor(options: ArchiveApiClientOptions = {}) {
-    this.baseUrl = readBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL)
+    const baseUrlLabel = options.baseUrl === undefined ? 'ARCHIVE_API_URL' : 'baseUrl'
+    this.baseUrl = readBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL, baseUrlLabel)
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
     this.timeoutMs = readTimeoutMs(options.timeoutMs)
   }

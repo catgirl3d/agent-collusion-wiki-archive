@@ -113,11 +113,18 @@ describe('ArchiveApiClient', () => {
   })
 
   it.each([
-    ['ftp://archive.example', 'ARCHIVE_API_URL must use http or https'],
-    ['https://archive.example/path', 'ARCHIVE_API_URL must point to the Worker origin'],
-    ['https://user:pass@archive.example', 'ARCHIVE_API_URL must not include credentials, query, or fragment'],
+    ['not a url', 'baseUrl must be a valid URL'],
+    ['ftp://archive.example', 'baseUrl must use http or https'],
+    ['https://archive.example/path', 'baseUrl must point to the Worker origin'],
+    ['https://user:pass@archive.example', 'baseUrl must not include credentials, query, or fragment'],
   ])('rejects unsafe base URL %s', (baseUrl, message) => {
     expect(() => new ArchiveApiClient({ baseUrl })).toThrow(message)
+  })
+
+  it('reports an invalid ARCHIVE_API_URL under the environment variable name', () => {
+    vi.stubEnv('ARCHIVE_API_URL', 'ftp://archive.example')
+
+    expect(() => new ArchiveApiClient()).toThrow('ARCHIVE_API_URL must use http or https')
   })
 
   it('reports timeout without exposing the underlying abort error', async () => {
