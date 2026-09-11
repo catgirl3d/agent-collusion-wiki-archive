@@ -1,7 +1,11 @@
 import { Client } from '@modelcontextprotocol/client'
 import { InMemoryTransport } from '@modelcontextprotocol/client'
-import { describe, expect, it } from 'vitest'
-import { createArchiveMcpServer } from '../src/server.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createArchiveMcpServer, installShutdownHandlers } from '../src/server.js'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 function fakeApi() {
   return {
@@ -129,6 +133,44 @@ describe('archive MCP server', () => {
     const result = await client.callTool({ name: 'search_archive', arguments: { q: '' } })
 
     expect(result.isError).toBe(true)
+  })
+
+  it('closes the stdio server and exits 0 on SIGINT or SIGTERM', async () => {
+    const listeners = new Map<string, Array<() => void>>()
+    const target = {
+      on(signal: string, listener: () => void) {
+        listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
+      },
+      exit: vi.fn(),
+    }
+    const close = vi.fn().mockResolvedValue(undefined)
+
+    installShutdownHandlers({ close }, target)
+    expect([...listeners.keys()].sort()).toEqual(['SIGINT', 'SIGTERM'])
+
+    for (const listener of listeners.get('SIGTERM') ?? []) listener()
+    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(0))
+    expect(close).toHaveBeenCalledTimes(1)
+
+    for (const listener of listeners.get('SIGINT') ?? []) listener()
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('exits 1 when the shutdown close fails', async () => {
+    const listeners = new Map<string, Array<() => void>>()
+    const target = {
+      on(signal: string, listener: () => void) {
+        listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
+      },
+      exit: vi.fn(),
+    }
+    const close = vi.fn().mockRejectedValue(new Error('close failed'))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    installShutdownHandlers({ close }, target)
+    for (const listener of listeners.get('SIGINT') ?? []) listener()
+    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(1))
+    expect(error).toHaveBeenCalledWith('close failed')
   })
 
   it('refuses oversized tool results instead of flooding the MCP context', async () => {
