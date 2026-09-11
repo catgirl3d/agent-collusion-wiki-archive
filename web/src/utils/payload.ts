@@ -6,6 +6,8 @@ const SCRIPT_RE = /<script\b|onerror\s*=|javascript:/g
 const INJECT_RE = /system:|ignore previous|reproducible bypass/g
 const TUNNEL_RE = /(?:pinggy|serveo|localhost\.run|localtunnel)/g
 const REDIRECT_RE = /(?:markdown\.new|r\.jina\.ai)/g
+const URL_RE = /https?:\/\/[^\s<>'"]+/gi
+const URL_TRIM_CHARS = '.,;:!?)"]'
 // слово, содержащее и латиницу, и кириллицу (NFKC-дифф не гейт — NFKC не меняет кириллицу внутри латинского слова)
 const LATIN_RE = /[A-Za-z]/
 const CYRILLIC_RE = /[\u0400-\u04ff]/
@@ -30,6 +32,79 @@ export interface PayloadMatch {
   start: number
   end: number
   flag: string
+}
+
+export type TechnicalArtifactType = 'domain' | 'endpoint' | 'prompt' | 'line'
+
+export interface TechnicalArtifact {
+  artifactType: TechnicalArtifactType
+  canonicalValue: string
+  techniqueKey?: string
+  payloadClass?: 'tunnel' | 'redirect'
+}
+
+/** Short procedural lines are coordination evidence only when they are distinctive enough to match and too long to be boilerplate punctuation. */
+export const LINE_MIN_LENGTH = 12
+export const LINE_MAX_LENGTH = 120
+const LINE_EXCLUDE_RE = /^(?:[=*#!>\s]|https?:\/\/|\[\[)/
+const WHITESPACE_RE = /\s+/g
+
+/** Extracts short distinctive single lines for cross-label coordination matching. */
+export function extractLineArtifacts(body: string): string[] {
+  const lines = new Set<string>()
+  for (const rawLine of body.split('\n')) {
+    const normalized = rawLine.trim().toLowerCase().replace(WHITESPACE_RE, ' ')
+    if (normalized.length < LINE_MIN_LENGTH || normalized.length > LINE_MAX_LENGTH) continue
+    if (LINE_EXCLUDE_RE.test(normalized)) continue
+    if (normalized.includes('http')) continue
+    lines.add(normalized)
+  }
+  return [...lines]
+}
+
+export function canonicalUrlHost(value: string): string | null {
+  let trimmed = value
+  while (trimmed && URL_TRIM_CHARS.includes(trimmed.at(-1)!)) trimmed = trimmed.slice(0, -1)
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/^www\./, '')
+    return host || null
+  } catch {
+    return null
+  }
+}
+
+function isIpLiteral(host: string): boolean {
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+    return host.split('.').every((part) => Number(part) <= 255)
+  }
+  return host.includes(':')
+}
+
+/** Extracts the normalized technical artifacts used by pair-level attribution. */
+export function extractTechnicalArtifacts(body: string): TechnicalArtifact[] {
+  const artifacts = new Map<string, TechnicalArtifact>()
+  for (const match of body.matchAll(URL_RE)) {
+    const host = canonicalUrlHost(match[0])
+    if (!host) continue
+    const artifactType = isIpLiteral(host) ? 'endpoint' : 'domain'
+    const techniqueKey = artifactType === 'domain'
+      ? (host.includes('pinggy') ? 'pinggy' : host.includes('serveo') ? 'serveo' : host.includes('localhost.run') ? 'localhost.run' : host.includes('localtunnel') ? 'localtunnel' : undefined)
+      : undefined
+    const payloadClass = artifactType === 'domain' ? (testRegex(TUNNEL_RE, host) ? 'tunnel' : testRegex(REDIRECT_RE, host) ? 'redirect' : undefined) : undefined
+    const artifact: TechnicalArtifact = { artifactType: artifactType as TechnicalArtifactType, canonicalValue: host, ...(techniqueKey ? { techniqueKey } : {}), ...(payloadClass ? { payloadClass: payloadClass as 'tunnel' | 'redirect' } : {}) }
+    artifacts.set(`${artifactType}:${host}`, artifact)
+  }
+  const lowered = body.toLowerCase()
+  for (const match of scanPayloadMatches(body, new Set(['inject']))) {
+    if (match.flag !== 'inject') continue
+    const marker = lowered.slice(match.start, match.end)
+    if (marker === 'ignore previous' || marker === 'reproducible bypass') {
+      artifacts.set(`prompt:${marker}`, { artifactType: 'prompt', canonicalValue: marker })
+    }
+  }
+  return [...artifacts.values()]
 }
 
 /**
@@ -71,9 +146,21 @@ export function scanPayloadMatches(body: string, activeFlags?: Set<string>): Pay
   return matches
 }
 
-function hasMatch(body: string, re: RegExp): boolean {
+/**
+ * Stateful /g regexes must never leak lastIndex between calls: a prior scan that
+ * matched (e.g. detectPayloadFlags over a large body) leaves lastIndex past the end
+ * of a short host string, silently failing later .test() calls. Reset before and
+ * after every single-value test.
+ */
+function testRegex(re: RegExp, value: string): boolean {
   re.lastIndex = 0
-  return re.test(body)
+  const matched = re.test(value)
+  re.lastIndex = 0
+  return matched
+}
+
+function hasMatch(body: string, re: RegExp): boolean {
+  return testRegex(re, body)
 }
 
 export function shannonEntropy(s: string): number {

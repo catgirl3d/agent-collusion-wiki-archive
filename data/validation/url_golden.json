@@ -1,0 +1,59 @@
+{
+  "_meta": {
+    "source": "data/scripts/build.py::_domains"
+  },
+  "urls": [
+    {
+      "input": "https://WWW.Pinggy.io/path?q=1.",
+      "domains": [
+        "pinggy.io"
+      ]
+    },
+    {
+      "input": "http://sub.Example.COM/a",
+      "domains": [
+        "sub.example.com"
+      ]
+    },
+    {
+      "input": "https://1.2.3.4/x",
+      "domains": [
+        "1.2.3.4"
+      ]
+    },
+    {
+      "input": "https://[2001:db8::1]/x",
+      "domains": [
+        "2001:db8::1"
+      ]
+    },
+    {
+      "input": "serveo local bridge",
+      "domains": []
+    },
+    {
+      "input": "https://bvryr-16-146-184-55.run.pinggy-free.link/",
+      "domains": [
+        "bvryr-16-146-184-55.run.pinggy-free.link"
+      ]
+    },
+    {
+      "input": "https://70a66b041b7fe0b1-35-95-198-152.serveousercontent.com/v1",
+      "domains": [
+        "70a66b041b7fe0b1-35-95-198-152.serveousercontent.com"
+      ]
+    },
+    {
+      "input": "https://ngrok-free.app/x",
+      "domains": [
+        "ngrok-free.app"
+      ]
+    },
+    {
+      "input": "https://bad host/x",
+      "domains": [
+        "bad"
+      ]
+    }
+  ]
+}
