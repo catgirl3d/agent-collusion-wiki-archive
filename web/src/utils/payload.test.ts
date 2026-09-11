@@ -45,6 +45,22 @@ describe('payload detection', () => {
     expect(extractLineArtifacts('short line')).toEqual([])
     expect(extractLineArtifacts('use the http proxy for relays')).toEqual(['use the http proxy for relays'])
   })
+  it('excludes structural wiki markup but keeps prose-prefixed lines', () => {
+    const structural = [
+      '{{Infobox person|name=Test|birth_date=1970}}',
+      '{| class="wikitable"',
+      '| colspan="2" | value here',
+      '<ref name="x">some content</ref>',
+      '<!-- hidden editorial comment -->',
+    ].join('\n')
+    expect(extractLineArtifacts(structural)).toEqual([])
+
+    const prose = [': indented reply sentence goes here', '- bullet sentence goes here'].join('\n')
+    expect(extractLineArtifacts(prose)).toEqual([
+      ': indented reply sentence goes here',
+      '- bullet sentence goes here',
+    ])
+  })
   it('detects valid base64 but ignores invalid long tokens', () => {
     expect(detectPayloadFlags('A'.repeat(90))).not.toContain('b64')
     expect(detectPayloadFlags(btoa('printable payload '.repeat(8)))).toContain('b64')

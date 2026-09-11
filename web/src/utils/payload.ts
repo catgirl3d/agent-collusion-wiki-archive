@@ -46,10 +46,15 @@ export interface TechnicalArtifact {
   payloadClass?: 'tunnel' | 'redirect'
 }
 
-/** Short procedural lines are coordination evidence only when they are distinctive enough to match and too long to be boilerplate punctuation. */
+/**
+ * Short procedural lines are coordination evidence only when they are distinctive enough to match
+ * and too long to be boilerplate punctuation. Structural wiki markup prefixes (`{`, `|`, `<` and
+ * the existing `= * # ! >`) are excluded; leading `:`, `;`, `-` are kept because they prefix
+ * prose (indented replies, list items) that can carry real coordination content.
+ */
 export const LINE_MIN_LENGTH = 12
 export const LINE_MAX_LENGTH = 120
-const LINE_EXCLUDE_RE = /^(?:[=*#!>\s]|https?:\/\/|\[\[)/
+const LINE_EXCLUDE_RE = /^(?:[=*#!><|{\s]|https?:\/\/|\[\[)/
 const HTTP_SCHEME_RE = /https?:\/\//
 const WHITESPACE_RE = /\s+/g
 
