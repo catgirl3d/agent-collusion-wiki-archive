@@ -212,4 +212,32 @@ describe('PairEvidencePanel', () => {
 
     expect(container.querySelectorAll('.pair-sequence-observations .mono')).toHaveLength(5)
   })
+
+  it('shows the delay since the previous pair event in sequence observations', () => {
+    const revisions: Revision[] = [
+      { ...revision('https://x.pinggy.io/a', 1), label: 'agent-a', time: '2026-06-01T00:00:00Z' },
+      { ...revision('cleared', 2), label: 'x-party', time: '2026-06-01T00:00:10Z' },
+      { ...revision('https://x.pinggy.io/a', 3), label: 'agent-b', time: '2026-06-01T00:00:47Z' },
+    ]
+    renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    const rows = document.querySelectorAll('.pair-sequence-observations > div')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('re-added-after-third-party')
+    expect(rows[0]).toHaveTextContent('+47s')
+  })
+
+  it('omits the delay when the previous pair-event time is unusable', () => {
+    const revisions: Revision[] = [
+      { ...revision('https://x.pinggy.io/a', 1), label: 'agent-a', time: null },
+      { ...revision('cleared', 2), label: 'x-party', time: '2026-06-01T00:00:10Z' },
+      { ...revision('https://x.pinggy.io/a', 3), label: 'agent-b', time: '2026-06-01T00:00:47Z' },
+    ]
+    renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
+
+    const rows = document.querySelectorAll('.pair-sequence-observations > div')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('re-added-after-third-party')
+    expect(rows[0].querySelector('.text-xs')).toBeNull()
+  })
 })

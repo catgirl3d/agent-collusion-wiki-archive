@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import type { PairEvent, PairTimeline, SharedPageEntry } from '../utils/pairEvidence'
 import { derivePairEvidence, derivePatternSignals, formatPatternSignals, getPayloadEvidence } from '../utils/pairEvidence'
-import { fmtTimeSeconds, wikiColor } from '../utils/format'
+import { fmtDuration, fmtTimeSeconds, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS } from '../utils/payload'
 import { DiffView } from './DiffView'
 
@@ -246,6 +246,14 @@ export function PairEvidencePanel({
     <span key={domain.canonicalValue} className="pair-technique-chip"><span>retained</span> {truncate ? `${domain.canonicalValue.slice(0, 60)}${domain.canonicalValue.length > 60 ? '…' : ''}` : domain.canonicalValue} <span className="muted">({domain.labels.length} label{domain.labels.length > 1 ? 's' : ''})</span></span>
   )
 
+  const observationRow = (observation: NonNullable<typeof signatures>['pairObservations'][number]) => (
+    <div key={`${observation.artifact}:${observation.status}:${observation.observationRefs[0]}`}>
+      <span className="pair-status-label">{observation.status}</span>{' '}
+      <span className="mono">{observation.artifact.split(':').slice(1).join(':')}</span>
+      {observation.gapSeconds !== null && <span className="muted text-xs"> +{fmtDuration(observation.gapSeconds)}</span>}
+    </div>
+  )
+
   const hasSharedEvidence = signatures !== null && (signatures.artifacts.length > 0 || signatures.techniques.length > 0 || signatures.coordinationLines.length > 0 || signatures.retainedDomains.length > 0 || signatures.commonHosts.length > 0)
 
   return (
@@ -302,7 +310,7 @@ export function PairEvidencePanel({
         {timeline === 'loading' ? <div className="muted text-xs">Loading signatures…</div> : timeline === 'error' ? <div className="muted text-xs">Signatures unavailable</div> : !signatures ? <div className="muted text-xs">Select a shared page to view signatures.</div> : (
           <>
             {signatures.firstPairEvent && <div className="pair-sequence-summary"><strong>Observed sequence</strong>: First pair edit: {signatures.firstPairEvent.label} · rev #{signatures.firstPairEvent.seq ?? signatures.firstPairEvent.revIndex + 1} · Preceding third-party revisions: {signatures.firstPairEvent.interveningOther}</div>}
-            {signatures.pairObservations.length > 0 && <div className="pair-sequence-observations">{signatures.pairObservations.slice(0, 4).map((observation) => <div key={`${observation.artifact}:${observation.status}:${observation.observationRefs[0]}`}><span className="pair-status-label">{observation.status}</span> <span className="mono">{observation.artifact.split(':').slice(1).join(':')}</span></div>)}{signatures.pairObservations.length > 4 && renderDisclosure(`Show ${signatures.pairObservations.length - 4} more sequence observations`, <div>{signatures.pairObservations.slice(4).map((observation) => <div key={`${observation.artifact}:${observation.status}:${observation.observationRefs[0]}`}><span className="pair-status-label">{observation.status}</span> <span className="mono">{observation.artifact.split(':').slice(1).join(':')}</span></div>)}</div>)}</div>}
+            {signatures.pairObservations.length > 0 && <div className="pair-sequence-observations">{signatures.pairObservations.slice(0, 4).map((observation) => observationRow(observation))}{signatures.pairObservations.length > 4 && renderDisclosure(`Show ${signatures.pairObservations.length - 4} more sequence observations`, <div>{signatures.pairObservations.slice(4).map((observation) => observationRow(observation))}</div>)}</div>}
             {signatures.artifacts.length > 0 && <div className="pair-signature-list">{signatures.artifacts.slice(0, 4).map((item) => signatureChip(item, `${item.artifactType}:${item.canonicalValue}`))}</div>}
             {!hasSharedEvidence && <div className="pair-signature-empty">No shared technical signatures observed on this page. Cross-page recurrence, unrecognized phrases/families, bare service mentions, subnet/ASN/provider inference, and wholesale-copy distinction are not checked here.</div>}
             {signatures.artifacts.length > 4 && renderDisclosure(`Show ${signatures.artifacts.length - 4} more flagged signatures`, <div className="pair-signature-list">{signatures.artifacts.slice(4).map((item) => signatureChip(item, `${item.artifactType}:${item.canonicalValue}`))}</div>)}
