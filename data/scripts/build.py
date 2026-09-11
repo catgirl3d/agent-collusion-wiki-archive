@@ -42,7 +42,7 @@ _BODY_STOP_WORDS = frozenset({
     "about", "after", "again", "against", "also", "among", "and", "are", "been", "before",
     "being", "between", "but", "can", "could", "das", "der", "die", "does", "for", "from",
     "haben", "has", "have", "here", "into", "ist", "more", "nicht", "oder", "only", "other",
-    "our", "over", "sein", "sich", "that", "their", "there", "these", "they", "this", "those",
+    "our", "over", "sein", "sich", "that", "the", "their", "there", "these", "they", "this", "those",
     "und", "unter", "von", "war", "were", "what", "when", "where", "which", "with", "would",
 })
 _REQUIRED_BODY_TOKENS = frozenset({"bypass"})
@@ -52,6 +52,7 @@ _B64_RE = re.compile(r"[A-Za-z0-9+/]{80,}={0,2}")
 _HEX_RE = re.compile(r"(0x[0-9a-f]+|[0-9a-f]{64,})")
 _NONSPACE_RE = re.compile(r"\S+")
 PAYLOAD_FLAGS = ("b64", "hex", "script", "inject", "homoglyph", "high-entropy", "tunnel", "redirect")
+FTS_BUDGET_BYTES = 12 * 1024 * 1024
 
 
 def open_maybe_gz(path: Path, mode: str = "rt", encoding: str = "utf-8"):
@@ -135,10 +136,78 @@ def _tokens(text: str) -> set[str]:
 
 
 def _body_tokens(text: str) -> set[str]:
+    # Tokenizer semantics are pinned by data/validation/token_golden.json; regenerate the fixture when the rules change.
     return {
         token for token in _tokens(text)
         if not token.isdigit() and token not in _BODY_STOP_WORDS and len(token) <= 25
     }
+
+
+def build_fts_index(pages: list[dict], revisions: list[dict]) -> dict:
+    """Build a body-token index using integer positions from the pages list."""
+    tokens_by_page: dict[str, set[str]] = defaultdict(set)
+    for revision in revisions:
+        tokens_by_page[revision["page_id"]].update(_body_tokens(revision.get("body", "")))
+
+    postings: dict[str, list[int]] = defaultdict(list)
+    for page_index, page in enumerate(pages):
+        for token in tokens_by_page.get(page["page_id"], ()):
+            postings[token].append(page_index)
+
+    caps = (500, 400, 300, 200, 150, 100)
+    for cap in caps:
+        truncated_totals = {
+            token: len(indices)
+            for token, indices in postings.items()
+            if len(indices) > cap
+        }
+        tokens = {token: indices[:cap] for token, indices in sorted(postings.items())}
+        meta = {
+            "pages": "pages.json",
+            "n_tokens": len(tokens),
+            "postings_cap": cap,
+            "truncated_tokens": len(truncated_totals),
+            "truncated_totals": dict(sorted(truncated_totals.items())),
+            "tokenizer": "build.py::_body_tokens",
+            "built_from": "collusion.wiki export",
+        }
+        result = {"tokens": tokens, "meta": meta}
+        serialized_size = len(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+        if serialized_size <= FTS_BUDGET_BYTES:
+            total_postings = sum(len(values) for values in tokens.values())
+            print(
+                f"fts_index: {serialized_size} bytes, n_tokens={len(tokens)}, "
+                f"total_postings={total_postings}, postings_cap={cap}, "
+                f"truncated_tokens={len(truncated_totals)}"
+            )
+            return result
+    raise RuntimeError(f"fts_index exceeds {FTS_BUDGET_BYTES} bytes even at postings cap 100")
+
+
+_TOKEN_GOLDEN_CASES = [
+    {"text": "ab abc aaaaaaaaaaaaaaaaaaaaaaaaa  aaaaaaaaaaaaaaaaaaaaaaaaaa", "tokens": []},
+    {"text": "UPPERCASE STATE5-ID agent.v2", "tokens": []},
+    {"text": "123 123abc abc123", "tokens": []},
+    {"text": "the und and bypass bypass", "tokens": []},
+    {"text": "naive café Привет", "tokens": []},
+    {"text": "", "tokens": []},
+    {"text": "under_score __private__", "tokens": []},
+]
+
+
+def write_token_golden(path: Path | None = None) -> None:
+    path = path or ROOT / "validation" / "token_golden.json"
+    cases = [{"text": case["text"], "tokens": sorted(_body_tokens(case["text"]))} for case in _TOKEN_GOLDEN_CASES]
+    payload = {
+        "_meta": {
+            "source": "build.py::_body_tokens",
+            "regenerate": "python data/scripts/build.py --write-token-golden",
+            "comment": "Any tokenizer change must regenerate this fixture in the same change.",
+        },
+        "cases": cases,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 # URL semantics are pinned by data/validation/url_golden.json.
@@ -250,7 +319,7 @@ def detect_payload_flags(body: str) -> set[str]:
 
 
 def build_payload_index(pages: list[dict], revisions: list[dict], slug_map: dict[str, str]) -> list[dict]:
-    """Builds payload flags across all revisions, extracting URLs from the latest revision."""
+    """Builds payload flags and URL domains across all revisions."""
     by_page: dict[str, list[dict]] = defaultdict(list)
     for revision in revisions:
         by_page[revision["page_id"]].append(revision)
@@ -263,9 +332,10 @@ def build_payload_index(pages: list[dict], revisions: list[dict], slug_map: dict
             all_flags.remove("high-entropy")
         if not all_flags:
             continue
-        last_body = ordered[-1].get("body", "") if ordered else ""
-        domain_counts = Counter(_domains(last_body))
-        domains = [domain for domain, _ in sorted(domain_counts.items(), key=lambda item: (-item[1], item[0]))[:10]]
+        domain_counts = Counter()
+        for revision in ordered:
+            domain_counts.update(_domains(revision.get("body", "")))
+        domains = [domain for domain, _ in sorted(domain_counts.items(), key=lambda item: (-item[1], item[0]))]
         result.append({"s": slug_map.get(page_id, slugify(page_id)), "id": page_id, "u": domains,
                        "f": [flag for flag in PAYLOAD_FLAGS if flag in all_flags]})
     return sorted(result, key=lambda item: item["s"])
@@ -332,7 +402,6 @@ def build_conflicts(
     revisions: list[dict],
     slug_map: dict[str, str],
     front_page_ids: set[str] | None = None,
-    limit: int = 500,
 ) -> list[dict]:
     """Rank pages by distinct non-anonymous labels and cross-label revision churn."""
     revisions_by_page: dict[str, list[dict]] = defaultdict(list)
@@ -359,10 +428,13 @@ def build_conflicts(
             "front": front,
         })
     conflicts.sort(key=lambda item: (-item["churn"], -item["del"]))
-    return conflicts[:limit]
+    return conflicts
 
 
 def main() -> int:
+    if "--write-token-golden" in sys.argv[1:]:
+        write_token_golden()
+        return 0
     revisions = list(read_jsonl(RAW / "revisions.jsonl.gz"))
     pages = list(read_jsonl(RAW / "pages.jsonl.gz"))
     events = list(read_jsonl(RAW / "events.jsonl.gz"))
@@ -471,6 +543,7 @@ def main() -> int:
     conflicts = build_conflicts(pages, revisions, slug_map)
     search_index = build_search_index(pages, revisions, slug_map)
     payload_index = build_payload_index(pages, revisions, slug_map)
+    fts_index = build_fts_index(pages, revisions)
 
     # --- summary ---
     n_revs_total = sum(rev_counts.values())
@@ -503,6 +576,7 @@ def main() -> int:
         ("conflicts.json", conflicts),
         ("search_index.json", search_index),
         ("payload_index.json", payload_index),
+        ("fts_index.json", fts_index),
     ]:
         output_path = OUT / name
         output_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")

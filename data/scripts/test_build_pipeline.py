@@ -161,6 +161,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         "conflicts.json",
         "search_index.json",
         "payload_index.json",
+        "fts_index.json",
     }
     assert {path.name for path in out.iterdir() if path.is_file()} == expected_files
     revision_files = sorted(path.name for path in (out / "revisions").iterdir())

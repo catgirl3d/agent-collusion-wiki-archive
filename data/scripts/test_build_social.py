@@ -48,15 +48,15 @@ def test_conflicts_ttd_median_null_and_front_fallback():
     assert plain["front"] is False
 
 
-def test_conflicts_uses_explicit_front_ids_and_sorts_caps():
+def test_conflicts_uses_explicit_front_ids_and_sorts_all_pages():
     pages = [{"page_id": f"p{i}", "name": f"ZZZ-{i}", "n_deletions": i} for i in range(501)]
     revisions = [
         {"page_id": "p0", "seq": 1, "rev_id": "1", "label": "a"},
         {"page_id": "p0", "seq": 2, "rev_id": "2", "label": "b"},
     ]
     conflicts = build_conflicts(pages, revisions, {}, front_page_ids={"p0"})
-    assert len(conflicts) == 500
+    assert len(conflicts) == 501
     assert conflicts[0]["id"] == "p0"
     assert conflicts[0]["front"] is True
     assert all(item["zzz"] for item in conflicts)
-    assert conflicts[-1]["del"] == 2
+    assert conflicts[-1]["del"] == 1

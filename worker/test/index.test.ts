@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { PAYLOAD_FLAGS, tokenizeBody } from '../src/index'
 
 type AssetValue = unknown | Response
 
@@ -18,17 +20,31 @@ const labels = {
   n_anon: 4,
   l: [
     { x: 'Alice', r: 7, f: 'first', t: '2026-01-01', p: 2, h: false, w: ['wiki'], pgs: ['Page_One~_h12345678', 'Notes'] },
-    { x: 'Bob', r: 4, f: 'second', t: '2026-01-02', p: 1, h: true, w: ['wiki'], pgs: ['Deleted'] },
+    { x: 'Bob', r: 4, f: 'second', t: '2026-01-02', p: 1, h: true, w: ['wiki'], pgs: ['Deleted', pageOne.s] },
+    { x: 'Aaron', r: 1, f: 'third', t: '2026-01-03', p: 0, h: false, w: ['wiki'], pgs: [] },
   ],
 }
 const revisions = [
   { label: 'Alice', body: 'first body', t: '2026-01-03T10:00:00Z' },
-  { label: 'Bob', body: 'second body', t: '2026-01-04T10:00:00Z' },
+  { label: 'Bob', body: 'prefix '.repeat(20) + 'Needle   appears here', t: '2026-01-04T10:00:00Z' },
 ]
 const events = [
-  { type: 'edit', t: '2026-01-03T10:00:00Z', page: 'Page One', action: 'update', ip16: 'aabb' },
-  { type: 'delete', t: '2026-01-04T10:00:00Z', page: 'Deleted', action: 'remove', ip16: 'ccdd' },
-  { type: 'edit', t: '2026-01-05T10:00:00Z', page: 'Notes', action: 'update', ip16: 'eeff' },
+  { type: 'edit', act: '[Admin1]', wiki: 'wiki', t: '2026-01-03T10:00:00Z', page: 'Page One', action: 'update', ip16: 'aabb' },
+  { type: 'delete', act: '[Admin2]', wiki: 'other', t: '2026-01-04T10:00:00Z', page: 'Deleted', action: 'remove', ip16: 'ccdd' },
+  { type: 'edit', act: '[Admin1]', wiki: 'other', t: '2026-01-05T10:00:00Z', page: 'Notes', action: 'update', ip16: 'eeff' },
+]
+
+const fts = {
+  tokens: { alpha: [0, 2], alphabet: [1], beta: [0], capped: [0] },
+  meta: { postings_cap: 1, truncated_totals: { capped: 2 } },
+}
+const payload = [
+  { s: pageOne.s, id: pageOne.id, u: ['early.example', 'relay.example'], f: ['tunnel'] },
+  { s: pageTwo.s, id: pageTwo.id, u: ['other.example'], f: ['redirect'] },
+]
+const conflicts = [
+  { id: 'low/id', s: 'low~', churn: 1, ttd_med_s: 2, del: 0, zzz: true, front: false },
+  ...Array.from({ length: 501 }, (_, index) => ({ id: `high/${index}`, s: `high_${index}~`, churn: 10, ttd_med_s: 3, del: 0, zzz: false, front: false })),
 ]
 
 const assets: Record<string, AssetValue> = {
@@ -37,6 +53,10 @@ const assets: Record<string, AssetValue> = {
   '/data/labels.json': labels,
   '/data/revisions/Page_One~_h12345678.json': revisions,
   '/data/recent_events.json': events,
+  '/data/fts_index.json': fts,
+  '/data/payload_index.json': payload,
+  '/data/conflicts.json': conflicts,
+  '/data/agent_links.json': { Alice: [{ o: 'Bob', c: 2 }] },
 }
 
 async function handlerForTest() {
@@ -98,7 +118,7 @@ describe('Worker API default fetch handler', () => {
     const openapi = await request('/api/openapi')
     const body = await json(openapi.response)
     expect(body.openapi).toBe('3.0.0')
-    expect(body.routes).toContain('GET /api/events?type=&day=YYYY-MM-DD&q=&limit=&offset=')
+    expect(body.routes).toContain('GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&q=&limit=&offset=')
     expect(openapi.setup.calls).toEqual([])
   })
 
@@ -151,7 +171,7 @@ describe('Worker API default fetch handler', () => {
   it('filters revisions, omits body, and paginates', async () => {
     const result = await request('/api/pages/Page_One~_h12345678/revisions?label=Alice&body=0&limit=1&offset=0')
     expect(await json(result.response)).toEqual({
-      slug: 'Page_One~_h12345678', total: 1, limit: 1, offset: 0, label: 'Alice', withBody: false,
+      slug: 'Page_One~_h12345678', total: 1, limit: 1, offset: 0, label: 'Alice', contains: null, q: null, withBody: false,
       revisions: [{ label: 'Alice', t: '2026-01-03T10:00:00Z' }],
     })
   })
@@ -204,6 +224,103 @@ describe('Worker API default fetch handler', () => {
   it('filters and paginates events', async () => {
     const result = await request('/api/events?type=edit&day=2026-01-03&q=page&limit=1&offset=0')
     expect(await json(result.response)).toEqual({ total: 1, scope: 'full_history', limit: 1, offset: 0, events: [events[0]] })
+  })
+
+  it('searches exact and prefix body tokens with honest truncation', async () => {
+    const exact = await request('/api/fts?q=alpha')
+    const exactBody = await json(exact.response)
+    expect(exactBody).toMatchObject({ q: 'alpha', mode: 'exact', tokens: ['alpha'], truncated: false, total: 2 })
+    expect(exactBody.pages.map((page: any) => page.w)).toEqual(['wiki', 'other'])
+    const filtered = await request('/api/fts?q=alpha&wiki=other')
+    expect((await json(filtered.response)).pages.map((page: any) => page.id)).toEqual(['other/Notes'])
+    const prefix = await request('/api/fts?q=alp&mode=prefix')
+    expect((await json(prefix.response)).pages.map((page: any) => page.id)).toEqual(['wiki/Deleted', 'wiki/Page One', 'other/Notes'])
+    const mixed = await request('/api/fts?q=alpha+unknown')
+    expect(await json(mixed.response)).toMatchObject({ truncated: false, total: 0, pages: [] })
+    const missing = await request('/api/fts?q=zzzmissingtoken')
+    expect(await json(missing.response)).toMatchObject({ truncated: false, total: 0, pages: [] })
+    const capped = await request('/api/fts?q=capped')
+    expect((await json(capped.response)).truncated).toBe(true)
+    expect((await request('/api/fts')).response.status).toBe(400)
+    expect(await json((await request('/api/fts')).response)).toMatchObject({ error: 'missing ?q=' })
+    expect((await request('/api/fts?q=alpha&mode=nope')).response.status).toBe(400)
+    const noTokens = await request('/api/fts?q=a')
+    expect(noTokens.response.status).toBe(400)
+    expect(await json(noTokens.response)).toMatchObject({ error: 'no usable query tokens (stop words or shorter than 3 characters)' })
+    const prototype = await request('/api/fts?q=constructor')
+    expect(await json(prototype.response)).toMatchObject({ truncated: false, total: 0, pages: [] })
+    expect((await request('/api/fts?q=' + 'a'.repeat(201))).response.status).toBe(400)
+    const manyTokens = Array.from({ length: 17 }, (_, index) => `tok${index}`).join('+')
+    expect((await request(`/api/fts?q=${manyTokens}`)).response.status).toBe(400)
+  })
+
+  it('searches artifacts and validates flags', async () => {
+    const result = await request('/api/artifacts?host=EARLY&flag=tunnel')
+    expect(await json(result.response)).toMatchObject({ total: 1, pages: [{ id: pageOne.id, u: payload[0].u, f: payload[0].f }] })
+    const invalid = await request('/api/artifacts?flag=unknown')
+    expect(invalid.response.status).toBe(400)
+  })
+
+  it('serves links and exact pair intersections', async () => {
+    expect(await json((await request('/api/links?label=Alice')).response)).toEqual({ label: 'Alice', links: [{ o: 'Bob', c: 2 }] })
+    expect(await json((await request('/api/links?label=Alice&other=Bob')).response)).toEqual({
+      label: 'Alice', other: 'Bob', sharedCount: 1, sharedPages: [pageOne.s],
+    })
+    expect((await request('/api/links?label=Unknown')).response.status).toBe(404)
+    expect((await request('/api/links?label=Alice&other=Unknown')).response.status).toBe(404)
+    expect((await request('/api/links?label=constructor')).response.status).toBe(404)
+    expect((await request('/api/links?label=__proto__')).response.status).toBe(404)
+  })
+
+  it('filters the complete conflicts list', async () => {
+    const result = await request('/api/conflicts?minChurn=0&zzz=true&limit=200')
+    expect(await json(result.response)).toMatchObject({ total: 1, conflicts: [conflicts[0]] })
+  })
+
+  it('filters revisions by raw contains and emits snippets only without bodies', async () => {
+    const result = await request('/api/pages/Page_One~_h12345678/revisions?label=Bob&contains=NEEDLE&body=0')
+    const body = await json(result.response)
+    expect(body.q).toBe('NEEDLE')
+    expect(body.contains).toBe('NEEDLE')
+    expect(body.total).toBe(1)
+    expect(body.revisions[0]).toMatchObject({ label: 'Bob', snippet: expect.stringContaining('Needle appears here') })
+    expect(body.revisions[0].snippet).not.toMatch(/\s{2,}/)
+    const full = await request('/api/pages/Page_One~_h12345678/revisions?contains=NEEDLE&body=1')
+    const fullBody = await json(full.response)
+    expect(fullBody.revisions[0]).toMatchObject({ body: expect.stringContaining('Needle   appears') })
+    expect(fullBody.revisions[0].snippet).toBeUndefined()
+    expect((await json((await request('/api/pages/Page_One~_h12345678/revisions?contains=')).response)).q).toBe('')
+    const emptyContains = await json((await request('/api/pages/Page_One~_h12345678/revisions?contains=')).response)
+    expect(emptyContains.contains).toBe('')
+    expect((await request('/api/pages/Page_One~_h12345678/revisions?contains=' + 'x'.repeat(201))).response.status).toBe(400)
+  })
+
+  it('filters events and supports agent sort modes with fallback', async () => {
+    const event = await request('/api/events?act=%5BAdmin1%5D&wiki=wiki')
+    expect((await json(event.response)).total).toBe(1)
+    const pages = await request('/api/agents?sort=pages')
+    expect((await json(pages.response)).agents[0].x).toBe('Alice')
+    const byName = await request('/api/agents?sort=name')
+    expect((await json(byName.response)).agents[0].x).toBe('Aaron')
+    const stored = await request('/api/agents')
+    expect((await json(stored.response)).agents[0].x).toBe('Alice')
+    const fallback = await request('/api/agents?sort=unknown')
+    expect((await json(fallback.response)).agents[0].x).toBe('Alice')
+  })
+
+  it('matches tokenizer golden fixture and advertises new routes', async () => {
+    const fixture = JSON.parse(readFileSync(new URL('../../data/validation/token_golden.json', import.meta.url), 'utf8'))
+    for (const testCase of fixture.cases) expect(tokenizeBody(testCase.text).sort()).toEqual(testCase.tokens.sort())
+    const body = await json((await request('/api/openapi')).response)
+    expect(body.ftsBodies).toBe(true)
+    expect(body.routes).toContain('GET /api/fts?q=&mode=exact|prefix&wiki=&limit=&offset=')
+    expect(body.routes).toContain('GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=')
+
+    const buildSource = readFileSync(new URL('../../data/scripts/build.py', import.meta.url), 'utf8')
+    const flagsLiteral = buildSource.match(/PAYLOAD_FLAGS = \(([^)]*)\)/)
+    expect(flagsLiteral).not.toBeNull()
+    const buildFlags = [...(flagsLiteral?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((match) => match[1])
+    expect(buildFlags).toEqual(PAYLOAD_FLAGS)
   })
 
   it('requires search query and returns page and agent hits', async () => {
