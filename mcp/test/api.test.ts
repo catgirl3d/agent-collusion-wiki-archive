@@ -160,7 +160,7 @@ describe('ArchiveApiClient', () => {
       new Response(
         new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode('x'.repeat(4_000_001)))
+            controller.enqueue(new TextEncoder().encode('x'.repeat(2_000_001)))
             controller.close()
           },
         }),
@@ -179,7 +179,7 @@ describe('ArchiveApiClient', () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      headers: { get: (name: string) => (name === 'content-length' ? '4000001' : null) },
+      headers: { get: (name: string) => (name === 'content-length' ? '2000001' : null) },
       body: { cancel },
     } as unknown as Response)
     const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
