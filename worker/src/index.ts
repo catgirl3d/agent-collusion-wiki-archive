@@ -10,9 +10,8 @@
  *   1. GET /api/agents/:name        -> `pgs` field (agent pages)
  *   2. GET /api/pages/:slug/revisions?label=X&body=0  -> revisions on one page
  *
- * v1 has no full-text search over bodies (24 MB) and no fan-out aggregation
- * across all pages of an agent (50 subrequests limit per request).
- * Search covers page names and labels only.
+ * Body-token search is served from the precomputed FTS index; exact substring
+ * search remains available per page through the revisions endpoint.
  */
 
 type Env = {
@@ -44,6 +43,28 @@ type LabelRecord = {
   h: boolean
   w: string[]
   pgs: string[]
+}
+
+type PayloadRecord = { s: string; id: string; u: string[]; f: string[] }
+type ConflictRecord = { id: string; s: string; churn: number; ttd_med_s: number | null; del: number; zzz: boolean; front: boolean }
+
+const BODY_STOP_WORDS = new Set([
+  'about', 'after', 'again', 'against', 'also', 'among', 'and', 'are', 'been', 'before',
+  'being', 'between', 'but', 'can', 'could', 'das', 'der', 'die', 'does', 'for', 'from',
+  'haben', 'has', 'have', 'here', 'into', 'ist', 'more', 'nicht', 'oder', 'only', 'other',
+  'our', 'over', 'sein', 'sich', 'that', 'the', 'their', 'there', 'these', 'they', 'this', 'those',
+  'und', 'unter', 'von', 'war', 'were', 'what', 'when', 'where', 'which', 'with', 'would',
+])
+export const PAYLOAD_FLAGS = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'high-entropy', 'tunnel', 'redirect']
+
+// Tokenizer semantics are pinned by data/validation/token_golden.json; keep this in sync with build.py::_body_tokens.
+export function tokenizeBody(text: string): string[] {
+  return [...new Set((text.toLowerCase().match(/[a-z0-9]+/g) || [])
+    .filter((token) => token.length >= 3 && token.length <= 25 && !/^\d+$/.test(token) && !BODY_STOP_WORDS.has(token)))]
+}
+
+function pageView(p: PageRecord) {
+  return { id: p.id, s: p.s, w: p.w, n: p.n, r: p.r, fam: p.fam, lb: p.lb, d: p.d }
 }
 
 // In-memory per-isolate cache: pages.json (1.2 MB) is parsed once.
@@ -122,10 +143,11 @@ export default {
             info: { title: 'agent-collusion-archive', version: '0.1.0' },
             notes: [
               'Static-first: source of truth is /data/*.json, worker is a read-only proxy.',
-              'No full-text search over revision bodies in v1 (ftsBodies=false).',
-              'Agent history = GET /api/agents/:name (pgs) + GET /api/pages/:slug/revisions?label= per page.',
+              'Body search uses a precomputed token index with adaptive posting caps; responses expose truncated=true when completeness is not guaranteed.',
+              'Exact substring search is available per page through revisions?contains=; there is no corpus-wide arbitrary substring search.',
+              'Agent history = GET /api/agents/:name (pgs) + GET /api/pages/:slug/revisions?label= per page; pgs lists hold at most 2,000 stored pages per agent.',
             ],
-            ftsBodies: false,
+            ftsBodies: true,
             routes: [
               'GET /api/health',
               'GET /api/openapi',
@@ -133,11 +155,15 @@ export default {
               'GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset=',
               'GET /api/pages/by-id?id=<page_id>',
               'GET /api/pages/:slug',
-              'GET /api/pages/:slug/revisions?label=&body=0|1&limit=&offset=',
-              'GET /api/agents?q=&limit=&offset=',
+              'GET /api/pages/:slug/revisions?label=&contains=&body=0|1&limit=&offset=',
+              'GET /api/agents?q=&sort=name|r|pages&limit=&offset=',
               'GET /api/agents/:name',
-              'GET /api/events?type=&day=YYYY-MM-DD&q=&limit=&offset=',
+              'GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&q=&limit=&offset=',
               'GET /api/search?q=&limit= (names only)',
+              'GET /api/fts?q=&mode=exact|prefix&wiki=&limit=&offset=',
+              'GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=',
+              'GET /api/links?label=&other=',
+              'GET /api/conflicts?minChurn=&zzz=&front=&limit=&offset=',
             ],
           },
           200,
@@ -201,6 +227,9 @@ export default {
         const slug = decodeURIComponent(revMatch[1])
         if (!SLUG_RE.test(slug)) return err(400, 'invalid slug')
         const label = url.searchParams.get('label') || ''
+        const containsParam = url.searchParams.get('contains')
+        const contains = containsParam || ''
+        if (contains.length > 200) return err(400, 'contains must be 200 characters or fewer')
         const body = url.searchParams.get('body') ?? '1'
         const withBody = body !== '0'
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 500)
@@ -211,16 +240,24 @@ export default {
         } catch {
           return err(404, 'revisions not found for slug')
         }
-        const filtered = label ? revs.filter((r) => r['label'] === label) : revs
+        const labelFiltered = label ? revs.filter((r) => r['label'] === label) : revs
+        const needle = containsParam !== null && contains.length > 0 ? contains.toLowerCase() : ''
+        const filtered = needle
+          ? labelFiltered.filter((r) => typeof r['body'] === 'string' && r['body'].toLowerCase().includes(needle))
+          : labelFiltered
         const page = filtered.slice(offset, offset + limit)
         const out = withBody
           ? page
           : page.map((r) => {
-              const { body: _b, ...meta } = r
-              return meta
+              const { body, ...meta } = r
+              if (!needle || typeof body !== 'string') return meta
+              const match = body.toLowerCase().indexOf(needle)
+              const start = Math.max(0, match - 60)
+              const end = Math.min(body.length, match + contains.length + 60)
+              return { ...meta, snippet: body.slice(start, end).replace(/\s+/g, ' ').trim() }
             })
         return json(
-          { slug, total: filtered.length, limit, offset, label: label || null, withBody, revisions: out },
+          { slug, total: filtered.length, limit, offset, label: label || null, contains: containsParam, q: containsParam, withBody, revisions: out },
           200,
           'public, max-age=86400, immutable',
         )
@@ -241,10 +278,18 @@ export default {
       if (url.pathname === '/api/agents') {
         const index = await loadAsset<{ l: LabelRecord[]; n_anon: number }>(env, req, '/data/labels.json')
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
+        const sort = url.searchParams.get('sort') || ''
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 100)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
         const rows = q ? index.l.filter((a) => a.x.toLowerCase().includes(q)) : index.l
-        const items = rows.slice(offset, offset + limit).map((a) => ({
+        const sorted = sort === 'name'
+          ? [...rows].sort((a, b) => a.x.toLowerCase().localeCompare(b.x.toLowerCase()) || a.x.localeCompare(b.x))
+          : sort === 'r'
+            ? [...rows].sort((a, b) => b.r - a.r || a.x.localeCompare(b.x))
+            : sort === 'pages'
+              ? [...rows].sort((a, b) => b.p - a.p || a.x.localeCompare(b.x))
+              : rows
+        const items = sorted.slice(offset, offset + limit).map((a) => ({
           x: a.x,
           r: a.r,
           f: a.f,
@@ -255,7 +300,7 @@ export default {
           pgsCount: a.pgs.length,
           pgsPreview: a.pgs.slice(0, 5),
         }))
-        return json({ total: rows.length, n_anon: index.n_anon, limit, offset, agents: items })
+        return json({ total: sorted.length, n_anon: index.n_anon, limit, offset, agents: items })
       }
 
       // GET /api/agents/:name — details + full pgs (pointer to pages).
@@ -273,12 +318,16 @@ export default {
       if (url.pathname === '/api/events') {
         const events = await loadAsset<Record<string, unknown>[]>(env, req, '/data/recent_events.json')
         const type = url.searchParams.get('type') || ''
+        const act = url.searchParams.get('act') || ''
+        const wiki = url.searchParams.get('wiki') || ''
         const day = url.searchParams.get('day') || ''
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 200)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
         const rows = events.filter((e) => {
           if (type && e['type'] !== type) return false
+          if (act && e['act'] !== act) return false
+          if (wiki && e['wiki'] !== wiki) return false
           if (day && typeof e['t'] === 'string' && !(e['t'] as string).startsWith(day)) return false
           if (q) {
             const hay = `${e['page'] ?? ''} ${e['action'] ?? ''} ${e['ip16'] ?? ''}`.toLowerCase()
@@ -293,6 +342,121 @@ export default {
           offset,
           events: rows.slice(offset, offset + limit),
         })
+      }
+
+      // GET /api/fts — body-token search against integer postings.
+      if (url.pathname === '/api/fts') {
+        const q = url.searchParams.get('q') || ''
+        if (q.length > 200) return err(400, 'q must be 200 characters or fewer')
+        if (!q.trim()) return err(400, 'missing ?q=')
+        const tokens = tokenizeBody(q).sort()
+        if (!tokens.length) return err(400, 'no usable query tokens (stop words or shorter than 3 characters)')
+        if (tokens.length > 16) return err(400, 'too many query tokens (max 16)')
+        const modeParam = url.searchParams.get('mode') || 'exact'
+        if (modeParam !== 'exact' && modeParam !== 'prefix') return err(400, 'invalid mode')
+        const mode = modeParam as 'exact' | 'prefix'
+        const wiki = url.searchParams.get('wiki') || ''
+        const limit = clampInt(url.searchParams.get('limit'), 20, 1, 100)
+        const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
+        const [fts, pages] = await Promise.all([
+          loadAsset<{ tokens: Record<string, number[]>; meta: { truncated_totals?: Record<string, number> } }>(env, req, '/data/fts_index.json'),
+          loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json'),
+        ])
+        const postingSets: Array<Set<number>> = []
+        const allKeys = mode === 'prefix' ? Object.keys(fts.tokens) : []
+        let missing = 0
+        let capped = false
+        for (const token of tokens) {
+          const keys = mode === 'exact' ? (Object.hasOwn(fts.tokens, token) ? [token] : []) : allKeys.filter((key) => key.startsWith(token))
+          if (!keys.length) {
+            missing += 1
+            continue
+          }
+          const positions = new Set<number>()
+          for (const key of keys) {
+            for (const position of fts.tokens[key]) positions.add(position)
+            if (Object.hasOwn(fts.meta.truncated_totals ?? {}, key)) capped = true
+          }
+          postingSets.push(positions)
+        }
+        let positions: Set<number> = new Set()
+        if (postingSets.length) {
+          positions = new Set(postingSets[0])
+          for (const posting of postingSets.slice(1)) {
+            positions = new Set([...positions].filter((position) => posting.has(position)))
+          }
+          if (missing > 0) positions.clear()
+        }
+        let rows = [...positions]
+          .map((position) => pages.p[position])
+          .filter((page): page is PageRecord => Boolean(page) && (!wiki || page.w === wiki))
+          .map(pageView)
+          .sort((a, b) => b.r - a.r || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        const truncated = capped
+        return json({ q, mode, tokens, truncated, total: rows.length, limit, offset, pages: rows.slice(offset, offset + limit) })
+      }
+
+      // GET /api/artifacts — payload findings joined to page metadata.
+      if (url.pathname === '/api/artifacts') {
+        const flag = url.searchParams.get('flag') || ''
+        if (flag && !PAYLOAD_FLAGS.includes(flag)) return err(400, `unknown flag; allowed: ${PAYLOAD_FLAGS.join(', ')}`)
+        const host = (url.searchParams.get('host') || '').toLowerCase()
+        const slug = url.searchParams.get('slug') || ''
+        const id = url.searchParams.get('id') || ''
+        const wiki = url.searchParams.get('wiki') || ''
+        const limit = clampInt(url.searchParams.get('limit'), 50, 1, 100)
+        const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
+        const [payload, pages] = await Promise.all([
+          loadAsset<PayloadRecord[]>(env, req, '/data/payload_index.json'),
+          loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json'),
+        ])
+        const pageById = new Map(pages.p.map((page) => [page.id, page]))
+        const rows = payload.map((item) => ({ item, page: pageById.get(item.id) })).filter(({ item, page }) => {
+          if (!page || (flag && !item.f.includes(flag)) || (host && !item.u.some((value) => value.toLowerCase().includes(host)))) return false
+          if (slug && page.s !== slug) return false
+          if (id && page.id !== id) return false
+          if (wiki && page.w !== wiki) return false
+          return true
+        }).map(({ item, page }) => ({ ...pageView(page as PageRecord), u: item.u, f: item.f }))
+        return json({ total: rows.length, limit, offset, pages: rows.slice(offset, offset + limit) })
+      }
+
+      // GET /api/links — precomputed navigation links or exact pair intersection.
+      if (url.pathname === '/api/links') {
+        const label = url.searchParams.get('label') || ''
+        if (!label) return err(400, 'missing ?label=')
+        const other = url.searchParams.get('other')
+        if (other === null) {
+          const links = await loadAsset<Record<string, Array<Record<string, unknown>>>>(env, req, '/data/agent_links.json')
+          if (!Object.hasOwn(links, label)) return err(404, 'agent links not found')
+          return json({ label, links: links[label] })
+        }
+        const labels = await loadAsset<{ l: LabelRecord[] }>(env, req, '/data/labels.json')
+        const left = labels.l.find((entry) => entry.x === label)
+        const right = labels.l.find((entry) => entry.x === other)
+        if (!left || !right) return err(404, 'agent label not found')
+        const rightPages = new Set(right.pgs)
+        const sharedPages = [...new Set(left.pgs)].filter((page) => rightPages.has(page)).sort()
+        return json({ label, other, sharedCount: sharedPages.length, sharedPages })
+      }
+
+      // GET /api/conflicts — full conflict list with query filters.
+      if (url.pathname === '/api/conflicts') {
+        const minChurn = clampInt(url.searchParams.get('minChurn'), 0, 0, 100000)
+        const zzzParam = url.searchParams.get('zzz')
+        const frontParam = url.searchParams.get('front')
+        const zzz = zzzParam === '1' || zzzParam === 'true'
+        const front = frontParam === '1' || frontParam === 'true'
+        const limit = clampInt(url.searchParams.get('limit'), 50, 1, 200)
+        const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
+        const conflicts = await loadAsset<ConflictRecord[]>(env, req, '/data/conflicts.json')
+        const rows = conflicts.filter((row) => {
+          if (row.churn < minChurn) return false
+          if (zzzParam !== null && row.zzz !== zzz) return false
+          if (frontParam !== null && row.front !== front) return false
+          return true
+        })
+        return json({ total: rows.length, limit, offset, conflicts: rows.slice(offset, offset + limit) })
       }
 
       // GET /api/search — names only (pages + agents). Bodies are never touched.

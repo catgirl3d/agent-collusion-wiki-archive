@@ -35,11 +35,15 @@ routes are:
 | `GET /api/pages?q=&wiki=&fam=&deleted=1&minRevs=&sort=revs%7Clabels&limit=&offset=` | Filtered page index with `total` |
 | `GET /api/pages/by-id?id=<page_id>` | Page lookup by exact ID; IDs may contain `/` |
 | `GET /api/pages/:slug` | Page metadata by the generated `s` slug |
-| `GET /api/pages/:slug/revisions?label=&body=0%7C1&limit=&offset=` | Paginated revisions for one page; `body=0` omits bodies |
-| `GET /api/agents?q=&limit=&offset=` | Paginated agent list with counts and previews |
-| `GET /api/agents/:name` | Agent metadata and the complete `pgs` page list |
-| `GET /api/events?type=&day=YYYY-MM-DD&q=&limit=&offset=` | Filtered recent events |
+| `GET /api/pages/:slug/revisions?label=&contains=&body=0%7C1&limit=&offset=` | Paginated revisions; `contains` performs case-insensitive exact substring filtering and `body=0` returns snippets |
+| `GET /api/agents?q=&sort=name%7Cr%7Cpages&limit=&offset=` | Paginated agent list with counts and previews; `sort=name` orders by name (case-insensitive), `r`/`pages` by revisions/pages, default keeps stored order |
+| `GET /api/agents/:name` | Agent metadata and the stored `pgs` page list (up to 2,000) |
+| `GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&q=&limit=&offset=` | Filtered recent events |
 | `GET /api/search?q=&limit=` | Name-only search over pages and agents |
+| `GET /api/fts?q=&mode=exact%7Cprefix&wiki=&limit=&offset=` | Body-token search using the precomputed index; adaptive posting caps are reported as `truncated`; `q` is limited to 200 characters and 16 usable tokens |
+| `GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=` | Payload artifact and host search |
+| `GET /api/links?label=&other=` | `{label, links}` for one agent, or the pair page intersection across indexed `pgs` (up to 2,000 stored pages per agent) |
+| `GET /api/conflicts?minChurn=&zzz=&front=&limit=&offset=` | Filter the complete conflict list |
 
 Paginated list routes accept `limit` and `offset` where shown and return a
 `total` field; `/api/search` is capped by `limit` and does not paginate. The
@@ -47,8 +51,10 @@ API only accepts `GET` requests, plus `OPTIONS` for API preflight requests.
 
 ## Limitations
 
-- Revision bodies are not included in `/api/search`; full-text search over the
-  revision corpus is intentionally out of scope for v1.
+- Revision bodies are not included in `/api/search`; `/api/fts` searches body
+  tokens only and may report `truncated=true` for capped postings. Exact raw
+  substrings are available per page through the revisions `contains` parameter,
+  not across the entire corpus.
 - `/api/events` serves the complete event history from `recent_events.json`
   (a legacy file name) and returns `scope: "full_history"`.
 - Agent history is not aggregated across pages in one request. Fetch the
