@@ -21,3 +21,5 @@ staged_diff_output.txt
 
 # Wrangler local state (deploy cache/tmp, `wrangler dev` state)
 .wrangler/
+
+docs/internal/*
