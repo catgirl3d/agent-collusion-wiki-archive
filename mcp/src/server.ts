@@ -2,10 +2,14 @@ import { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import type {
   AgentListParams,
+  AgentLinksParams,
   ArchiveApi,
+  ConflictListParams,
   EventListParams,
   PageListParams,
   RevisionListParams,
+  SearchArtifactsParams,
+  SearchFtsParams,
 } from './api.js'
 import { ArchiveApiClient, ArchiveApiError } from './api.js'
 
@@ -69,12 +73,13 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
       description: 'List labeled agents with revision counts and page previews.',
       inputSchema: {
         q: z.string().trim().max(200).optional().describe('Optional substring filter for an agent name.'),
+        sort: z.enum(['name', 'r', 'pages']).optional().describe('Sort by agent name, revisions, or pages.'),
         limit: pageLimit,
         offset: pageOffset,
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ q, limit, offset }) => call(() => api.listAgents({ q, limit, offset } satisfies AgentListParams)),
+    async ({ q, sort, limit, offset }) => call(() => api.listAgents({ q, sort, limit, offset } satisfies AgentListParams)),
   )
 
   server.registerTool(
@@ -139,16 +144,18 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
       inputSchema: {
         slug: nonEmptyText('Exact generated page slug.'),
         label: z.string().trim().max(200).optional().describe('Optional exact agent label filter.'),
+        contains: z.string().trim().max(200).optional().describe('Optional case-insensitive raw substring filter; snippets are returned without bodies.'),
         include_body: z.boolean().optional().describe('Include saved revision text. Defaults to false.'),
         limit: z.number().int().min(1).max(500).optional().describe('Number of revisions to return (1-500).'),
         offset: pageOffset,
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ slug, label, include_body, limit, offset }) =>
+    async ({ slug, label, contains, include_body, limit, offset }) =>
       call(() =>
         api.getPageRevisions(slug, {
           label,
+          contains,
           withBody: include_body ?? false,
           limit,
           offset,
@@ -165,13 +172,96 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
         type: z.string().trim().max(50).optional(),
         day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('UTC day in YYYY-MM-DD format.'),
         q: z.string().trim().max(200).optional().describe('Optional substring filter.'),
+        act: z.string().trim().max(200).optional().describe('Optional exact event action filter.'),
+        wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter.'),
         limit: z.number().int().min(1).max(200).optional(),
         offset: pageOffset,
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ type, day, q, limit, offset }) =>
-      call(() => api.listEvents({ type, day, q, limit, offset } satisfies EventListParams)),
+    async ({ type, day, q, act, wiki, limit, offset }) =>
+      call(() => api.listEvents({ type, day, q, act, wiki, limit, offset } satisfies EventListParams)),
+  )
+
+  server.registerTool(
+    'search_content',
+    {
+      title: 'Search revision content',
+      description:
+        'Search revision BODY tokens only; page names are not searched (use search_archive for names). Exact mode matches whole tokens; prefix mode expands token-level prefixes (queries are limited to 200 characters and 16 usable tokens). Postings are adaptively capped, so truncated=true means results may be incomplete. Results are sorted by revision count descending. For an exact substring inside one page, use get_page_revisions with contains.',
+      inputSchema: {
+        q: nonEmptyText('Required body-token query.', 200),
+        mode: z.enum(['exact', 'prefix']).optional().describe('Token matching mode; exact is the default.'),
+        wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter.'),
+        limit: pageLimit,
+        offset: pageOffset,
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ q, mode, wiki, limit, offset }) =>
+      call(() => api.searchFts({ q, mode, wiki, limit, offset } satisfies SearchFtsParams)),
+  )
+
+  server.registerTool(
+    'search_artifacts',
+    {
+      title: 'Search indexed artifacts',
+      description: 'Search flags and hosts from the payload index, with optional exact page slug, ID, and wiki filters.',
+      inputSchema: {
+        flag: z.string().trim().max(50).optional(),
+        host: z.string().trim().max(200).optional(),
+        slug: z.string().trim().max(200).optional(),
+        id: z.string().trim().max(300).optional(),
+        wiki: z.string().trim().max(100).optional(),
+        limit: pageLimit,
+        offset: pageOffset,
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ flag, host, slug, id, wiki, limit, offset }) =>
+      call(() => api.searchArtifacts({ flag, host, slug, id, wiki, limit, offset } satisfies SearchArtifactsParams)),
+  )
+
+  server.registerTool(
+    'get_agent_links',
+    {
+      title: 'Get agent links',
+      description: 'Without other, return { label, links } with precomputed top links. With other, return the shared-page intersection across indexed pages (up to 2,000 stored pages per agent).',
+      inputSchema: {
+        label: nonEmptyText('Required exact agent label.', 200),
+        other: z.string().trim().max(200).optional().describe('Optional exact other agent label for the pair intersection.'),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ label, other }) => call(() => api.getAgentLinks({ label, other } satisfies AgentLinksParams)),
+  )
+
+  server.registerTool(
+    'list_conflict_pages',
+    {
+      title: 'List conflict pages',
+      description: 'Filter the full conflict list; results are not limited to the old top-500 cutoff.',
+      inputSchema: {
+        minChurn: z.number().int().min(0).max(100_000).optional(),
+        zzz: z.boolean().optional(),
+        front: z.boolean().optional(),
+        limit: z.number().int().min(1).max(200).optional(),
+        offset: pageOffset,
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ minChurn, zzz, front, limit, offset }) =>
+      call(() => api.listConflicts({ minChurn, zzz, front, limit, offset } satisfies ConflictListParams)),
+  )
+
+  server.registerTool(
+    'get_api_contract',
+    {
+      title: 'Get API contract',
+      description: 'Return the raw Worker OpenAPI-style API contract document.',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => call(() => api.getApiContract()),
   )
 
   return server

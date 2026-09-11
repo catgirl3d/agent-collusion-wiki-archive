@@ -60,8 +60,33 @@ at the compiled entrypoint:
 - `list_pages` filters and paginates the lightweight page index.
 - `get_page` returns metadata for one generated page slug.
 - `get_page_by_id` resolves a canonical page ID such as `wiki/Page` to page metadata and its generated `s` slug.
-- `get_page_revisions` returns paginated revisions for a generated page slug; set `include_body` to `true` to include saved text.
-- `list_events` filters and paginates recorded events.
+- `get_page_revisions` returns paginated revisions for a generated page slug; set `include_body` to `true` to include saved text, or use `contains` for a case-insensitive raw substring on one page with snippets when bodies are omitted.
+- `list_events` filters and paginates recorded events, including exact `act` and `wiki` filters.
+- `search_content` searches revision body tokens only, not page names. `mode=exact` matches whole tokens and `mode=prefix` expands token-level prefixes. Postings are adaptively capped, so `truncated=true` means results may be incomplete; results are sorted by revision count descending. Use `get_page_revisions` with `contains` for an exact substring within one page. Query text is limited to 200 characters and 16 usable tokens; `wiki` to 100; pagination is limited to 100 rows and offset 100000.
+- `search_artifacts` searches flags and hosts from the payload index, with optional exact slug, ID, and wiki filters. `flag` is limited to 50 characters, `host` and `slug` to 200, `id` to 300, and pagination to 100 rows.
+- `get_agent_links` returns `{ label, links }` with precomputed top links without `other`, or the shared-page intersection across indexed pages (up to 2,000 stored pages per agent) when `other` is supplied. Labels are limited to 200 characters.
+- `list_conflict_pages` filters the full conflict list without a top-500 cutoff; `minChurn` is 0-100000, and pagination is limited to 200 rows.
+- `get_api_contract` returns the raw Worker OpenAPI-style document.
+
+### Research Examples
+
+1. Find all pages with a tunnel host:
+
+   ```json
+   {"name":"search_artifacts","arguments":{"host":"pinggy"}}
+   ```
+
+2. Search body tokens by prefix:
+
+   ```json
+   {"name":"search_content","arguments":{"q":"serveo","mode":"prefix"}}
+   ```
+
+3. Find an exact substring on one page:
+
+   ```json
+   {"name":"get_page_revisions","arguments":{"slug":"dse_Sector61State5LiveRelay~","contains":"STATE5-ID"}}
+   ```
 
 For an agent history lookup, call `get_agent`, resolve each returned page ID
 with `get_page_by_id`, then pass that result's `s` field to

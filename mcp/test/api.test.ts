@@ -58,6 +58,29 @@ describe('ArchiveApiClient', () => {
     expect(String(fetchImpl.mock.calls[3][0])).toBe('http://localhost:8787/api/pages/by-id?id=wiki%2FPage')
   })
 
+  it('serializes discovery routes and extended filters without dropping false or zero', async () => {
+    const fetchImpl = vi.fn().mockImplementation(() => Promise.resolve(response({ ok: true })))
+    const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
+
+    await api.searchFts({ q: 'state & five', mode: 'prefix', wiki: 'wiki', limit: 0, offset: 0 })
+    await api.searchArtifacts({ flag: 'tunnel', host: 'relay.example', slug: 'Page /', id: 'wiki/Page', wiki: 'wiki', limit: 1, offset: 0 })
+    await api.getAgentLinks({ label: 'A & B', other: 'C/D' })
+    await api.listConflicts({ minChurn: 0, zzz: false, front: true, limit: 0, offset: 0 })
+    await api.getApiContract()
+    await api.getPageRevisions('Slug', { contains: 'needle & more', withBody: false, limit: 0, offset: 0 })
+    await api.listEvents({ act: 'lead_status_changed', wiki: 'wiki', limit: 0, offset: 0 })
+    await api.listAgents({ sort: 'pages', limit: 0, offset: 0 })
+
+    expect(String(fetchImpl.mock.calls[0][0])).toBe('https://archive.example/api/fts?q=state+%26+five&mode=prefix&wiki=wiki&limit=0&offset=0')
+    expect(String(fetchImpl.mock.calls[1][0])).toBe('https://archive.example/api/artifacts?flag=tunnel&host=relay.example&slug=Page+%2F&id=wiki%2FPage&wiki=wiki&limit=1&offset=0')
+    expect(String(fetchImpl.mock.calls[2][0])).toBe('https://archive.example/api/links?label=A+%26+B&other=C%2FD')
+    expect(String(fetchImpl.mock.calls[3][0])).toBe('https://archive.example/api/conflicts?minChurn=0&zzz=false&front=true&limit=0&offset=0')
+    expect(String(fetchImpl.mock.calls[4][0])).toBe('https://archive.example/api/openapi')
+    expect(String(fetchImpl.mock.calls[5][0])).toBe('https://archive.example/api/pages/Slug/revisions?contains=needle+%26+more&limit=0&offset=0&body=0')
+    expect(String(fetchImpl.mock.calls[6][0])).toBe('https://archive.example/api/events?act=lead_status_changed&wiki=wiki&limit=0&offset=0')
+    expect(String(fetchImpl.mock.calls[7][0])).toBe('https://archive.example/api/agents?sort=pages&limit=0&offset=0')
+  })
+
   it('converts non-success, malformed, and network responses to safe errors', async () => {
     const failed = vi.fn().mockResolvedValue(new Response('private upstream details', { status: 503 }))
     const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl: failed })

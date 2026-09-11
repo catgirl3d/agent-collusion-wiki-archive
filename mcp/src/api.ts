@@ -19,6 +19,7 @@ export type PageListParams = {
 
 export type AgentListParams = {
   q?: string
+  sort?: 'name' | 'r' | 'pages'
   limit?: number
   offset?: number
 }
@@ -26,6 +27,7 @@ export type AgentListParams = {
 export type RevisionListParams = {
   label?: string
   withBody?: boolean
+  contains?: string
   limit?: number
   offset?: number
 }
@@ -34,6 +36,39 @@ export type EventListParams = {
   type?: string
   day?: string
   q?: string
+  act?: string
+  wiki?: string
+  limit?: number
+  offset?: number
+}
+
+export type SearchFtsParams = {
+  q: string
+  mode?: 'exact' | 'prefix'
+  wiki?: string
+  limit?: number
+  offset?: number
+}
+
+export type SearchArtifactsParams = {
+  flag?: string
+  host?: string
+  slug?: string
+  id?: string
+  wiki?: string
+  limit?: number
+  offset?: number
+}
+
+export type AgentLinksParams = {
+  label: string
+  other?: string
+}
+
+export type ConflictListParams = {
+  minChurn?: number
+  zzz?: boolean
+  front?: boolean
   limit?: number
   offset?: number
 }
@@ -48,6 +83,11 @@ export interface ArchiveApi {
   getPageById(id: string): Promise<unknown>
   getPageRevisions(slug: string, params?: RevisionListParams): Promise<unknown>
   listEvents(params?: EventListParams): Promise<unknown>
+  searchFts(params: SearchFtsParams): Promise<unknown>
+  searchArtifacts(params?: SearchArtifactsParams): Promise<unknown>
+  getAgentLinks(params: AgentLinksParams): Promise<unknown>
+  listConflicts(params?: ConflictListParams): Promise<unknown>
+  getApiContract(): Promise<unknown>
 }
 
 export class ArchiveApiError extends Error {
@@ -198,6 +238,26 @@ export class ArchiveApiClient implements ArchiveApi {
 
   async listEvents(params: EventListParams = {}): Promise<unknown> {
     return this.request('/api/events', params)
+  }
+
+  async searchFts(params: SearchFtsParams): Promise<unknown> {
+    return this.request('/api/fts', params)
+  }
+
+  async searchArtifacts(params: SearchArtifactsParams = {}): Promise<unknown> {
+    return this.request('/api/artifacts', params)
+  }
+
+  async getAgentLinks(params: AgentLinksParams): Promise<unknown> {
+    return this.request('/api/links', params)
+  }
+
+  async listConflicts(params: ConflictListParams = {}): Promise<unknown> {
+    return this.request('/api/conflicts', params)
+  }
+
+  async getApiContract(): Promise<unknown> {
+    return this.request('/api/openapi')
   }
 
   private async request<T>(path: string, params: Record<string, QueryValue> = {}): Promise<T> {

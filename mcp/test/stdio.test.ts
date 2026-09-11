@@ -30,6 +30,9 @@ describe('stdio entrypoint', () => {
       await client.connect(transport)
       const tools = await client.listTools()
       expect(tools.tools.map((tool) => tool.name)).toContain('get_page_revisions')
+      expect(tools.tools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining(['search_content', 'search_artifacts', 'get_agent_links', 'list_conflict_pages', 'get_api_contract']),
+      )
 
       const invalid = await client.callTool({ name: 'search_archive', arguments: { q: '' } })
       expect(invalid.isError).toBe(true)
