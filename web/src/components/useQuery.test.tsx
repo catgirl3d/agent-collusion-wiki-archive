@@ -63,4 +63,37 @@ describe('useJson', () => {
     expect(screen.getByText('value: current value')).toBeInTheDocument()
     expect(screen.queryByText('value: stale value')).not.toBeInTheDocument()
   })
+
+  it('drops loaded data and returns to loading as soon as deps change', async () => {
+    let resolveSecond!: (value: string) => void
+    const secondRequest = new Promise<string>((resolve) => { resolveSecond = resolve })
+    const load = vi.fn((key: string) => key === 'first' ? Promise.resolve('first value') : secondRequest)
+
+    function ChangingProbe() {
+      const [key, setKey] = useState('first')
+      const state = useJson(() => load(key), [key])
+      return (
+        <>
+          <button type="button" onClick={() => setKey('second')}>switch request</button>
+          {state.loading && <span>loading</span>}
+          {state.data && <span>value: {state.data}</span>}
+        </>
+      )
+    }
+
+    render(<ChangingProbe />)
+    expect(await screen.findByText('value: first value')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'switch request' }))
+
+    expect(screen.getByText('loading')).toBeInTheDocument()
+    expect(screen.queryByText('value: first value')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveSecond('second value')
+      await secondRequest
+    })
+    expect(screen.getByText('value: second value')).toBeInTheDocument()
+    expect(screen.queryByText('value: first value')).not.toBeInTheDocument()
+  })
 })
