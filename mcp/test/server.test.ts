@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/client'
 import { InMemoryTransport } from '@modelcontextprotocol/client'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createArchiveMcpServer } from '../src/server.js'
 
 function fakeApi() {
@@ -56,6 +56,14 @@ describe('archive MCP server', () => {
     expect(tools.tools.find((tool) => tool.name === 'get_agent')?.description).toContain('2,000')
     expect(tools.tools.find((tool) => tool.name === 'search_content')?.description).toContain('truncated=true')
     expect(tools.tools.find((tool) => tool.name === 'list_conflict_pages')?.description).toContain('full conflict list')
+
+    const listEventsSchema = tools.tools.find((tool) => tool.name === 'list_events')?.inputSchema
+    expect((listEventsSchema as { properties?: { type?: { enum?: string[] } } })?.properties?.type?.enum).toEqual([
+      'save',
+      'delete',
+      'revert',
+      'probe',
+    ])
   })
 
   it('calls the API through a tool and serializes the result as JSON text', async () => {
@@ -122,6 +130,33 @@ describe('archive MCP server', () => {
     const result = await client.callTool({ name: 'search_content', arguments: { q: 'x' } })
     expect(result.isError).toBe(true)
     expect(JSON.parse(String(result.content[0].text))).toEqual({ error: 'MCP request failed' })
+  })
+
+  it('rejects unknown event types before invoking the API', async () => {
+    const api = fakeApi()
+    const listEvents = vi.fn(async (params: unknown) => ({ params }))
+    api.listEvents = listEvents
+    const server = createArchiveMcpServer(api)
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverTransport)
+    const client = new Client({ name: 'event-type-test-client', version: '1.0.0' })
+    await client.connect(clientTransport)
+
+    const invalid = await client.callTool({ name: 'list_events', arguments: { type: 'edit' } })
+    expect(invalid.isError).toBe(true)
+    expect(listEvents).not.toHaveBeenCalled()
+
+    const valid = await client.callTool({ name: 'list_events', arguments: { type: 'save' } })
+    expect(valid.isError).not.toBe(true)
+    expect(listEvents).toHaveBeenCalledWith({
+      type: 'save',
+      day: undefined,
+      q: undefined,
+      act: undefined,
+      wiki: undefined,
+      limit: undefined,
+      offset: undefined,
+    })
   })
 
   it('rejects invalid input before invoking a tool handler', async () => {
