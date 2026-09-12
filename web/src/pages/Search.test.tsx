@@ -64,6 +64,8 @@ function matchResult(requestId: number, snippet: string, q: string): CorpusWorke
           t: '2026-06-18T10:00:00Z',
           x: 'AgentX',
           occurrences: 1,
+          bytes: 1900,
+          lines: 12,
           snippet,
         },
       ],
@@ -126,6 +128,8 @@ describe('Search', () => {
               t: '2026-06-18T10:00:00Z',
               x: 'AgentX',
               occurrences: 2,
+              bytes: 35,
+              lines: 1,
               snippet: 'STATE5-ID <script>alert(1)</script>',
             },
           ],
@@ -171,6 +175,8 @@ describe('Search', () => {
               t: '2026-06-18T10:00:00Z',
               x: 'AgentX',
               occurrences: 1,
+              bytes: 9,
+              lines: 1,
               snippet: 'STATE5-ID',
             },
           ],
@@ -351,6 +357,137 @@ describe('Search', () => {
     const marks = document.querySelectorAll('mark.mark-search')
     expect(marks).toHaveLength(1)
     expect(marks[0]).toHaveTextContent('a b')
+  })
+
+  it('loads the full revision body on demand and collapses it again', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /full text/ }))
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1]).toMatchObject({
+      type: 'body',
+      w: 'dse',
+      id: 'dse/PageA',
+      seq: 1,
+      t: '2026-06-18T10:00:00Z',
+    })
+    expect(screen.getByRole('button', { name: 'loading…' })).toBeDisabled()
+    expect(screen.getByText(/1.9 KB · 12 lines/)).toBeInTheDocument()
+
+    await act(async () => {
+      worker.respond({
+        type: 'body',
+        requestId: worker.messages[1].requestId,
+        body: 'first line\nsecond line',
+      })
+    })
+
+    const body = await screen.findByText((_, element) => element?.classList.contains('revision-body') ?? false)
+    expect(body.textContent).toBe('first line\nsecond line')
+    expect(screen.getByRole('button', { name: /hide full text/ })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: /hide full text/ }))
+    expect(document.querySelector('.revision-body')).toBeNull()
+    expect(screen.getByRole('button', { name: /full text/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('retries loading the full revision body after a worker error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /full text/ }))
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await act(async () => {
+      worker.respond({
+        type: 'error',
+        requestId: worker.messages[1].requestId,
+        error: 'revision not found in corpus',
+      })
+    })
+    expect(await screen.findByText(/revision not found in corpus/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /hide full text/ }))
+    expect(screen.queryByText(/revision not found in corpus/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /full text/ }))
+    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    await act(async () => {
+      worker.respond({
+        type: 'body',
+        requestId: worker.messages[2].requestId,
+        body: 'recovered body',
+      })
+    })
+    expect(await screen.findByText(/recovered body/)).toBeInTheDocument()
+  })
+
+  it('ignores a late revision body response after the search changes', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /full text/ }))
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1]).toMatchObject({ type: 'body' })
+
+    fireEvent.click(screen.getByLabelText(/case sensitive/))
+    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    act(() => {
+      worker.respond(matchResult(worker.messages[2].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    await act(async () => {
+      worker.respond({ type: 'body', requestId: worker.messages[1].requestId, body: 'late body' })
+    })
+
+    expect(screen.queryByText(/late body/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /hide full text/ })).toBeNull()
   })
 
   it('keeps one worker alive when leaving and returning to the search page', async () => {

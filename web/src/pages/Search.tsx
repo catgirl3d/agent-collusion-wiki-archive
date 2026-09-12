@@ -4,13 +4,14 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
-import type { CorpusSearchResult, Summary } from '../types'
+import type { CorpusMatch, CorpusRevisionKey, CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
 import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY, findMatchRanges } from '../utils/corpus'
 import {
   createCorpusRequestId,
   isCorpusWorkerAvailable,
   postCorpusRequest,
+  requestRevisionBody,
   subscribeCorpusWorker,
 } from '../utils/corpusWorkerClient'
 import { fmtBytes, fmtInt, fmtTime } from '../utils/format'
@@ -45,43 +46,55 @@ function progressMessage(message: Extract<CorpusWorkerResponse, { type: 'progres
   return 'searching…'
 }
 
-function HighlightSnippet({
-  snippet,
+function HighlightText({
+  text,
   query,
   caseSensitive,
   wholeWord,
+  normalizeWhitespace = true,
 }: {
-  snippet: string
+  text: string
   query: string
   caseSensitive: boolean
   wholeWord: boolean
+  normalizeWhitespace?: boolean
 }) {
   const q = query.trim()
-  if (!q) return <>{snippet}</>
+  if (!q) return <>{text}</>
 
-  const ranges = findMatchRanges(snippet, q.replace(/\s+/g, ' '), caseSensitive, wholeWord)
-  if (!ranges.length) return <>{snippet}</>
+  const needle = normalizeWhitespace ? q.replace(/\s+/g, ' ') : q
+  const ranges = findMatchRanges(text, needle, caseSensitive, wholeWord)
+  if (!ranges.length) return <>{text}</>
 
   const parts: React.ReactNode[] = []
   let lastIndex = 0
   for (const { start, end } of ranges) {
     if (start > lastIndex) {
-      parts.push(snippet.slice(lastIndex, start))
+      parts.push(text.slice(lastIndex, start))
     }
     parts.push(
       <mark key={start} className="mark-search">
-        {snippet.slice(start, end)}
+        {text.slice(start, end)}
       </mark>,
     )
     lastIndex = end
   }
 
-  if (lastIndex < snippet.length) {
-    parts.push(snippet.slice(lastIndex))
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex))
   }
 
   return <>{parts}</>
 }
+
+function rowKey(match: CorpusRevisionKey): string {
+  return `${match.w}\u0000${match.id}\u0000${match.seq ?? ''}\u0000${match.t}`
+}
+
+type BodyState =
+  | { status: 'loading'; open: boolean }
+  | { status: 'ready'; open: boolean; body: string }
+  | { status: 'error'; open: boolean; message: string }
 
 function buildSearchParams(form: SearchForm): URLSearchParams {
   const next = new URLSearchParams()
@@ -122,10 +135,12 @@ export default function Search() {
   })
   const [lastUrlKey, setLastUrlKey] = useState(urlKey)
   const [runId, setRunId] = useState(0)
+  const [bodyRows, setBodyRows] = useState<Record<string, BodyState>>({})
   // Render-time reset (React "adjusting state when props change"): URL is the source of truth for bookmarkable searches.
   // Clearing the previous ready result here prevents showing stale matches under a new URL while the worker answers.
   if (urlKey !== lastUrlKey) {
     setLastUrlKey(urlKey)
+    setBodyRows({})
     setForm({
       q: urlQ,
       wiki: urlWiki,
@@ -140,6 +155,11 @@ export default function Search() {
 
   const latestRequest = useRef(0)
   const lastRunKey = useRef('')
+  const urlKeyRef = useRef(urlKey)
+
+  useEffect(() => {
+    urlKeyRef.current = urlKey
+  }, [urlKey])
 
   const workerUnavailable = !isCorpusWorkerAvailable()
   const wikis = useMemo(() => Object.keys(summary?.per_wiki ?? {}).sort(), [summary])
@@ -150,7 +170,7 @@ export default function Search() {
       if (!message || message.requestId !== latestRequest.current) return
       if (message.type === 'progress') setState({ status: 'loading', message: progressMessage(message) })
       else if (message.type === 'result') setState({ status: 'ready', result: message.result })
-      else setState({ status: 'error', message: message.error, code: message.code })
+      else if (message.type === 'error') setState({ status: 'error', message: message.error, code: message.code })
     })
   }, [workerUnavailable])
 
@@ -204,6 +224,43 @@ export default function Search() {
     setForm(nextForm)
     if (nextForm.q.trim()) {
       applySearchParams(nextForm)
+    }
+  }
+
+  const toggleBody = async (match: CorpusMatch) => {
+    const key = rowKey(match)
+    const requestedUrlKey = urlKey
+    const existing = bodyRows[key]
+    if (existing?.status === 'error') {
+      if (existing.open) {
+        setBodyRows((prev) => ({ ...prev, [key]: { ...existing, open: false } }))
+        return
+      }
+    } else if (existing) {
+      setBodyRows((prev) => ({ ...prev, [key]: { ...existing, open: !existing.open } }))
+      return
+    }
+    setBodyRows((prev) => ({ ...prev, [key]: { status: 'loading', open: true } }))
+    try {
+      const body = await requestRevisionBody(match)
+      if (urlKeyRef.current !== requestedUrlKey) return
+      setBodyRows((prev) => {
+        const current = prev[key]
+        return { ...prev, [key]: { status: 'ready', open: current?.open ?? true, body } }
+      })
+    } catch (error) {
+      if (urlKeyRef.current !== requestedUrlKey) return
+      setBodyRows((prev) => {
+        const current = prev[key]
+        return {
+          ...prev,
+          [key]: {
+            status: 'error',
+            open: current?.open ?? true,
+            message: error instanceof Error ? error.message : 'failed to load revision body',
+          },
+        }
+      })
     }
   }
 
@@ -298,23 +355,56 @@ export default function Search() {
                 </tr>
               </thead>
               <tbody>
-                {visibleState.result.matches.map((match) => (
-                  <tr key={`${match.id}-${match.seq}-${match.t}`}>
-                    <td className="muted nowrap">{fmtTime(match.t)}</td>
-                    <td>{match.w}</td>
-                    <td><PageLink id={match.id} name={match.n} max={60} /></td>
-                    <td>{match.x ? <Badge>{match.x}</Badge> : <span className="muted">anon</span>}</td>
-                    <td className="num">{fmtInt(match.occurrences)}</td>
-                    <td className="muted mono">
-                      <HighlightSnippet
-                        snippet={match.snippet}
-                        query={urlQ}
-                        caseSensitive={urlCase}
-                        wholeWord={urlWord}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {visibleState.result.matches.map((match) => {
+                  const bodyRow = bodyRows[rowKey(match)]
+                  return (
+                    <tr key={rowKey(match)}>
+                      <td className="muted nowrap">{fmtTime(match.t)}</td>
+                      <td>{match.w}</td>
+                      <td><PageLink id={match.id} name={match.n} max={60} /></td>
+                      <td>{match.x ? <Badge>{match.x}</Badge> : <span className="muted">anon</span>}</td>
+                      <td className="num">{fmtInt(match.occurrences)}</td>
+                      <td className="muted mono">
+                        <HighlightText
+                          text={match.snippet}
+                          query={urlQ}
+                          caseSensitive={urlCase}
+                          wholeWord={urlWord}
+                        />
+                        <div className="snippet-footer">
+                          <span className="snippet-meta">
+                            {fmtBytes(match.bytes)} · {match.lines === 1 ? '1 line' : `${fmtInt(match.lines)} lines`}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            disabled={bodyRow?.status === 'loading'}
+                            aria-expanded={bodyRow?.open ?? false}
+                            onClick={() => {
+                              void toggleBody(match)
+                            }}
+                          >
+                            {bodyRow?.status === 'loading' ? 'loading…' : bodyRow?.open ? 'hide full text ▴' : 'full text ▾'}
+                          </button>
+                        </div>
+                        {bodyRow?.open && bodyRow.status === 'ready' && (
+                          <pre className="revision-body">
+                            <HighlightText
+                              text={bodyRow.body}
+                              query={urlQ}
+                              caseSensitive={urlCase}
+                              wholeWord={urlWord}
+                              normalizeWhitespace={false}
+                            />
+                          </pre>
+                        )}
+                        {bodyRow?.open && bodyRow.status === 'error' && (
+                          <div className="error">Error: {bodyRow.message}</div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

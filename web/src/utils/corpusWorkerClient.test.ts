@@ -4,6 +4,7 @@ import {
   createCorpusRequestId,
   isCorpusWorkerAvailable,
   postCorpusRequest,
+  requestRevisionBody,
   resetCorpusWorkerForTests,
   subscribeCorpusWorker,
 } from './corpusWorkerClient'
@@ -127,5 +128,60 @@ describe('corpusWorkerClient', () => {
     expect(isCorpusWorkerAvailable()).toBe(false)
     expect(() => postCorpusRequest(request(1))).not.toThrow()
     expect(FakeWorker.instances).toHaveLength(0)
+  })
+
+  it('resolves a revision body request through the worker round trip', async () => {
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
+    const message = FakeWorker.instances[0].messages[0]
+    expect(message).toMatchObject({ type: 'body', w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
+
+    FakeWorker.instances[0].respond({ type: 'body', requestId: message.requestId, body: 'full text' })
+    await expect(promise).resolves.toBe('full text')
+  })
+
+  it('rejects a revision body request on a worker error response', async () => {
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: null, t: '2026-06-18T10:00:00Z' })
+    const message = FakeWorker.instances[0].messages[0]
+    FakeWorker.instances[0].respond({ type: 'error', requestId: message.requestId, error: 'revision not found in corpus' })
+    await expect(promise).rejects.toThrow('revision not found in corpus')
+  })
+
+  it('does not deliver revision body responses to search subscribers', async () => {
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const listener = vi.fn()
+    subscribeCorpusWorker(listener)
+    const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
+    const message = FakeWorker.instances[0].messages[0]
+    FakeWorker.instances[0].respond({ type: 'body', requestId: message.requestId, body: 'full text' })
+
+    await expect(promise).resolves.toBe('full text')
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('rejects pending revision body requests when the worker resets', async () => {
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
+    const requestId = FakeWorker.instances[0].messages[0].requestId
+    resetCorpusWorkerForTests()
+    await expect(promise).rejects.toThrow('corpus worker was reset')
+
+    const listener = vi.fn()
+    subscribeCorpusWorker(listener)
+    FakeWorker.instances[0].respond({ type: 'body', requestId, body: 'orphan' })
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('rejects revision body requests without Worker', async () => {
+    vi.stubGlobal('Worker', undefined)
+
+    await expect(
+      requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' }),
+    ).rejects.toThrow('web worker is unavailable')
   })
 })

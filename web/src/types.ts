@@ -162,6 +162,13 @@ export interface CorpusRecord {
   body: string
 }
 
+export interface CorpusRevisionKey {
+  w: string
+  id: string
+  seq: number | null
+  t: string
+}
+
 export interface CorpusMatch {
   w: string
   id: string
@@ -171,6 +178,8 @@ export interface CorpusMatch {
   t: string
   x: string | null
   occurrences: number
+  bytes: number
+  lines: number
   snippet: string
 }
 

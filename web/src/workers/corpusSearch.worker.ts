@@ -13,7 +13,7 @@ import {
   isRealDate,
   searchRecords,
 } from '../utils/corpus'
-import type { CorpusPageMap, CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
+import type { CorpusBodyRequest, CorpusPageMap, CorpusSearchRequest, CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
 import { createLruCache } from '../utils/lru'
 
 const PROGRESS_STEP_BYTES = 4 * 1024 * 1024
@@ -46,12 +46,17 @@ const searchCache = createLruCache<string, ReturnType<typeof searchRecords>>(
   (matches) => matches.length,
 )
 
-let pending: CorpusWorkerRequest | null = null
+let pending: CorpusSearchRequest | null = null
 let running = false
 
 workerScope.onmessage = (event) => {
   const message = event.data
-  if (!message || message.type !== 'search') return
+  if (!message) return
+  if (message.type === 'body') {
+    void handleBody(message)
+    return
+  }
+  if (message.type !== 'search') return
   pending = message
   if (!running) void drain()
 }
@@ -61,23 +66,36 @@ async function drain(): Promise<void> {
   while (pending) {
     const request = pending
     pending = null
-    await handle(request)
+    await handleSearch(request)
   }
   running = false
 }
 
-async function handle(request: CorpusWorkerRequest): Promise<void> {
+async function handleSearch(request: CorpusSearchRequest): Promise<void> {
   try {
     const result = await runSearch(request)
     workerScope.postMessage({ type: 'result', requestId: request.requestId, result })
   } catch (error) {
-    workerScope.postMessage({
-      type: 'error',
-      requestId: request.requestId,
-      error: error instanceof Error ? error.message : 'corpus search failed',
-      code: error instanceof CorpusWorkerError ? error.code : undefined,
-    })
+    postError(request.requestId, error)
   }
+}
+
+async function handleBody(request: CorpusBodyRequest): Promise<void> {
+  try {
+    const body = await readRecordBody(request)
+    workerScope.postMessage({ type: 'body', requestId: request.requestId, body })
+  } catch (error) {
+    postError(request.requestId, error)
+  }
+}
+
+function postError(requestId: number, error: unknown): void {
+  workerScope.postMessage({
+    type: 'error',
+    requestId,
+    error: error instanceof Error ? error.message : 'corpus request failed',
+    code: error instanceof CorpusWorkerError ? error.code : undefined,
+  })
 }
 
 function progress(requestId: number, update: Omit<Extract<CorpusWorkerResponse, { type: 'progress' }>, 'type' | 'requestId'>): void {
@@ -89,7 +107,7 @@ function assertDate(value: string | undefined, name: string): void {
   if (!isRealDate(value)) throw new CorpusWorkerError('invalid_param', `${name} must be a real UTC date (YYYY-MM-DD)`)
 }
 
-async function runSearch(request: CorpusWorkerRequest) {
+async function runSearch(request: CorpusSearchRequest) {
   const q = request.q.trim()
   if (q.length < CORPUS_MIN_QUERY || q.length > CORPUS_MAX_QUERY) {
     throw new CorpusWorkerError('invalid_param', `q must be between ${CORPUS_MIN_QUERY} and ${CORPUS_MAX_QUERY} characters`)
@@ -103,18 +121,11 @@ async function runSearch(request: CorpusWorkerRequest) {
   const limit = Math.min(100, Math.max(1, Math.floor(request.limit || 20)))
   const offset = Math.min(100_000, Math.max(0, Math.floor(request.offset || 0)))
 
-  summary = await fetchSummary()
-  const nextVersion = `${summary.export_generated_at ?? ''}|${summary.corpus?.sha256 ?? ''}`
-  if (nextVersion !== version) {
-    version = nextVersion
-    loadPromise = null
-    searchCache.clear()
-  }
-  if (!summary.corpus) throw new CorpusWorkerError('archive_data_invalid', 'summary.json is missing corpus metadata')
+  const current = await ensureSummary()
 
   const key = JSON.stringify([
-    summary.corpus.sha256,
-    summary.export_generated_at ?? '',
+    current.corpus?.sha256,
+    current.export_generated_at ?? '',
     q,
     request.caseSensitive,
     Boolean(request.wholeWord),
@@ -127,7 +138,7 @@ async function runSearch(request: CorpusWorkerRequest) {
   let matches = searchCache.get(key)
   if (!matches) {
     progress(request.requestId, { phase: 'search' })
-    const loaded = await loadCorpus(request.requestId, summary)
+    const loaded = await loadCorpus(request.requestId, current)
     matches = searchRecords(loaded.records, loaded.pages, {
       q,
       caseSensitive: request.caseSensitive,
@@ -148,6 +159,27 @@ async function runSearch(request: CorpusWorkerRequest) {
     offset,
     matches: matches.slice(offset, offset + limit),
   }
+}
+
+async function readRecordBody(request: CorpusBodyRequest): Promise<string> {
+  const loaded = loadPromise ? await loadPromise : await loadCorpus(request.requestId, await ensureSummary())
+  const record = loaded.records.find(
+    (r) => r.w === request.w && r.id === request.id && r.seq === request.seq && r.t === request.t,
+  )
+  if (!record) throw new CorpusWorkerError('archive_data_invalid', 'revision not found in corpus')
+  return record.body
+}
+
+async function ensureSummary(): Promise<Summary> {
+  summary = await fetchSummary()
+  const nextVersion = `${summary.export_generated_at ?? ''}|${summary.corpus?.sha256 ?? ''}`
+  if (nextVersion !== version) {
+    version = nextVersion
+    loadPromise = null
+    searchCache.clear()
+  }
+  if (!summary.corpus) throw new CorpusWorkerError('archive_data_invalid', 'summary.json is missing corpus metadata')
+  return summary
 }
 
 async function fetchSummary(): Promise<Summary> {

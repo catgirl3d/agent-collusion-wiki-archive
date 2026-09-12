@@ -1,4 +1,4 @@
-import type { CorpusMatch, CorpusRecord, CorpusSearchResult } from '../types'
+import type { CorpusMatch, CorpusRecord, CorpusRevisionKey, CorpusSearchResult } from '../types'
 
 export const CORPUS_MIN_QUERY = 3
 export const CORPUS_MAX_QUERY = 120
@@ -104,6 +104,37 @@ export function snippetAround(body: string, index: number, length: number): stri
   return body.slice(start, end).replace(/\s+/g, ' ').trim()
 }
 
+const LF = 0x0a
+const CR = 0x0d
+const ASCII_MAX = 0x80
+const TWO_BYTE_MAX = 0x800
+const SURROGATE_HIGH_MIN = 0xd800
+const SURROGATE_HIGH_MAX = 0xdbff
+
+export function measureBody(body: string): { bytes: number; lines: number } {
+  let bytes = 0
+  let lines = body.length ? 1 : 0
+  for (let i = 0; i < body.length; i += 1) {
+    const code = body.charCodeAt(i)
+    if (code === LF || code === CR) {
+      lines += 1
+      bytes += 1
+      if (code === CR && body.charCodeAt(i + 1) === LF) {
+        bytes += 1
+        i += 1
+      }
+      continue
+    }
+    if (code < ASCII_MAX) bytes += 1
+    else if (code < TWO_BYTE_MAX) bytes += 2
+    else if (code >= SURROGATE_HIGH_MIN && code <= SURROGATE_HIGH_MAX) {
+      bytes += 4
+      i += 1
+    } else bytes += 3
+  }
+  return { bytes, lines }
+}
+
 export function isRealDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const parsed = new Date(`${value}T00:00:00Z`)
@@ -196,6 +227,7 @@ export function searchRecords(
     if (!found.count) continue
     const page = pages.get(record.id)
     if (!page) throw new Error(`corpus references unknown page ${record.id}`)
+    const stats = measureBody(record.body)
     matches.push({
       w: record.w,
       id: record.id,
@@ -205,6 +237,8 @@ export function searchRecords(
       t: record.t,
       x: record.x,
       occurrences: found.count,
+      bytes: stats.bytes,
+      lines: stats.lines,
       snippet: snippetAround(record.body, found.first, filters.q.length),
     })
   }
@@ -214,7 +248,7 @@ export function searchRecords(
 
 export type CorpusWorkerProgressPhase = 'download' | 'decode' | 'search'
 
-export type CorpusWorkerRequest = {
+export type CorpusSearchRequest = {
   type: 'search'
   requestId: number
   q: string
@@ -228,6 +262,13 @@ export type CorpusWorkerRequest = {
   offset: number
 }
 
+export type CorpusBodyRequest = CorpusRevisionKey & {
+  type: 'body'
+  requestId: number
+}
+
+export type CorpusWorkerRequest = CorpusSearchRequest | CorpusBodyRequest
+
 export type CorpusWorkerResponse =
   | {
       type: 'progress'
@@ -238,4 +279,7 @@ export type CorpusWorkerResponse =
       rows?: number
     }
   | { type: 'result'; requestId: number; result: CorpusSearchResult }
+  | { type: 'body'; requestId: number; body: string }
   | { type: 'error'; requestId: number; error: string; code?: string }
+
+export type CorpusSearchEvent = Exclude<CorpusWorkerResponse, { type: 'body' }>
