@@ -5,7 +5,7 @@ Input:  data/raw/{revisions,pages,events,labels,manifest}.jsonl(.gz)
 Output: data/processed/
   summary.json            - general statistics (manifest + calculated metrics)
   activity_by_day.json    - [{"date","wiki","saves","deletes","reverts","probes","bytes"}]
-  activity_by_hour.json   - [{"hour","saves"}]  (UTC hours)
+  activity_by_hour.json   - [{"hour","saves"}]  (UTC hours, save events only)
   pages.json              - page index (lightweight, without revision bodies)
   labels.json             - agent label index
   recent_events.json      - all events (unlimited)
@@ -458,13 +458,13 @@ def main() -> int:
             by_type[etype] += 1
             if etype == "save":
                 day[day_key]["saves"] += 1
+                hour[e.get("time", "")[11:13] or "?"] += 1
             elif etype == "delete":
                 day[day_key]["deletes"] += 1
             elif etype == "revert":
                 day[day_key]["reverts"] += 1
             elif etype == "probe":
                 day[day_key]["probes"] += 1
-        hour[e.get("time", "")[11:13] or "?"] += 1
 
     for r in revisions:
         d = (r.get("write_date") or r.get("time") or "")[:10]

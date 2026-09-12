@@ -188,9 +188,8 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         {"date": "2026-02-03", "wiki": "wiki", "saves": 1, "deletes": 1, "reverts": 0, "probes": 0, "bytes": 12},
     ]
     hourly = _read_json(out / "activity_by_hour.json")
-    assert [entry["hour"] for entry in hourly] == sorted(entry["hour"] for entry in hourly)
+    assert hourly == [{"hour": "00", "saves": 1}, {"hour": "04", "saves": 1}]
     assert all(set(entry) == {"hour", "saves"} for entry in hourly)
-    assert {entry["hour"] for entry in hourly} >= {"00", "04"}
     assert _read_json(out / "recent_events.json")[0] == {
         "t": "2026-02-03T14:00:00Z", "type": "delete", "wiki": "", "page": "Page_A", "action": None, "ip16": None,
     }
@@ -213,3 +212,4 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         "days": 3,
         "max_day": {"date": "2026-02-03", "saves": 1},
     }
+    assert sum(entry["saves"] for entry in hourly) == summary["counts"]["events"]["save"]
