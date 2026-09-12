@@ -15,23 +15,86 @@ export type CorpusPageMap = Map<string, { s?: string; n: string }>
 export type CorpusFilters = {
   q: string
   caseSensitive: boolean
+  wholeWord?: boolean
   wiki?: string
   label?: string
   from?: string
   to?: string
 }
 
-export function countOccurrences(body: string, query: string, caseSensitive: boolean): { count: number; first: number } {
-  const haystack = caseSensitive ? body : body.toLowerCase()
-  const needle = caseSensitive ? query : query.toLowerCase()
+export function isWordChar(char: string): boolean {
+  return /[\p{L}\p{N}_]/u.test(char)
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function codePointBefore(text: string, index: number): string {
+  if (index <= 0) return ''
+  const code = text.charCodeAt(index - 1)
+  if (code >= 0xdc00 && code <= 0xdfff && index >= 2) {
+    const lead = text.charCodeAt(index - 2)
+    if (lead >= 0xd800 && lead <= 0xdbff) return text.slice(index - 2, index)
+  }
+  return text[index - 1]
+}
+
+function codePointAfter(text: string, index: number): string {
+  if (index >= text.length) return ''
+  const code = text.codePointAt(index)
+  return code === undefined ? '' : String.fromCodePoint(code)
+}
+
+function scanMatchRanges(
+  body: string,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord: boolean,
+  visit: (start: number, end: number) => void,
+): void {
+  if (!query) return
+  const pattern = new RegExp(escapeRegExp(query), caseSensitive ? 'gu' : 'giu')
+  let match = pattern.exec(body)
+  while (match !== null) {
+    const start = match.index
+    const end = start + match[0].length
+    const insideWord = wholeWord && (isWordChar(codePointBefore(body, start)) || isWordChar(codePointAfter(body, end)))
+    if (insideWord) {
+      pattern.lastIndex = start + 1
+    } else {
+      visit(start, end)
+      pattern.lastIndex = end
+    }
+    match = pattern.exec(body)
+  }
+}
+
+export function findMatchRanges(
+  body: string,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord = false,
+): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = []
+  scanMatchRanges(body, query, caseSensitive, wholeWord, (start, end) => {
+    ranges.push({ start, end })
+  })
+  return ranges
+}
+
+export function countOccurrences(
+  body: string,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord = false,
+): { count: number; first: number } {
   let count = 0
   let first = -1
-  let index = haystack.indexOf(needle)
-  while (index !== -1) {
-    if (first === -1) first = index
+  scanMatchRanges(body, query, caseSensitive, wholeWord, (start) => {
+    if (first === -1) first = start
     count += 1
-    index = haystack.indexOf(needle, index + needle.length)
-  }
+  })
   return { count, first }
 }
 
@@ -129,7 +192,7 @@ export function searchRecords(
     const day = record.t.slice(0, 10)
     if (filters.from && day < filters.from) continue
     if (filters.to && day > filters.to) continue
-    const found = countOccurrences(record.body, filters.q, filters.caseSensitive)
+    const found = countOccurrences(record.body, filters.q, filters.caseSensitive, Boolean(filters.wholeWord))
     if (!found.count) continue
     const page = pages.get(record.id)
     if (!page) throw new Error(`corpus references unknown page ${record.id}`)
@@ -160,6 +223,7 @@ export type CorpusWorkerRequest = {
   from?: string
   to?: string
   caseSensitive: boolean
+  wholeWord?: boolean
   limit: number
   offset: number
 }

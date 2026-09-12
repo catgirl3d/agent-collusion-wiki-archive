@@ -3,6 +3,7 @@ import type { CorpusRecord } from '../types'
 import {
   countOccurrences,
   createJsonlParser,
+  findMatchRanges,
   isGzip,
   isRealDate,
   searchRecords,
@@ -27,6 +28,45 @@ describe('literal matching helpers', () => {
     expect(countOccurrences('STATe5-ID state5-id', 'state5-id', false)).toEqual({ count: 2, first: 0 })
     expect(countOccurrences('STATe5-ID state5-id', 'state5-id', true)).toEqual({ count: 1, first: 10 })
     expect(countOccurrences('nothing here', 'zzz', false)).toEqual({ count: 0, first: -1 })
+    expect(countOccurrences('username user superuser user_id', 'user', false, false)).toEqual({ count: 4, first: 0 })
+    expect(countOccurrences('username user superuser user_id', 'user', false, true)).toEqual({ count: 1, first: 9 })
+  })
+
+  it('reports highlight ranges that match the occurrence count', () => {
+    expect(findMatchRanges('username user superuser user_id', 'user', false)).toEqual([
+      { start: 0, end: 4 },
+      { start: 9, end: 13 },
+      { start: 19, end: 23 },
+      { start: 24, end: 28 },
+    ])
+    expect(findMatchRanges('username user superuser user_id', 'user', false, true)).toEqual([{ start: 9, end: 13 }])
+    expect(findMatchRanges('a user b user c', 'user', false, true)).toEqual([
+      { start: 2, end: 6 },
+      { start: 9, end: 13 },
+    ])
+    expect(findMatchRanges('user safeUser', 'user', false)).toEqual([
+      { start: 0, end: 4 },
+      { start: 9, end: 13 },
+    ])
+    expect(findMatchRanges('user safeUser', 'user', false, true)).toEqual([{ start: 0, end: 4 }])
+    expect(findMatchRanges('anything', '', false)).toEqual([])
+  })
+
+  it('matches queries literally instead of as regular expressions', () => {
+    expect(findMatchRanges('a.b axb', 'a.b', false)).toEqual([{ start: 0, end: 3 }])
+    expect(findMatchRanges('cost ($5) x', '($5)', false)).toEqual([{ start: 5, end: 9 }])
+  })
+
+  it('keeps ranges aligned when case folding changes length', () => {
+    expect(findMatchRanges('İxİ', 'x', false)).toEqual([{ start: 1, end: 2 }])
+    expect(findMatchRanges('İSTATE5-ID', 'state5-id', false)).toEqual([{ start: 1, end: 10 }])
+    expect(countOccurrences('İstate5-id', 'STATE5-ID', false)).toEqual({ count: 1, first: 1 })
+  })
+
+  it('treats astral letters as word characters at whole-word boundaries', () => {
+    expect(findMatchRanges('a𝕏user𝕏b', 'user', false)).toEqual([{ start: 3, end: 7 }])
+    expect(findMatchRanges('a𝕏user𝕏b', 'user', false, true)).toEqual([])
+    expect(findMatchRanges('𝕏 user 𝕏', 'user', false, true)).toEqual([{ start: 3, end: 7 }])
   })
 
   it('collapses whitespace in snippets', () => {
@@ -86,6 +126,11 @@ describe('searchRecords', () => {
 
     const cased = searchRecords(records, pages, { q: 'STATE5-ID', caseSensitive: true })
     expect(cased).toHaveLength(1)
+
+    const wholeWordMatches = searchRecords(records, pages, { q: 'state', caseSensitive: false, wholeWord: true })
+    expect(wholeWordMatches).toHaveLength(0)
+    const substringMatches = searchRecords(records, pages, { q: 'state', caseSensitive: false, wholeWord: false })
+    expect(substringMatches).toHaveLength(2)
   })
 
   it('applies wiki, label, and date filters before matching', () => {
