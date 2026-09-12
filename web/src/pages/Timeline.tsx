@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { TimelineFile } from '../types'
@@ -67,9 +68,9 @@ export default function Timeline() {
           <option value="desc">newest first</option>
           <option value="asc">oldest first</option>
         </select>
-        <label className="muted">day <input className="input" type="date" value={day} onChange={(event) => update({ day: event.target.value || null })} /></label>
-        <label className="muted">from <input className="input" type="date" value={from} onChange={(event) => update({ from: event.target.value || null })} /></label>
-        <label className="muted">to <input className="input" type="date" value={to} onChange={(event) => update({ to: event.target.value || null })} /></label>
+        <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={(date) => update({ day: date || null })} />
+        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={(date) => update({ from: date || null })} disableInactiveDays={false} />
+        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={(date) => update({ to: date || null })} disableInactiveDays={false} />
         <span className="muted result-count">page {paged.page + 1}/{paged.pages}</span>
       </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { CorpusSearchResult, Summary } from '../types'
@@ -249,8 +250,8 @@ export default function Search() {
           value={form.label}
           onChange={(event) => setForm({ ...form, label: event.target.value })}
         />
-        <label className="muted">from <input className="input" type="date" value={form.from} onChange={(event) => updateFilter({ from: event.target.value })} /></label>
-        <label className="muted">to <input className="input" type="date" value={form.to} onChange={(event) => updateFilter({ to: event.target.value })} /></label>
+        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={form.from} onChange={(date) => updateFilter({ from: date })} disableInactiveDays={false} />
+        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={form.to} onChange={(date) => updateFilter({ to: date })} disableInactiveDays={false} />
         <label className="muted">
           <input
             type="checkbox"

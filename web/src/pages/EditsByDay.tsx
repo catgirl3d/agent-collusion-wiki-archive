@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { useData } from '../components/useQuery'
 import type { DayActivity } from '../types'
 import { aggregateDays, fmtInt } from '../utils/format'
@@ -7,13 +8,14 @@ import { aggregateDays, fmtInt } from '../utils/format'
 export default function EditsByDay() {
   const { data, error } = useData<DayActivity[]>('activity_by_day.json')
   const [query, setQuery] = useState('')
+  const [day, setDay] = useState('')
   const deferredQuery = useDeferredValue(query)
 
   const days = useMemo(() => {
     if (!data) return []
     const q = deferredQuery.trim()
-    return aggregateDays(data).filter((day) => !q || day.date.includes(q))
-  }, [data, deferredQuery])
+    return aggregateDays(data).filter((row) => (!q || row.date.includes(q)) && (!day || row.date === day))
+  }, [data, deferredQuery, day])
 
   if (error) return <div className="error">Error: {error}</div>
   if (!data) return <div className="loading">Loading…</div>
@@ -24,6 +26,12 @@ export default function EditsByDay() {
     <div className="page">
       <h1>Edits by day <span className="muted">({fmtInt(days.length)} days)</span></h1>
       <div className="filters">
+        <ArchiveCalendar
+          ariaLabel="Filter by day"
+          placeholder="filter by day…"
+          value={day}
+          onChange={setDay}
+        />
         <input className="input" placeholder="Search YYYY-MM-DD…" value={query} onChange={(e) => setQuery(e.target.value)} />
         <span className="muted result-count">saves + deletes</span>
       </div>

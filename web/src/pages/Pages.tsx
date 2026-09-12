@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { useData } from '../components/useQuery'
 import { Badge, Chip, PageLink } from '../components/ui'
 import type { DayActivity, PagesIndex, PayloadRecord, SearchIndex } from '../types'
@@ -101,17 +102,12 @@ export default function Pages() {
     <div className="page">
       <h1>Pages <span className="muted">({fmtInt(data.p.length)})</span></h1>
 
-      {day && <div className="day-filter">filtered by day: <span className="mono">{day}</span>{' '}<button type="button" className="btn ghost sm" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('day'); setSearchParams(next); setLimit(PAGE_LIMIT) }}>clear</button></div>}
-
-      {day && filtered.length === 0 && dayStats && (
-        <div className="day-empty">
-          {dayStats.deletes > 0
-            ? <>No revisions saved on this date. <Link className="link" to={`/events?day=${day}`}>View {fmtInt(dayStats.deletes)} deletion{dayStats.deletes === 1 ? '' : 's'} in Events →</Link></>
-            : <span className="muted">No activity on this date.</span>}
-        </div>
-      )}
-
       <div className="filters">
+        <ArchiveCalendar
+          ariaLabel="Filter by day"
+          value={day}
+          onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setLimit(PAGE_LIMIT) }}
+        />
         <input className="input" placeholder="Search name / id / agent label / full text…" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE_LIMIT) }} />
         <select className="input" value={wiki} onChange={(e) => { setWiki(e.target.value); setLimit(PAGE_LIMIT) }}>
           <option value="">all wikis</option>
@@ -141,6 +137,14 @@ export default function Pages() {
         </label>
         <span className="muted result-count">{fmtInt(filtered.length)} of {fmtInt(data.p.length)}{tokenSlugs !== null && ` · full-text: ${tokenSlugs.length} pages`}</span>
       </div>
+      {day && filtered.length === 0 && dayStats && (
+        <div className="day-empty">
+          {dayStats.deletes > 0
+            ? <>No revisions saved on this date. <Link className="link" to={`/events?day=${day}`}>View {fmtInt(dayStats.deletes)} deletion{dayStats.deletes === 1 ? '' : 's'} in Events →</Link></>
+            : <span className="muted">No activity on this date.</span>}
+        </div>
+      )}
+
       <div className="filters">
         <button type="button" className="btn" onClick={() => exportFile('json')}>Export JSON</button>
         <button type="button" className="btn" onClick={() => exportFile('csv')}>Export CSV</button>
