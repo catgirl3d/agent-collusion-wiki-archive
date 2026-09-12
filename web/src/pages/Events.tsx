@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { EventType, RecentEvent } from '../types'
@@ -45,9 +46,12 @@ export default function Events() {
     <div className="page">
       <h1>Events <span className="muted">({filtered.length} shown of {fmtInt(data.length)})</span></h1>
 
-      {day && <div className="day-filter">filtered by day: <span className="mono">{day}</span>{' '}<button type="button" className="btn ghost sm" onClick={() => { const next = new URLSearchParams(searchParams); next.delete('day'); setSearchParams(next); setPage(0) }}>clear</button></div>}
-
       <div className="filters">
+        <ArchiveCalendar
+          ariaLabel="Filter by day"
+          value={day}
+          onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setPage(0) }}
+        />
         <select className="input" value={type} onChange={(e) => { setType(e.target.value as '' | EventType); setPage(0) }}>
           <option value="">all types</option>
           {(Object.keys(TYPE_COLORS) as EventType[]).map((t) => (

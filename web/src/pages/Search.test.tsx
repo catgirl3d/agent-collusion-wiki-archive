@@ -76,14 +76,18 @@ afterEach(() => {
   FakeWorker.instances = []
 })
 
+function stubSearchFetch(summaryData: unknown = summary, activityData: unknown = []) {
+  return vi.fn((input: RequestInfo | URL) => {
+    const path = new URL(String(input), 'http://localhost').pathname
+    if (path === '/data/summary.json') return Promise.resolve({ ok: true, json: async () => summaryData } as Response)
+    if (path === '/data/activity_by_day.json') return Promise.resolve({ ok: true, json: async () => activityData } as Response)
+    return Promise.reject(new Error(`Unexpected data request: ${path}`))
+  })
+}
+
 describe('Search', () => {
   it('renders matches as inert text after a submitted search', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const path = new URL(String(input), 'http://localhost').pathname
-      if (path === '/data/summary.json') return Promise.resolve({ ok: true, json: async () => summary } as Response)
-      return Promise.reject(new Error(`Unexpected data request: ${path}`))
-    })
-    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -137,7 +141,7 @@ describe('Search', () => {
   })
 
   it('clears stale matches when the URL query changes', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
@@ -194,7 +198,7 @@ describe('Search', () => {
   })
 
   it('shows worker errors with their code', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -221,7 +225,7 @@ describe('Search', () => {
   })
 
   it('triggers search with wholeWord and caseSensitive filters when toggled', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -246,7 +250,7 @@ describe('Search', () => {
   })
 
   it('re-runs an identical search instead of hanging on starting…', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -277,7 +281,7 @@ describe('Search', () => {
   })
 
   it('highlights only whole-word matches in the snippet', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -301,7 +305,7 @@ describe('Search', () => {
   })
 
   it('highlights only case-sensitive matches in the snippet', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -325,7 +329,7 @@ describe('Search', () => {
   })
 
   it('highlights queries whose whitespace was collapsed in the snippet', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -350,7 +354,7 @@ describe('Search', () => {
   })
 
   it('keeps one worker alive when leaving and returning to the search page', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     const router = createMemoryRouter(
