@@ -32,6 +32,12 @@ export default function Layout() {
           <NavLink to="/events" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Events
           </NavLink>
+          <NavLink to="/timeline" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Timeline
+          </NavLink>
+          <NavLink to="/search" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Text search
+          </NavLink>
           <NavLink to="/conflicts" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Conflicts
           </NavLink>

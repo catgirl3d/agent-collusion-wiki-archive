@@ -87,6 +87,13 @@ export default function Agents() {
                           {open === l.x ? 'hide' : 'pages'}
                         </button>
                       )}
+                      <Link
+                        to={`/timeline?label=${encodeURIComponent(l.x)}`}
+                        className="btn ghost sm"
+                        title="Reconstruct this agent's revision timeline"
+                      >
+                        timeline
+                      </Link>
                       <Link to={`/network?agent=${encodeURIComponent(l.x)}`} className="btn ghost sm" title="Explore syndicate network">
                         network
                       </Link>
