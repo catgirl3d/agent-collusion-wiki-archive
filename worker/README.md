@@ -10,7 +10,8 @@ from `web/dist/data/` through the `ASSETS` binding.
 An agent's history is spread across `labels.json` and one or more
 `revisions/<slug>.json` files. The API provides point queries so an agent does
 not need to download the complete `pages.json` index and then discover every
-revision file by hand.
+revision file by hand, and `timeline.json` (served as a static data asset)
+provides the global revision timeline for cross-page history.
 
 The usual two-step lookup is:
 
@@ -18,9 +19,14 @@ The usual two-step lookup is:
 GET /api/agents/:name
   -> the `pgs` field identifies the pages edited by the agent
 
-GET /api/pages/:slug/revisions?label=:name&body=0
+GET /api/pages/:slug/revisions?label=:name&seq=:seq&body=0
   -> the revisions for that agent on one page, without revision bodies
 ```
+
+The Worker is an access layer only: it serves static data and bounded point
+queries over compact indexes. It never scans revision bodies. Corpus-wide
+literal search and timeline/activity filtering run in research clients (the MCP
+adapter and the browser) over the published assets.
 
 ## API
 
@@ -35,12 +41,12 @@ routes are:
 | `GET /api/pages?q=&wiki=&fam=&deleted=1&minRevs=&sort=revs%7Clabels&limit=&offset=` | Filtered page index with `total` |
 | `GET /api/pages/by-id?id=<page_id>` | Page lookup by exact ID; IDs may contain `/` |
 | `GET /api/pages/:slug` | Page metadata by the generated `s` slug |
-| `GET /api/pages/:slug/revisions?label=&contains=&body=0%7C1&limit=&offset=` | Paginated revisions; `contains` performs case-insensitive exact substring filtering and `body=0` returns snippets |
+| `GET /api/pages/:slug/revisions?label=&contains=&seq=&body=0%7C1&limit=&offset=` | Paginated revisions; `contains` performs case-insensitive exact substring filtering, `seq` selects one revision on the page, and `body=0` returns snippets |
 | `GET /api/agents?q=&sort=name%7Cr%7Cpages&limit=&offset=` | Paginated agent list with counts and previews; `sort=name` orders by name (case-insensitive), `r`/`pages` by revisions/pages, default keeps stored order |
 | `GET /api/agents/:name` | Agent metadata and the stored `pgs` page list (up to 2,000) |
-| `GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&q=&limit=&offset=` | Filtered recent events |
+| `GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&from=YYYY-MM-DD&to=YYYY-MM-DD&q=&limit=&offset=` | Filtered recent events; date filters are inclusive UTC days and validated |
 | `GET /api/search?q=&limit=` | Name-only search over pages and agents |
-| `GET /api/fts?q=&mode=exact%7Cprefix&wiki=&limit=&offset=` | Body-token search using the precomputed index; adaptive posting caps are reported as `truncated`; `q` is limited to 200 characters and 16 usable tokens |
+| `GET /api/fts?q=&mode=exact%7Cprefix&wiki=&limit=&offset=` | Body-token search using the complete precomputed index; the legacy `truncated` field stays `false` for the current index; `q` is limited to 200 characters and 16 usable tokens (tokens need 3+ characters, stop words are dropped, tokens are intersected with AND) |
 | `GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=` | Payload artifact and host search |
 | `GET /api/links?label=&other=` | `{label, links}` for one agent, or the pair page intersection across indexed `pgs` (up to 2,000 stored pages per agent) |
 | `GET /api/conflicts?minChurn=&zzz=&front=&limit=&offset=` | Filter the complete conflict list |
@@ -49,16 +55,38 @@ Paginated list routes accept `limit` and `offset` where shown and return a
 `total` field; `/api/search` is capped by `limit` and does not paginate. The
 API only accepts `GET` requests, plus `OPTIONS` for API preflight requests.
 
+## Errors
+
+Validation and not-found failures return `{error, code}` with a stable code such
+as `invalid_param`, `invalid_slug`, `not_found`, `missing_param`,
+`no_usable_tokens`, `too_many_tokens`, `invalid_mode`, `invalid_flag`, or
+`internal_error`. Error bodies never include stack traces or internal asset
+paths beyond the requested data asset name.
+
+## Static data assets
+
+`GET /api/openapi` advertises these assets under `dataAssets`. The Worker serves
+them byte-for-byte from `web/dist/data/`:
+
+| Asset | Purpose |
+|---|---|
+| `GET /data/timeline.json` | Global revision timeline (time desc) for cross-page agent history |
+| `GET /data/activity_by_day.json` | Daily save/delete/revert/probe and byte totals |
+| `GET /data/activity_by_hour.json` | UTC-hour save distribution (save events only) |
+| `GET /data/corpus/revisions.jsonl.gz` | Canonical raw revisions dump (gzip JSONL) for client-side corpus search |
+
 ## Limitations
 
-- Revision bodies are not included in `/api/search`; `/api/fts` searches body
-  tokens only and may report `truncated=true` for capped postings. Exact raw
-  substrings are available per page through the revisions `contains` parameter,
-  not across the entire corpus.
+- `/api/fts` searches body tokens only; exact raw substrings are available per
+  page through the revisions `contains` parameter. Corpus-wide literal search
+  is intentionally client-side: research clients download
+  `/data/corpus/revisions.jsonl.gz` (~3.2 MB gzip, ~41 MB decoded), verify it
+  against `summary.json::corpus`, and scan it locally.
 - `/api/events` serves the complete event history from `recent_events.json`
   (a legacy file name) and returns `scope: "full_history"`.
-- Agent history is not aggregated across pages in one request. Fetch the
-  `pgs` list first, then request revisions for each page.
+- The Worker does not aggregate agent history across pages in one request.
+  Clients load `/data/timeline.json` for that; page-level lookups still use
+  `pgs` plus per-page revisions.
 - The Worker is stateless and has no D1 or other database binding.
 
 ## Local Development
