@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { monthCells, parseYearMonth, stepMonth } from '../utils/date'
+import { MONTHS, monthCells, parseYearMonth, stepMonth } from '../utils/date'
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 export interface DatePickerProps {
   value: string
