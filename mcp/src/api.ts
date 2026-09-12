@@ -113,7 +113,7 @@ export type ArchiveApiClientOptions = {
   timeoutMs?: number
 }
 
-function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
+export function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
   let url: URL
   try {
     url = new URL(value)
@@ -135,7 +135,7 @@ function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
   return url
 }
 
-function readTimeoutMs(configured: number | undefined): number {
+export function readTimeoutMs(configured: number | undefined): number {
   const raw = configured ?? process.env.ARCHIVE_API_TIMEOUT_MS
   if (raw === undefined || (typeof raw === 'string' && raw.trim() === '')) return DEFAULT_TIMEOUT_MS
 

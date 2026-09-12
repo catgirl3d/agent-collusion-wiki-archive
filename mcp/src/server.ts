@@ -12,6 +12,9 @@ import type {
   SearchFtsParams,
 } from './api.js'
 import { ArchiveApiClient, ArchiveApiError, MAX_RESPONSE_BYTES } from './api.js'
+import { ArchiveDataError } from './assets.js'
+import { ArchiveQueryError, ArchiveResearch } from './research.js'
+import type { GetActivityArgs, ListRevisionsArgs, ResearchApi, SearchCorpusArgs } from './research.js'
 
 const nonEmptyText = (label: string, max = 200) => z.string().trim().min(1).max(max).describe(label)
 const pageLimit = z.number().int().min(1).max(100).optional().describe('Number of rows to return (1-100).')
@@ -48,7 +51,10 @@ export function installShutdownHandlers(handle: ClosableHandle, proc: ShutdownTa
 }
 
 function failure(error: unknown) {
-  return errorResult(error instanceof ArchiveApiError ? error.message : 'MCP request failed')
+  if (error instanceof ArchiveApiError) return errorResult(error.message, error.code)
+  if (error instanceof ArchiveDataError) return errorResult(error.message, error.code)
+  if (error instanceof ArchiveQueryError) return errorResult(error.message, error.code)
+  return errorResult('MCP request failed')
 }
 
 function result(data: unknown) {
@@ -67,7 +73,10 @@ async function call(operation: () => Promise<unknown>) {
   }
 }
 
-export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient()): McpServer {
+export function createArchiveMcpServer(
+  api: ArchiveApi = new ArchiveApiClient(),
+  research: ResearchApi = new ArchiveResearch(),
+): McpServer {
   const server = new McpServer({ name: 'agent-collusion-archive', version: '0.1.0' })
 
   server.registerTool(
@@ -78,6 +87,23 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async () => call(() => api.getStats()),
+  )
+
+  server.registerTool(
+    'get_activity',
+    {
+      title: 'Get activity aggregates',
+      description:
+        'Return archive activity. by=day gives per-wiki saves/deletes/reverts/probes/bytes with optional wiki and UTC date range; by=hour gives the global UTC-hour save distribution (save events only) and rejects wiki/date filters.',
+      inputSchema: {
+        by: z.enum(['day', 'hour']).describe('Aggregate granularity.'),
+        wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter (by=day only).'),
+        from: utcDate('Optional inclusive start date').optional(),
+        to: utcDate('Optional inclusive end date').optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ by, wiki, from, to }) => call(() => research.getActivity({ by, wiki, from, to } satisfies GetActivityArgs)),
   )
 
   server.registerTool(
@@ -194,6 +220,30 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
   )
 
   server.registerTool(
+    'list_revisions',
+    {
+      title: 'List revisions timeline',
+      description:
+        'Cross-page revision timeline sorted by time (desc by default): use it to reconstruct everything one agent label did without walking pages. Filters: exact label/wiki/id/slug, UTC day or from/to range. Read one full body with get_page_revisions using the returned slug and seq.',
+      inputSchema: {
+        label: z.string().trim().max(200).optional().describe('Optional exact agent label.'),
+        wiki: z.string().trim().max(100).optional().describe('Optional exact wiki.'),
+        id: nonEmptyText('Optional exact canonical page ID.', 300).optional(),
+        slug: nonEmptyText('Optional exact generated page slug.', 200).optional(),
+        day: utcDate('Optional exact UTC day').optional(),
+        from: utcDate('Optional inclusive start date').optional(),
+        to: utcDate('Optional inclusive end date').optional(),
+        order: z.enum(['asc', 'desc']).optional().describe('Time order; desc is the default.'),
+        limit: z.number().int().min(1).max(500).optional().describe('Number of revisions to return (1-500).'),
+        offset: pageOffset,
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ label, wiki, id, slug, day, from, to, order, limit, offset }) =>
+      call(() => research.listRevisions({ label, wiki, id, slug, day, from, to, order, limit, offset } satisfies ListRevisionsArgs)),
+  )
+
+  server.registerTool(
     'list_events',
     {
       title: 'List events',
@@ -220,7 +270,7 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
     {
       title: 'Search revision content',
       description:
-        'Search revision BODY tokens only; page names are not searched (use search_archive for names). Exact mode matches whole tokens; prefix mode expands token-level prefixes (queries are limited to 200 characters and 16 usable tokens). Postings are adaptively capped, so truncated=true means results may be incomplete. Results are sorted by revision count descending. For an exact substring inside one page, use get_page_revisions with contains.',
+        'Search revision BODY tokens only; page names are not searched (use search_archive for names). Exact mode matches whole tokens; prefix mode expands token-level prefixes (queries are limited to 200 characters and 16 usable tokens). The index is complete for the current data release; the legacy truncated flag stays false unless postings were capped. For a corpus-wide literal substring use search_corpus; for an exact substring inside one page use get_page_revisions with contains.',
       inputSchema: {
         q: nonEmptyText('Required body-token query.', 200),
         mode: z.enum(['exact', 'prefix']).optional().describe('Token matching mode; exact is the default.'),
@@ -232,6 +282,39 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
     },
     async ({ q, mode, wiki, limit, offset }) =>
       call(() => api.searchFts({ q, mode, wiki, limit, offset } satisfies SearchFtsParams)),
+  )
+
+  server.registerTool(
+    'search_corpus',
+    {
+      title: 'Search corpus text',
+      description:
+        'Literal substring search across all revision bodies (case-insensitive by default). The corpus is scanned locally in the MCP process: the first search loads about 3.2 MB gzip (~41 MB decoded) and caches it for the session. Returns one row per matching revision with the exact occurrence count and a snippet. Paginate with limit/offset without rescanning; set case_sensitive for exact-case matching.',
+      inputSchema: {
+        q: nonEmptyText('Literal substring, 3-120 characters.', 120),
+        wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter.'),
+        label: z.string().trim().max(200).optional().describe('Optional exact agent label filter.'),
+        from: utcDate('Optional inclusive start date').optional(),
+        to: utcDate('Optional inclusive end date').optional(),
+        case_sensitive: z.boolean().optional().describe('Match case exactly; default is case-insensitive.'),
+        limit: z.number().int().min(1).max(100).optional().describe('Number of matches to return (1-100).'),
+        offset: pageOffset,
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ q, wiki, label, from, to, case_sensitive, limit, offset }) =>
+      call(() =>
+        research.searchCorpus({
+          q,
+          wiki,
+          label,
+          from,
+          to,
+          caseSensitive: case_sensitive,
+          limit,
+          offset,
+        } satisfies SearchCorpusArgs),
+      ),
   )
 
   server.registerTool(
