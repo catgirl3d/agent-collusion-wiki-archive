@@ -6,6 +6,7 @@ import {
   findMatchRanges,
   isGzip,
   isRealDate,
+  measureBody,
   searchRecords,
   snippetAround,
 } from './corpus'
@@ -69,6 +70,16 @@ describe('literal matching helpers', () => {
     expect(findMatchRanges('𝕏 user 𝕏', 'user', false, true)).toEqual([{ start: 3, end: 7 }])
   })
 
+  it('measures utf-8 bytes and visual lines', () => {
+    expect(measureBody('')).toEqual({ bytes: 0, lines: 0 })
+    expect(measureBody('a\nb')).toEqual({ bytes: 3, lines: 2 })
+    expect(measureBody('a\n')).toEqual({ bytes: 2, lines: 2 })
+    expect(measureBody('a\r\nb')).toEqual({ bytes: 4, lines: 2 })
+    expect(measureBody('a\rb')).toEqual({ bytes: 3, lines: 2 })
+    expect(measureBody('é')).toEqual({ bytes: 2, lines: 1 })
+    expect(measureBody('𝕏')).toEqual({ bytes: 4, lines: 1 })
+  })
+
   it('collapses whitespace in snippets', () => {
     const body = `${'x'.repeat(100)}\nvALUE\t  inside   ${'y'.repeat(100)}`
     const snippet = snippetAround(body, 100, 'value'.length)
@@ -121,7 +132,14 @@ describe('searchRecords', () => {
   it('returns matches with counts, page names, and time-desc order', () => {
     const matches = searchRecords(records, pages, { q: 'state5-id', caseSensitive: false })
     expect(matches.map((match) => match.id)).toEqual(['dse/PageB', 'dse/PageA'])
-    expect(matches[1]).toMatchObject({ n: 'PageA', s: 'dse_PageA~', occurrences: 2, x: 'AgentX' })
+    expect(matches[1]).toMatchObject({
+      n: 'PageA',
+      s: 'dse_PageA~',
+      occurrences: 2,
+      x: 'AgentX',
+      bytes: 'STATE5-ID appears twice: STATE5-ID'.length,
+      lines: 1,
+    })
     expect(matches[1].snippet).toContain('STATE5-ID')
 
     const cased = searchRecords(records, pages, { q: 'STATE5-ID', caseSensitive: true })
@@ -131,6 +149,13 @@ describe('searchRecords', () => {
     expect(wholeWordMatches).toHaveLength(0)
     const substringMatches = searchRecords(records, pages, { q: 'state', caseSensitive: false, wholeWord: false })
     expect(substringMatches).toHaveLength(2)
+  })
+
+  it('reports body byte size and line count for each match', () => {
+    const body = 'café line\nsecond line\nthird'
+    const multiline = record({ body })
+    const matches = searchRecords([multiline], pages, { q: 'line', caseSensitive: false })
+    expect(matches[0]).toMatchObject({ bytes: new TextEncoder().encode(body).length, lines: 3 })
   })
 
   it('applies wiki, label, and date filters before matching', () => {
