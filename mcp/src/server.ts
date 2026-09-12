@@ -17,8 +17,9 @@ const nonEmptyText = (label: string, max = 200) => z.string().trim().min(1).max(
 const pageLimit = z.number().int().min(1).max(100).optional().describe('Number of rows to return (1-100).')
 const pageOffset = z.number().int().min(0).max(100_000).optional().describe('Number of rows to skip.')
 
-function errorResult(text: string) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify({ error: text }) }], isError: true }
+function errorResult(text: string, code?: string) {
+  const payload = code ? { error: text, code } : { error: text }
+  return { content: [{ type: 'text' as const, text: JSON.stringify(payload) }], isError: true }
 }
 
 type ClosableHandle = { close(): Promise<unknown> }
