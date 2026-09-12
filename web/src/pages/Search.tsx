@@ -307,8 +307,8 @@ export default function Search() {
           value={form.label}
           onChange={(event) => setForm({ ...form, label: event.target.value })}
         />
-        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={form.from} onChange={(date) => updateFilter({ from: date })} disableInactiveDays={false} />
-        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={form.to} onChange={(date) => updateFilter({ to: date })} disableInactiveDays={false} />
+        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={form.from} onChange={(date) => updateFilter({ from: date })} />
+        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={form.to} onChange={(date) => updateFilter({ to: date })} />
         <label className="muted">
           <input
             type="checkbox"

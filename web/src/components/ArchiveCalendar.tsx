@@ -6,11 +6,15 @@ export interface ArchiveCalendarProps {
   onChange: (date: string) => void
   placeholder?: string
   ariaLabel?: string
-  /** When false, all archive days are selectable even without recorded activity (range bounds). */
-  disableInactiveDays?: boolean
+  /**
+   * When true (default), the popup shows an "only days with data" toggle and starts
+   * with days without recorded activity disabled; the user can lift the restriction.
+   * When false, the toggle is hidden and days without recorded activity remain disabled.
+   */
+  allowLiftRestriction?: boolean
 }
 
-export function ArchiveCalendar({ value, onChange, placeholder = 'date…', ariaLabel = 'Pick a date', disableInactiveDays = true }: ArchiveCalendarProps) {
+export function ArchiveCalendar({ value, onChange, placeholder = 'date…', ariaLabel = 'Pick a date', allowLiftRestriction = true }: ArchiveCalendarProps) {
   const { ready, error, available, min, max } = useArchiveDays()
 
   // On fetch failure the fallback keeps date input available: all days enabled, no bounds.
@@ -46,7 +50,9 @@ export function ArchiveCalendar({ value, onChange, placeholder = 'date…', aria
       fallbackMonth={value || max || min}
       minMonth={min ? min.slice(0, 7) : ''}
       maxMonth={max ? max.slice(0, 7) : ''}
-      isDayEnabled={disableInactiveDays ? (date) => available.has(date) : undefined}
+      isDayEnabled={(date) => available.has(date)}
+      allowLiftRestriction={allowLiftRestriction}
+      restrictionLabel="only days with data"
     />
   )
 }

@@ -1,9 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { clearJsonCacheForTests } from '../api'
+import { MONTHS } from '../utils/date'
 import { ArchiveCalendar } from './ArchiveCalendar'
 import { DatePicker } from './DatePicker'
+
+const loadJsonMock = vi.hoisted(() => vi.fn())
+vi.mock('../api', () => ({ loadJson: loadJsonMock }))
 
 const activity = [
   { date: '2026-06-16', wiki: 'dse', saves: 2565, deletes: 0, reverts: 0, probes: 0, bytes: 0 },
@@ -11,18 +14,8 @@ const activity = [
   { date: '2026-06-20', wiki: '', saves: 0, deletes: 0, reverts: 0, probes: 2, bytes: 0 },
 ]
 
-function stubFetch(handler: (path: string) => Promise<Response>) {
-  const fetchMock = vi.fn((input: RequestInfo | URL) => {
-    const path = new URL(String(input), 'http://localhost').pathname
-    return handler(path)
-  })
-  vi.stubGlobal('fetch', fetchMock)
-}
-
-const activityResponse = (rows: unknown) => Promise.resolve({ ok: true, json: async () => rows } as Response)
-
 function renderCalendar(props: Partial<Parameters<typeof ArchiveCalendar>[0]> = {}) {
-  stubFetch((path) => (path === '/data/activity_by_day.json' ? activityResponse(activity) : Promise.reject(new Error(`Unexpected data request: ${path}`))))
+  loadJsonMock.mockResolvedValue(activity)
   const onChange = vi.fn()
   render(
     <MemoryRouter>
@@ -33,8 +26,7 @@ function renderCalendar(props: Partial<Parameters<typeof ArchiveCalendar>[0]> = 
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals()
-  clearJsonCacheForTests()
+  loadJsonMock.mockReset()
 })
 
 describe('ArchiveCalendar', () => {
@@ -53,16 +45,38 @@ describe('ArchiveCalendar', () => {
     expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
   })
 
-  it('allows every day when disableInactiveDays is false', async () => {
-    renderCalendar({ disableInactiveDays: false })
+  it('lifts the restriction via the toggle and enables every day', async () => {
+    renderCalendar()
 
     await screen.findByRole('button', { name: /pick a date/i })
     await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
+    const toggle = screen.getByRole('checkbox', { name: /only days with data/i })
+    expect(toggle).toBeChecked()
+
+    fireEvent.click(toggle)
     expect(screen.getByRole('button', { name: '15' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '18' })).toBeEnabled()
+
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
+  })
+
+  it('keeps unavailable days disabled when restriction lifting is disallowed', async () => {
+    renderCalendar({ allowLiftRestriction: false })
+
+    await screen.findByRole('button', { name: /pick a date/i })
+    await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    expect(screen.queryByRole('checkbox', { name: /only days with data/i })).toBeNull()
+    expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
   })
 
   it('reports the picked day and closes the popup', async () => {
@@ -89,8 +103,8 @@ describe('ArchiveCalendar', () => {
   })
 
   it('shows a disabled trigger while activity data is loading and recovers after it resolves', async () => {
-    let resolveActivity!: (response: Response) => void
-    stubFetch((path) => (path === '/data/activity_by_day.json' ? new Promise((resolve) => { resolveActivity = resolve }) : Promise.reject(new Error(`Unexpected data request: ${path}`))))
+    let resolveActivity!: (rows: unknown) => void
+    loadJsonMock.mockImplementation(() => new Promise((resolve) => { resolveActivity = resolve }))
 
     render(
       <MemoryRouter>
@@ -102,7 +116,7 @@ describe('ArchiveCalendar', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
 
     await act(async () => {
-      resolveActivity(activityResponse(activity) as unknown as Response)
+      resolveActivity(activity)
     })
 
     await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
@@ -112,7 +126,7 @@ describe('ArchiveCalendar', () => {
   })
 
   it('falls back to an unbounded date picker when the activity fetch fails', async () => {
-    stubFetch(() => Promise.reject(new Error('HTTP 500 for activity_by_day.json')))
+    loadJsonMock.mockRejectedValue(new Error('HTTP 500 for activity_by_day.json'))
 
     render(
       <MemoryRouter>
@@ -181,7 +195,25 @@ describe('DatePicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     const now = new Date()
-    const month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][now.getUTCMonth()]
+    const month = MONTHS[now.getUTCMonth()]
     expect(screen.getByText(`${month} ${now.getUTCFullYear()}`)).toBeInTheDocument()
+  })
+
+  it('renders the supplied label for a generic availability restriction', () => {
+    render(
+      <MemoryRouter>
+        <DatePicker
+          value=""
+          onChange={() => {}}
+          fallbackMonth="2026-06-17"
+          isDayEnabled={() => true}
+          allowLiftRestriction
+          restrictionLabel="only weekdays"
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
+    expect(screen.getByRole('checkbox', { name: 'only weekdays' })).toBeChecked()
   })
 })

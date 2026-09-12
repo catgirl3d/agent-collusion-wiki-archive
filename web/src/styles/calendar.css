@@ -58,6 +58,11 @@
   padding: 2px 7px;
 }
 
+.cal-restriction {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);

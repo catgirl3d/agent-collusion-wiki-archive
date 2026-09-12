@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { monthCells, parseYearMonth, stepMonth } from '../utils/date'
+import { MONTHS, monthCells, parseYearMonth, stepMonth } from '../utils/date'
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 export interface DatePickerProps {
   value: string
@@ -13,14 +12,19 @@ export interface DatePickerProps {
   fallbackMonth?: 'today' | string
   /** Returns false for days that must be rendered gray and unclickable. */
   isDayEnabled?: (date: string) => boolean
+  /** When true, the popup shows a toggle to lift the day-availability restriction; when false, the restriction remains strict. */
+  allowLiftRestriction?: boolean
+  /** Label for the availability restriction toggle. */
+  restrictionLabel?: string
   /** Month bounds for navigation; empty means unbounded. */
   minMonth?: string
   maxMonth?: string
 }
 
-export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel = 'Pick a date', fallbackMonth = 'today', isDayEnabled, minMonth = '', maxMonth = '' }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel = 'Pick a date', fallbackMonth = 'today', isDayEnabled, allowLiftRestriction = false, restrictionLabel = 'only enabled days', minMonth = '', maxMonth = '' }: DatePickerProps) {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState({ y: 0, m: 0 })
+  const [onlyEnabledDays, setOnlyEnabledDays] = useState(true)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -99,6 +103,16 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
               →
             </button>
           </div>
+          {allowLiftRestriction && isDayEnabled && (
+            <label className="check cal-restriction">
+              <input
+                type="checkbox"
+                checked={onlyEnabledDays}
+                onChange={(event) => setOnlyEnabledDays(event.target.checked)}
+              />
+              {restrictionLabel}
+            </label>
+          )}
           <div className="cal-grid">
             {WEEKDAYS.map((day) => (
               <span key={day} className="cal-dow">{day}</span>
@@ -110,7 +124,7 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
                 <button
                   key={date}
                   type="button"
-                  disabled={isDayEnabled ? !isDayEnabled(date) : false}
+                  disabled={isDayEnabled && onlyEnabledDays ? !isDayEnabled(date) : false}
                   className={`cal-day${date === value ? ' selected' : ''}`}
                   onClick={() => pick(date)}
                 >

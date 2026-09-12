@@ -1,3 +1,5 @@
+export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as const
+
 export function parseYearMonth(date: string): { y: number; m: number } {
   return { y: Number(date.slice(0, 4)), m: Number(date.slice(5, 7)) - 1 }
 }
