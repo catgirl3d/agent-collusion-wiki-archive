@@ -150,12 +150,19 @@ export default {
             openapi: '3.0.0',
             info: { title: 'agent-collusion-archive', version: '0.1.0' },
             notes: [
-              'Static-first: source of truth is /data/*.json, worker is a read-only proxy.',
-              'Body search uses a precomputed token index with adaptive posting caps; responses expose truncated=true when completeness is not guaranteed.',
-              'Exact substring search is available per page through revisions?contains=; there is no corpus-wide arbitrary substring search.',
-              'Agent history = GET /api/agents/:name (pgs) + GET /api/pages/:slug/revisions?label= per page; pgs lists hold at most 2,000 stored pages per agent.',
+              'Static-first: source of truth is /data/*, worker is a read-only asset and point-query proxy.',
+              'Body-token search uses the complete precomputed index; the legacy truncated flag stays in responses and is false for the current index. Token queries keep at least one token of 3+ characters (stop words and shorter tokens are dropped) and intersect on AND.',
+              'Exact substring search is available per page through revisions?contains=. Corpus-wide literal search runs in research clients over the published data assets, not on the worker.',
+              'Agent history = GET /api/agents/:name (pgs) + GET /api/pages/:slug/revisions?label=&seq= per page; pgs lists hold at most 2,000 stored pages per agent.',
+              'Errors return {error, code} with stable validation codes; day/from/to use real UTC dates (YYYY-MM-DD), inclusive.',
             ],
             ftsBodies: true,
+            dataAssets: [
+              { path: '/data/timeline.json', purpose: 'Global revision timeline (time desc) for cross-page agent history.' },
+              { path: '/data/activity_by_day.json', purpose: 'Daily save/delete/revert/probe and byte totals.' },
+              { path: '/data/activity_by_hour.json', purpose: 'UTC-hour save distribution (save events only).' },
+              { path: '/data/corpus/revisions.jsonl.gz', purpose: 'Canonical raw revisions dump (gzip JSONL) for client-side corpus search.' },
+            ],
             routes: [
               'GET /api/health',
               'GET /api/openapi',
@@ -163,10 +170,10 @@ export default {
               'GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset=',
               'GET /api/pages/by-id?id=<page_id>',
               'GET /api/pages/:slug',
-              'GET /api/pages/:slug/revisions?label=&contains=&body=0|1&limit=&offset=',
+              'GET /api/pages/:slug/revisions?label=&contains=&seq=&body=0|1&limit=&offset=',
               'GET /api/agents?q=&sort=name|r|pages&limit=&offset=',
               'GET /api/agents/:name',
-              'GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&q=&limit=&offset=',
+              'GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&from=YYYY-MM-DD&to=YYYY-MM-DD&q=&limit=&offset=',
               'GET /api/search?q=&limit= (names only)',
               'GET /api/fts?q=&mode=exact|prefix&wiki=&limit=&offset=',
               'GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=',
@@ -233,11 +240,18 @@ export default {
       const revMatch = url.pathname.match(/^\/api\/pages\/([^/]+)\/revisions$/)
       if (revMatch) {
         const slug = decodeURIComponent(revMatch[1])
-        if (!SLUG_RE.test(slug)) return err(400, 'invalid slug')
+        if (!SLUG_RE.test(slug)) return err(400, 'invalid slug', 'invalid_slug')
         const label = url.searchParams.get('label') || ''
         const containsParam = url.searchParams.get('contains')
         const contains = containsParam || ''
-        if (contains.length > 200) return err(400, 'contains must be 200 characters or fewer')
+        if (contains.length > 200) return err(400, 'contains must be 200 characters or fewer', 'invalid_param')
+        const seqParam = url.searchParams.get('seq')
+        let seq: number | null = null
+        if (seqParam !== null) {
+          const parsed = Number(seqParam)
+          if (!Number.isInteger(parsed) || parsed < 0) return err(400, 'seq must be a non-negative integer', 'invalid_param')
+          seq = parsed
+        }
         const body = url.searchParams.get('body') ?? '1'
         const withBody = body !== '0'
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 500)
@@ -249,10 +263,11 @@ export default {
           return err(404, 'revisions not found for slug', 'not_found')
         }
         const labelFiltered = label ? revs.filter((r) => r['label'] === label) : revs
+        const seqFiltered = seq === null ? labelFiltered : labelFiltered.filter((r) => r['seq'] === seq)
         const needle = containsParam !== null && contains.length > 0 ? contains.toLowerCase() : ''
         const filtered = needle
-          ? labelFiltered.filter((r) => typeof r['body'] === 'string' && r['body'].toLowerCase().includes(needle))
-          : labelFiltered
+          ? seqFiltered.filter((r) => typeof r['body'] === 'string' && r['body'].toLowerCase().includes(needle))
+          : seqFiltered
         const page = filtered.slice(offset, offset + limit)
         const out = withBody
           ? page
@@ -265,7 +280,7 @@ export default {
               return { ...meta, snippet: body.slice(start, end).replace(/\s+/g, ' ').trim() }
             })
         return json(
-          { slug, total: filtered.length, limit, offset, label: label || null, contains: containsParam, q: containsParam, withBody, revisions: out },
+          { slug, total: filtered.length, limit, offset, label: label || null, contains: containsParam, q: containsParam, seq, withBody, revisions: out },
           200,
           'public, max-age=86400, immutable',
         )
@@ -329,6 +344,12 @@ export default {
         const act = url.searchParams.get('act') || ''
         const wiki = url.searchParams.get('wiki') || ''
         const day = url.searchParams.get('day') || ''
+        const from = url.searchParams.get('from') || ''
+        const to = url.searchParams.get('to') || ''
+        if (day && !isRealDate(day)) return err(400, 'day must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
+        if (from && !isRealDate(from)) return err(400, 'from must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
+        if (to && !isRealDate(to)) return err(400, 'to must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
+        if (from && to && from > to) return err(400, 'from must not be after to', 'invalid_param')
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 200)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
@@ -336,7 +357,10 @@ export default {
           if (type && e['type'] !== type) return false
           if (act && e['act'] !== act) return false
           if (wiki && e['wiki'] !== wiki) return false
-          if (day && typeof e['t'] === 'string' && !(e['t'] as string).startsWith(day)) return false
+          const eventDay = typeof e['t'] === 'string' ? (e['t'] as string).slice(0, 10) : ''
+          if (day && eventDay !== day) return false
+          if (from && eventDay < from) return false
+          if (to && eventDay > to) return false
           if (q) {
             const hay = `${e['page'] ?? ''} ${e['action'] ?? ''} ${e['ip16'] ?? ''}`.toLowerCase()
             if (!hay.includes(q)) return false
