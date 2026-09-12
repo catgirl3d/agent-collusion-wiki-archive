@@ -1,0 +1,3 @@
+# Captured anna.fyi data is byte-exact: verbatim pastes and their SHA256SUMS
+# must not be rewritten by line-ending conversion.
+data/external/anna-fyi/** -text
