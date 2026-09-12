@@ -173,7 +173,25 @@ describe('DatePicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     const now = new Date()
-    const month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][now.getUTCMonth()]
+    const month = MONTHS[now.getUTCMonth()]
     expect(screen.getByText(`${month} ${now.getUTCFullYear()}`)).toBeInTheDocument()
+  })
+
+  it('renders the supplied label for a generic availability restriction', () => {
+    render(
+      <MemoryRouter>
+        <DatePicker
+          value=""
+          onChange={() => {}}
+          fallbackMonth="2026-06-17"
+          isDayEnabled={() => true}
+          allowLiftRestriction
+          restrictionLabel="only weekdays"
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
+    expect(screen.getByRole('checkbox', { name: 'only weekdays' })).toBeChecked()
   })
 })
