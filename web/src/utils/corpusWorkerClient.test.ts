@@ -11,6 +11,7 @@ import {
 class FakeWorker {
   static instances: FakeWorker[] = []
   onmessage: ((event: MessageEvent<CorpusWorkerResponse>) => void) | null = null
+  onerror: (() => void) | null = null
   messages: CorpusWorkerRequest[] = []
   terminated = false
 
@@ -28,6 +29,10 @@ class FakeWorker {
 
   respond(payload: CorpusWorkerResponse) {
     this.onmessage?.({ data: payload } as MessageEvent<CorpusWorkerResponse>)
+  }
+
+  fail() {
+    this.onerror?.()
   }
 }
 
@@ -119,6 +124,72 @@ describe('corpusWorkerClient', () => {
     expect(createCorpusRequestId()).toBe(1)
     postCorpusRequest(request(1))
     expect(FakeWorker.instances).toHaveLength(2)
+  })
+
+  it('reports a fatal worker error and retries with a fresh worker', () => {
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const listener = vi.fn()
+    subscribeCorpusWorker(listener)
+
+    postCorpusRequest(request(1))
+    const failed = FakeWorker.instances[0]
+    failed.fail()
+
+    expect(failed.terminated).toBe(true)
+    expect(listener).toHaveBeenCalledWith({
+      type: 'error',
+      requestId: 1,
+      error: 'corpus search worker failed to load',
+      code: 'worker_failed',
+    })
+
+    postCorpusRequest(request(2))
+    expect(FakeWorker.instances).toHaveLength(2)
+    expect(FakeWorker.instances[1].messages).toEqual([request(2)])
+  })
+
+  it('ignores a late error from a worker that is no longer shared', () => {
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const listener = vi.fn()
+    subscribeCorpusWorker(listener)
+
+    postCorpusRequest(request(1))
+    const stale = FakeWorker.instances[0]
+    stale.fail()
+
+    postCorpusRequest(request(2))
+    listener.mockClear()
+    stale.fail()
+
+    expect(listener).not.toHaveBeenCalled()
+    expect(FakeWorker.instances[1].terminated).toBe(false)
+  })
+
+  it('reports a synchronous construction failure without crashing and retries', () => {
+    class BlockedWorker {
+      static attempts = 0
+      constructor() {
+        BlockedWorker.attempts += 1
+        throw new Error('blocked by policy')
+      }
+    }
+    vi.stubGlobal('Worker', BlockedWorker as unknown as typeof Worker)
+
+    const listener = vi.fn()
+    subscribeCorpusWorker(listener)
+
+    expect(() => postCorpusRequest(request(5))).not.toThrow()
+    expect(listener).toHaveBeenCalledWith({
+      type: 'error',
+      requestId: 5,
+      error: 'corpus search worker failed to load',
+      code: 'worker_failed',
+    })
+
+    postCorpusRequest(request(6))
+    expect(BlockedWorker.attempts).toBe(2)
   })
 
   it('reports unavailable without Worker and ignores posts', () => {

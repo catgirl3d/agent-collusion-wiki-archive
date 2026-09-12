@@ -2,8 +2,11 @@ import type { CorpusWorkerRequest, CorpusWorkerResponse } from './corpus'
 
 export type CorpusWorkerListener = (message: CorpusWorkerResponse) => void
 
+const WORKER_FAILED_MESSAGE = 'corpus search worker failed to load'
+
 let worker: Worker | null = null
 let nextRequestId = 0
+let lastRequestId = 0
 let listeners = new Set<CorpusWorkerListener>()
 
 export function isCorpusWorkerAvailable(): boolean {
@@ -25,7 +28,19 @@ export function subscribeCorpusWorker(listener: CorpusWorkerListener): () => voi
 }
 
 export function postCorpusRequest(request: CorpusWorkerRequest): void {
+  lastRequestId = request.requestId
   getSharedWorker()?.postMessage(request)
+}
+
+function broadcast(message: CorpusWorkerResponse): void {
+  for (const listener of [...listeners]) listener(message)
+}
+
+// A worker that fails to load (missing chunk, parse error, CSP) or dies from an uncaught error never
+// answers, so without this the page would keep loading forever. Report the failure under the latest
+// request id so the page's request filter accepts it as the answer to its current request.
+function reportWorkerFailure(): void {
+  broadcast({ type: 'error', requestId: lastRequestId, error: WORKER_FAILED_MESSAGE, code: 'worker_failed' })
 }
 
 // The singleton is the point: the worker keeps the decoded corpus and the page map in memory for
@@ -33,10 +48,25 @@ export function postCorpusRequest(request: CorpusWorkerRequest): void {
 function getSharedWorker(): Worker | null {
   if (!isCorpusWorkerAvailable()) return null
   if (!worker) {
-    worker = new Worker(new URL('../workers/corpusSearch.worker.ts', import.meta.url), { type: 'module' })
-    worker.onmessage = (event: MessageEvent<CorpusWorkerResponse>) => {
-      for (const listener of [...listeners]) listener(event.data)
+    let created: Worker
+    try {
+      created = new Worker(new URL('../workers/corpusSearch.worker.ts', import.meta.url), { type: 'module' })
+    } catch {
+      reportWorkerFailure()
+      return null
     }
+    created.onmessage = (event: MessageEvent<CorpusWorkerResponse>) => {
+      broadcast(event.data)
+    }
+    created.onerror = () => {
+      // Drop the dead instance so the next request retries with a fresh worker; a late error from
+      // an already replaced worker must not surface as a failure of the current request.
+      const isCurrent = worker === created
+      if (isCurrent) worker = null
+      created.terminate()
+      if (isCurrent) reportWorkerFailure()
+    }
+    worker = created
   }
   return worker
 }
@@ -46,5 +76,6 @@ export function resetCorpusWorkerForTests(): void {
   worker?.terminate()
   worker = null
   nextRequestId = 0
+  lastRequestId = 0
   listeners = new Set()
 }

@@ -8,6 +8,7 @@ import Search from './Search'
 class FakeWorker {
   static instances: FakeWorker[] = []
   onmessage: ((event: MessageEvent<CorpusWorkerResponse>) => void) | null = null
+  onerror: (() => void) | null = null
   messages: CorpusWorkerRequest[] = []
   terminated = false
 
@@ -25,6 +26,10 @@ class FakeWorker {
 
   respond(payload: CorpusWorkerResponse) {
     this.onmessage?.({ data: payload } as MessageEvent<CorpusWorkerResponse>)
+  }
+
+  fail() {
+    this.onerror?.()
   }
 }
 
@@ -238,5 +243,30 @@ describe('Search', () => {
       })
     })
     expect(await screen.findByText(/0 matching revisions/)).toBeInTheDocument()
+  })
+
+  it('shows a load failure instead of staying on the loading state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(screen.getByText('starting…')).toBeInTheDocument()
+
+    act(() => {
+      worker.fail()
+    })
+
+    expect(await screen.findByText(/corpus search worker failed to load/)).toBeInTheDocument()
+    expect(screen.getByText(/worker_failed/)).toBeInTheDocument()
+    expect(screen.queryByText('starting…')).toBeNull()
   })
 })
