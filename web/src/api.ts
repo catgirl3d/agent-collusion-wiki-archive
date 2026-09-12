@@ -17,6 +17,10 @@ export function loadJson<T>(path: string): Promise<T> {
   return p as Promise<T>
 }
 
+export function clearJsonCacheForTests(): void {
+  cache.clear()
+}
+
 export function revisionFile(pageId: string, slug?: string): string {
   return `revisions/${slug || slugify(pageId)}.json`
 }

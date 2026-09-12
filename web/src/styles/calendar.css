@@ -1,0 +1,114 @@
+.cal {
+  position: relative;
+  display: inline-flex;
+}
+
+.cal-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 118px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cal-trigger.has-value {
+  color: var(--text);
+  border-color: var(--border-accent);
+}
+
+.cal-placeholder {
+  color: #64748b;
+}
+
+.cal-caret {
+  color: var(--muted-text);
+  font-size: 10px;
+}
+
+.cal-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  min-width: 198px;
+  padding: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cal-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.cal-nav {
+  padding: 2px 7px;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-dow {
+  color: var(--muted-text);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2px 0 4px;
+}
+
+.cal-day {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.cal-day:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: var(--border-accent);
+  color: #fff;
+}
+
+.cal-day.selected {
+  background: rgba(56, 189, 248, 0.3);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.cal-day:disabled {
+  background: transparent;
+  color: #475569;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.cal-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
