@@ -39,7 +39,12 @@ let summary: Summary | null = null
 let version = ''
 let loadPromise: Promise<{ records: CorpusRecord[]; pages: CorpusPageMap }> | null = null
 const SEARCH_CACHE_CAPACITY = 20
-const searchCache = createLruCache<string, ReturnType<typeof searchRecords>>(SEARCH_CACHE_CAPACITY)
+const SEARCH_CACHE_MAX_MATCHES = 20_000
+const searchCache = createLruCache<string, ReturnType<typeof searchRecords>>(
+  SEARCH_CACHE_CAPACITY,
+  SEARCH_CACHE_MAX_MATCHES,
+  (matches) => matches.length,
+)
 
 let pending: CorpusWorkerRequest | null = null
 let running = false
@@ -138,7 +143,6 @@ async function runSearch(request: CorpusWorkerRequest) {
   return {
     q,
     case_sensitive: request.caseSensitive,
-    whole_word: Boolean(request.wholeWord),
     total: matches.length,
     limit,
     offset,

@@ -177,7 +177,6 @@ export interface CorpusMatch {
 export interface CorpusSearchResult {
   q: string
   case_sensitive: boolean
-  whole_word?: boolean
   total: number
   limit: number
   offset: number

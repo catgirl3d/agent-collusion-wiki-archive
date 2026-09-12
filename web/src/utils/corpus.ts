@@ -26,23 +26,61 @@ export function isWordChar(char: string): boolean {
   return /[\p{L}\p{N}_]/u.test(char)
 }
 
-export function findMatchIndices(body: string, query: string, caseSensitive: boolean, wholeWord = false): number[] {
-  const haystack = caseSensitive ? body : body.toLowerCase()
-  const needle = caseSensitive ? query : query.toLowerCase()
-  const indices: number[] = []
-  if (!needle) return indices
-  let index = haystack.indexOf(needle)
-  while (index !== -1) {
-    const before = index > 0 ? isWordChar(haystack[index - 1]) : false
-    const after = index + needle.length < haystack.length ? isWordChar(haystack[index + needle.length]) : false
-    if (!wholeWord || (!before && !after)) {
-      indices.push(index)
-      index = haystack.indexOf(needle, index + needle.length)
-    } else {
-      index = haystack.indexOf(needle, index + 1)
-    }
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function codePointBefore(text: string, index: number): string {
+  if (index <= 0) return ''
+  const code = text.charCodeAt(index - 1)
+  if (code >= 0xdc00 && code <= 0xdfff && index >= 2) {
+    const lead = text.charCodeAt(index - 2)
+    if (lead >= 0xd800 && lead <= 0xdbff) return text.slice(index - 2, index)
   }
-  return indices
+  return text[index - 1]
+}
+
+function codePointAfter(text: string, index: number): string {
+  if (index >= text.length) return ''
+  const code = text.codePointAt(index)
+  return code === undefined ? '' : String.fromCodePoint(code)
+}
+
+function scanMatchRanges(
+  body: string,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord: boolean,
+  visit: (start: number, end: number) => void,
+): void {
+  if (!query) return
+  const pattern = new RegExp(escapeRegExp(query), caseSensitive ? 'gu' : 'giu')
+  let match = pattern.exec(body)
+  while (match !== null) {
+    const start = match.index
+    const end = start + match[0].length
+    const insideWord = wholeWord && (isWordChar(codePointBefore(body, start)) || isWordChar(codePointAfter(body, end)))
+    if (insideWord) {
+      pattern.lastIndex = start + 1
+    } else {
+      visit(start, end)
+      pattern.lastIndex = end
+    }
+    match = pattern.exec(body)
+  }
+}
+
+export function findMatchRanges(
+  body: string,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord = false,
+): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = []
+  scanMatchRanges(body, query, caseSensitive, wholeWord, (start, end) => {
+    ranges.push({ start, end })
+  })
+  return ranges
 }
 
 export function countOccurrences(
@@ -51,8 +89,13 @@ export function countOccurrences(
   caseSensitive: boolean,
   wholeWord = false,
 ): { count: number; first: number } {
-  const indices = findMatchIndices(body, query, caseSensitive, wholeWord)
-  return { count: indices.length, first: indices[0] ?? -1 }
+  let count = 0
+  let first = -1
+  scanMatchRanges(body, query, caseSensitive, wholeWord, (start) => {
+    if (first === -1) first = start
+    count += 1
+  })
+  return { count, first }
 }
 
 export function snippetAround(body: string, index: number, length: number): string {

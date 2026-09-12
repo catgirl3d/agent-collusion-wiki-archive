@@ -318,4 +318,29 @@ describe('Search', () => {
     expect(marks).toHaveLength(1)
     expect(marks[0]).toHaveTextContent('User')
   })
+
+  it('highlights queries whose whitespace was collapsed in the snippet', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=a%20%20b']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ q: 'a  b' })
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'a b', 'a  b'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    const marks = document.querySelectorAll('mark.mark-search')
+    expect(marks).toHaveLength(1)
+    expect(marks[0]).toHaveTextContent('a b')
+  })
 })

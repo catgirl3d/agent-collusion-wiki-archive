@@ -5,7 +5,7 @@ import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
-import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY, findMatchIndices } from '../utils/corpus'
+import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY, findMatchRanges } from '../utils/corpus'
 import { fmtBytes, fmtInt, fmtTime } from '../utils/format'
 
 const PAGE_SIZE = 20
@@ -52,21 +52,21 @@ function HighlightSnippet({
   const q = query.trim()
   if (!q) return <>{snippet}</>
 
-  const indices = findMatchIndices(snippet, q, caseSensitive, wholeWord)
-  if (!indices.length) return <>{snippet}</>
+  const ranges = findMatchRanges(snippet, q.replace(/\s+/g, ' '), caseSensitive, wholeWord)
+  if (!ranges.length) return <>{snippet}</>
 
   const parts: React.ReactNode[] = []
   let lastIndex = 0
-  for (const index of indices) {
-    if (index > lastIndex) {
-      parts.push(snippet.slice(lastIndex, index))
+  for (const { start, end } of ranges) {
+    if (start > lastIndex) {
+      parts.push(snippet.slice(lastIndex, start))
     }
     parts.push(
-      <mark key={index} className="mark-search">
-        {snippet.slice(index, index + q.length)}
+      <mark key={start} className="mark-search">
+        {snippet.slice(start, end)}
       </mark>,
     )
-    lastIndex = index + q.length
+    lastIndex = end
   }
 
   if (lastIndex < snippet.length) {

@@ -5,9 +5,23 @@ export type LruCache<K, V> = {
   readonly size: number
 }
 
-export function createLruCache<K, V>(capacity: number): LruCache<K, V> {
+export function createLruCache<K, V>(
+  capacity: number,
+  maxCost = Number.POSITIVE_INFINITY,
+  costOf: (value: V) => number = () => 1,
+): LruCache<K, V> {
   if (!Number.isInteger(capacity) || capacity < 1) throw new Error('capacity must be a positive integer')
+  if (maxCost < 1) throw new Error('maxCost must be at least 1')
   const entries = new Map<K, V>()
+  let cost = 0
+
+  const remove = (key: K): void => {
+    const value = entries.get(key)
+    if (value === undefined) return
+    entries.delete(key)
+    cost -= costOf(value)
+  }
+
   return {
     get(key: K): V | undefined {
       const value = entries.get(key)
@@ -17,15 +31,20 @@ export function createLruCache<K, V>(capacity: number): LruCache<K, V> {
       return value
     },
     set(key: K, value: V): void {
-      entries.delete(key)
+      remove(key)
+      const valueCost = costOf(value)
+      if (valueCost > maxCost) return
       entries.set(key, value)
-      if (entries.size > capacity) {
+      cost += valueCost
+      while (entries.size > capacity || cost > maxCost) {
         const oldest = entries.keys().next()
-        if (!oldest.done) entries.delete(oldest.value)
+        if (oldest.done) break
+        remove(oldest.value)
       }
     },
     clear(): void {
       entries.clear()
+      cost = 0
     },
     get size(): number {
       return entries.size
