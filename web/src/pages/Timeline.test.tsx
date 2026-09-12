@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import Timeline from './Timeline'
+
+const loadJsonMock = vi.hoisted(() => vi.fn())
+vi.mock('../api', () => ({ loadJson: loadJsonMock }))
 
 const timeline = {
   meta: { schema_version: 1, export_generated_at: '2026-06-21T00:00:00Z', count: 2, order: 'time_desc' },
@@ -17,14 +20,16 @@ const activity = [
 ]
 
 describe('Timeline', () => {
+  afterEach(() => {
+    loadJsonMock.mockReset()
+  })
+
   it('applies the label filter from the URL and renders rows', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const path = new URL(String(input), 'http://localhost').pathname
-      if (path === '/data/timeline.json') return Promise.resolve({ ok: true, json: async () => timeline } as Response)
-      if (path === '/data/activity_by_day.json') return Promise.resolve({ ok: true, json: async () => activity } as Response)
+    loadJsonMock.mockImplementation((path: string) => {
+      if (path === 'timeline.json') return Promise.resolve(timeline)
+      if (path === 'activity_by_day.json') return Promise.resolve(activity)
       return Promise.reject(new Error(`Unexpected data request: ${path}`))
     })
-    vi.stubGlobal('fetch', fetchMock)
 
     render(
       <MemoryRouter initialEntries={['/timeline?label=AgentX']}>

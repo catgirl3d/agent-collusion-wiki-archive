@@ -5,6 +5,9 @@ import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
 import { resetCorpusWorkerForTests } from '../utils/corpusWorkerClient'
 import Search from './Search'
 
+const loadJsonMock = vi.hoisted(() => vi.fn())
+vi.mock('../api', () => ({ loadJson: loadJsonMock }))
+
 class FakeWorker {
   static instances: FakeWorker[] = []
   onmessage: ((event: MessageEvent<CorpusWorkerResponse>) => void) | null = null
@@ -80,22 +83,22 @@ function matchResult(requestId: number, snippet: string, q: string): CorpusWorke
 }
 
 afterEach(() => {
+  loadJsonMock.mockReset()
   resetCorpusWorkerForTests()
   FakeWorker.instances = []
 })
 
-function stubSearchFetch(summaryData: unknown = summary) {
-  return vi.fn((input: RequestInfo | URL) => {
-    const path = new URL(String(input), 'http://localhost').pathname
-    if (path === '/data/summary.json') return Promise.resolve({ ok: true, json: async () => summaryData } as Response)
-    if (path === '/data/activity_by_day.json') return Promise.resolve({ ok: true, json: async () => activity } as Response)
+function stubSearchData(summaryData: unknown = summary) {
+  loadJsonMock.mockImplementation((path: string) => {
+    if (path === 'summary.json') return Promise.resolve(summaryData)
+    if (path === 'activity_by_day.json') return Promise.resolve(activity)
     return Promise.reject(new Error(`Unexpected data request: ${path}`))
   })
 }
 
 describe('Search', () => {
   it('uses the archive calendar for both date filters', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
 
     render(
       <MemoryRouter initialEntries={['/search']}>
@@ -120,7 +123,7 @@ describe('Search', () => {
   })
 
   it('renders matches as inert text after a submitted search', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -176,7 +179,7 @@ describe('Search', () => {
   })
 
   it('clears stale matches when the URL query changes', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
@@ -235,7 +238,7 @@ describe('Search', () => {
   })
 
   it('shows worker errors with their code', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -262,7 +265,7 @@ describe('Search', () => {
   })
 
   it('triggers search with wholeWord and caseSensitive filters when toggled', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -287,7 +290,7 @@ describe('Search', () => {
   })
 
   it('re-runs an identical search instead of hanging on starting…', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -318,7 +321,7 @@ describe('Search', () => {
   })
 
   it('highlights only whole-word matches in the snippet', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -342,7 +345,7 @@ describe('Search', () => {
   })
 
   it('highlights only case-sensitive matches in the snippet', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -366,7 +369,7 @@ describe('Search', () => {
   })
 
   it('highlights queries whose whitespace was collapsed in the snippet', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -391,7 +394,7 @@ describe('Search', () => {
   })
 
   it('loads the full revision body on demand and collapses it again', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -439,7 +442,7 @@ describe('Search', () => {
   })
 
   it('retries loading the full revision body after a worker error', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -484,7 +487,7 @@ describe('Search', () => {
   })
 
   it('ignores a late revision body response after the search changes', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -522,7 +525,7 @@ describe('Search', () => {
   })
 
   it('keeps one worker alive when leaving and returning to the search page', async () => {
-    vi.stubGlobal('fetch', stubSearchFetch())
+    stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     const router = createMemoryRouter(
