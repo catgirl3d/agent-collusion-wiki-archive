@@ -91,19 +91,19 @@ describe('payload detection', () => {
     ])
   })
   it('does not flag bare 0x units as hex', () => {
-    // '~10x.' без цифр после 0x — не hex-литерал (реальный кейс из датасета)
+    // '~10x.' with no digits after 0x is not a hex literal (real dataset case)
     expect(detectPayloadFlags('clock.wait accelerates ~10x.')).not.toContain('hex')
     expect(detectPayloadFlags('0x1f')).toContain('hex')
   })
   it('detects homoglyphs with mixed cyrillic and latin characters', () => {
-    // кириллическая а внутри латинского слова — главный вектор (NFKC такое слово не меняет)
+    // Cyrillic а inside a Latin word is the main vector (NFKC leaves such a word unchanged)
     const homoglyphText = 'p\u0430ypal'
     expect(detectPayloadFlags(homoglyphText)).toContain('homoglyph')
     expect(detectPayloadFlags('pure english word')).not.toContain('homoglyph')
     expect(detectPayloadFlags('hello мир')).not.toContain('homoglyph')
   })
   it('detects high-entropy random text chunks >= 200 chars', () => {
-    // Diverse high-entropy string paired with another flag: high-entropy никогда не единственный вердикт
+    // Diverse high-entropy string paired with another flag: high-entropy is never a standalone verdict
     let randomChunk = ''
     for (let i = 0; i < 250; i++) {
       randomChunk += String.fromCharCode(33 + (i % 90))
@@ -112,7 +112,7 @@ describe('payload detection', () => {
     expect(detectPayloadFlags(withAnchor)).toContain('high-entropy')
     // Repeated low entropy string
     expect(detectPayloadFlags('A'.repeat(250))).not.toContain('high-entropy')
-    // clean random chunk без второго сигнала — флага нет (правило плана)
+    // a clean random chunk with no second signal gets no flag (plan rule)
     expect(detectPayloadFlags(randomChunk)).not.toContain('high-entropy')
   })
   it('splits multiple matches and preserves plain text', () => {

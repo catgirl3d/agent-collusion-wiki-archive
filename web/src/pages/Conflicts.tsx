@@ -34,8 +34,8 @@ export default function Conflicts() {
   }, [conflicts, deferredQuery, frontOnly, names, zzzOnly])
 
   const error = conflictsError ?? pagesError
-  if (error) return <div className="error">Ошибка: {error}</div>
-  if (!conflicts || !pages) return <div className="loading">Загрузка…</div>
+  if (error) return <div className="error">Error: {error}</div>
+  if (!conflicts || !pages) return <div className="loading">Loading…</div>
 
   const pagesCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, pagesCount - 1)

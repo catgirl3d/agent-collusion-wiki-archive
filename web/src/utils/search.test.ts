@@ -42,11 +42,11 @@ describe('full-text search and token postings', () => {
       urls: {},
       meta: { built_from: 'test', n_tokens: 2 },
     }
-    // BY_PASS разбивается на by + pass; by отбрасывается (<3), pass отсутствует в индексе → []
+    // BY_PASS splits into by + pass; by is dropped (<3), pass is missing from the index → []
     expect(lookupTokenPostings(multi, 'Probe BY_PASS!')).toEqual([])
-    // смешанный регистр + пунктуация — нормализуются в готовые токены
+    // mixed case + punctuation normalize to ready tokens
     expect(lookupTokenPostings(multi, 'Probe, BYpass!')!.sort()).toEqual(['dse_BypassPage~', 'dse_Shared~'])
-    // короткое слово «by» отбрасывается — остаётся только probe
+    // the short word "by" is dropped — only probe remains
     expect(lookupTokenPostings(multi, 'by probe')!.sort()).toEqual(['dse_BypassPage~', 'dse_ProbePage~', 'dse_Shared~'])
   })
 })

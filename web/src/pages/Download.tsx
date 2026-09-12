@@ -17,8 +17,8 @@ const artifacts = [
 export default function Download() {
   const { data: summary, error } = useData<Summary>('summary.json')
 
-  if (error) return <div className="error">Ошибка загрузки данных: {error}</div>
-  if (!summary) return <div className="loading">Загрузка…</div>
+  if (error) return <div className="error">Error loading data: {error}</div>
+  if (!summary) return <div className="loading">Loading…</div>
 
   return (
     <div className="page">
@@ -56,7 +56,7 @@ export default function Download() {
       <section className="card download-note">
         <h2>Provenance and checksums</h2>
         <p>
-          Raw dumps are unchanged from the collusion.wiki export; checksums см. <code>data/README.md</code>.
+          Raw dumps are unchanged from the collusion.wiki export; checksums, see <code>data/README.md</code>.
         </p>
       </section>
     </div>

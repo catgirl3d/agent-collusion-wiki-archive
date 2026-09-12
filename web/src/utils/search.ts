@@ -3,14 +3,14 @@ import type { SearchIndex } from '../types'
 const TOKEN_RE = /[a-z0-9]+/g
 
 /**
- * Ищет термин(ы) в полнотекстовом индексе (web/public/data/search_index.json:
- * tokens[term] = [slug,...]). Возвращает null, когда индекс недоступен или после
- * токенизации не осталось слов ≥ 3 символов (минимум токенизатора build.py) —
- * тогда фулл-текст-фильтр не применяется. Многословные запросы дают пересечение
- * постингов всех слов (AND); [] когда любое слово отсутствует или постингов нет.
- * Постинги обрезаны build.py (150 slug'ов на токен) — результат приблизительный.
- * Подчёркивания трактуются как разделители («by_pass» → by + pass): тот же смысл,
- * что в именах страниц, где by_pass встречается как отдельные слова токенизатора.
+ * Looks up term(s) in the full-text index (web/public/data/search_index.json:
+ * tokens[term] = [slug,...]). Returns null when the index is unavailable or
+ * tokenization leaves no words ≥ 3 chars (build.py tokenizer minimum) —
+ * the full-text filter is not applied then. Multi-word queries intersect
+ * the postings of all words (AND); [] when any word is missing or has no postings.
+ * Postings are truncated by build.py (150 slugs per token) — the result is approximate.
+ * Underscores are treated as separators ("by_pass" → by + pass): same semantics
+ * as in page names, where by_pass appears as separate tokenizer words.
  */
 export function lookupTokenPostings(index: SearchIndex | null | undefined, term: string): string[] | null {
   const words = term.trim().toLowerCase().replace(/[^a-z0-9\s]+/g, ' ').match(TOKEN_RE)?.filter((w) => w.length >= 3) ?? []

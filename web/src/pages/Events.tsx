@@ -34,8 +34,8 @@ export default function Events() {
     })
   }, [data, day, type, deferredQuery])
 
-  if (error) return <div className="error">Ошибка: {error}</div>
-  if (!data) return <div className="loading">Загрузка…</div>
+  if (error) return <div className="error">Error: {error}</div>
+  if (!data) return <div className="loading">Loading…</div>
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const cur = Math.min(page, pages - 1)

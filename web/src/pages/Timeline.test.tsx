@@ -28,7 +28,7 @@ describe('Timeline', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Загрузка…')).toBeInTheDocument()
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
     await screen.findByRole('link', { name: 'PageB' })
     expect(screen.queryByRole('link', { name: 'PageA' })).toBeNull()
     expect(screen.getByText(/1 of 2 revisions/)).toBeInTheDocument()

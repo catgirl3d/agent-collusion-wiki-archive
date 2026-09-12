@@ -56,8 +56,8 @@ export default function Dashboard() {
   }, [byDay])
 
   const err = errSummary ?? errDay ?? errHour ?? errEvents
-  if (err) return <div className="error">Ошибка загрузки данных: {err}</div>
-  if (!summary || !byDay || !byHour || !events) return <div className="loading">Загрузка…</div>
+  if (err) return <div className="error">Error loading data: {err}</div>
+  if (!summary || !byDay || !byHour || !events) return <div className="loading">Loading…</div>
 
   const topEvents = events.slice(0, 24)
 

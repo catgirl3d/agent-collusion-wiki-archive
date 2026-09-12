@@ -11,7 +11,7 @@ const RESULT_LIMIT = 50
 export default function Agents() {
   const { data, error } = useData<LabelsIndex>('labels.json')
   const [searchParams] = useSearchParams()
-  // URL ?q= — внешний источник истины: применяем как key-reset при смене параметра
+  // URL ?q= is the external source of truth: applied as a key-reset when the param changes
   const urlQ = searchParams.get('q') ?? ''
   const [query, setQuery] = useState(urlQ)
   const [lastUrlQ, setLastUrlQ] = useState(urlQ)
@@ -34,8 +34,8 @@ export default function Agents() {
     downloadBlob(`agents-slice-${timestamp}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
   }
 
-  if (error) return <div className="error">Ошибка: {error}</div>
-  if (!data) return <div className="loading">Загрузка…</div>
+  if (error) return <div className="error">Error: {error}</div>
+  if (!data) return <div className="loading">Loading…</div>
 
   return (
     <div className="page">
