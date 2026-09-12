@@ -26,3 +26,9 @@ docs/internal/*
 signature_sample*
 context.md
 data/validation/proxy-audit-2026-09-06.md
+.playwright-mcp/*
+*/plans/*
+
+# Private full anna.fyi snapshot (all raw pastes incl. personal ones; never commit)
+data/external/anna-fyi-full-private/
+
