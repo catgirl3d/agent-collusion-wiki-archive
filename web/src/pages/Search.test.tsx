@@ -2,12 +2,14 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
+import { resetCorpusWorkerForTests } from '../utils/corpusWorkerClient'
 import Search from './Search'
 
 class FakeWorker {
   static instances: FakeWorker[] = []
   onmessage: ((event: MessageEvent<CorpusWorkerResponse>) => void) | null = null
   messages: CorpusWorkerRequest[] = []
+  terminated = false
 
   constructor() {
     FakeWorker.instances.push(this)
@@ -17,7 +19,9 @@ class FakeWorker {
     this.messages.push(message)
   }
 
-  terminate() {}
+  terminate() {
+    this.terminated = true
+  }
 
   respond(payload: CorpusWorkerResponse) {
     this.onmessage?.({ data: payload } as MessageEvent<CorpusWorkerResponse>)
@@ -41,6 +45,7 @@ const summary = {
 }
 
 afterEach(() => {
+  resetCorpusWorkerForTests()
   FakeWorker.instances = []
 })
 
@@ -185,5 +190,53 @@ describe('Search', () => {
 
     expect(await screen.findByText(/corpus data does not match summary metadata/)).toBeInTheDocument()
     expect(screen.getByText(/archive_data_invalid/)).toBeInTheDocument()
+  })
+
+  it('keeps one worker alive when leaving and returning to the search page', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const router = createMemoryRouter(
+      [
+        { path: '/search', element: <Search /> },
+        { path: '/dashboard', element: <div>dashboard</div> },
+      ],
+      { initialEntries: ['/search?q=STATE5-ID'] },
+    )
+    render(<RouterProvider router={router} />)
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    act(() => {
+      worker.respond({
+        type: 'result',
+        requestId: worker.messages[0].requestId,
+        result: { q: 'STATE5-ID', case_sensitive: false, total: 0, limit: 20, offset: 0, matches: [] },
+      })
+    })
+    expect(await screen.findByText(/0 matching revisions/)).toBeInTheDocument()
+
+    await act(async () => {
+      await router.navigate('/dashboard')
+    })
+    expect(screen.queryByText(/0 matching revisions/)).toBeNull()
+
+    await act(async () => {
+      await router.navigate('/search?q=STATE5-ID')
+    })
+
+    expect(FakeWorker.instances).toHaveLength(1)
+    expect(worker.terminated).toBe(false)
+
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1].requestId).not.toBe(worker.messages[0].requestId)
+    act(() => {
+      worker.respond({
+        type: 'result',
+        requestId: worker.messages[1].requestId,
+        result: { q: 'STATE5-ID', case_sensitive: false, total: 0, limit: 20, offset: 0, matches: [] },
+      })
+    })
+    expect(await screen.findByText(/0 matching revisions/)).toBeInTheDocument()
   })
 })

@@ -6,6 +6,12 @@ import { Badge, PageLink } from '../components/ui'
 import type { CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
 import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY } from '../utils/corpus'
+import {
+  createCorpusRequestId,
+  isCorpusWorkerAvailable,
+  postCorpusRequest,
+  subscribeCorpusWorker,
+} from '../utils/corpusWorkerClient'
 import { fmtBytes, fmtInt, fmtTime } from '../utils/format'
 
 const PAGE_SIZE = 20
@@ -62,40 +68,29 @@ export default function Search() {
     setState(urlQ.trim() ? { status: 'loading', message: 'starting…' } : { status: 'idle' })
   }
 
-  const workerRef = useRef<Worker | null>(null)
-  const requestCounter = useRef(0)
   const latestRequest = useRef(0)
   const lastRunKey = useRef('')
 
-  const workerUnavailable = typeof Worker === 'undefined'
+  const workerUnavailable = !isCorpusWorkerAvailable()
   const wikis = useMemo(() => Object.keys(summary?.per_wiki ?? {}).sort(), [summary])
 
   useEffect(() => {
     if (workerUnavailable) return
-    const worker = new Worker(new URL('../workers/corpusSearch.worker.ts', import.meta.url), { type: 'module' })
-    worker.onmessage = (event: MessageEvent<CorpusWorkerResponse>) => {
-      const message = event.data
+    return subscribeCorpusWorker((message) => {
       if (!message || message.requestId !== latestRequest.current) return
       if (message.type === 'progress') setState({ status: 'loading', message: progressMessage(message) })
       else if (message.type === 'result') setState({ status: 'ready', result: message.result })
       else setState({ status: 'error', message: message.error, code: message.code })
-    }
-    workerRef.current = worker
-    return () => {
-      worker.terminate()
-      workerRef.current = null
-    }
+    })
   }, [workerUnavailable])
 
   useEffect(() => {
     const q = (searchParams.get('q') ?? '').trim()
     if (!q || workerUnavailable) return
-    const worker = workerRef.current
-    if (!worker) return
     const key = searchParams.toString()
     if (key === lastRunKey.current) return
     lastRunKey.current = key
-    const requestId = ++requestCounter.current
+    const requestId = createCorpusRequestId()
     latestRequest.current = requestId
     const message: CorpusWorkerRequest = {
       type: 'search',
@@ -109,7 +104,7 @@ export default function Search() {
       limit: PAGE_SIZE,
       offset: Math.max(0, Number(searchParams.get('page') ?? '0') || 0) * PAGE_SIZE,
     }
-    worker.postMessage(message)
+    postCorpusRequest(message)
   }, [searchParams, workerUnavailable])
 
   const visibleState: SearchState = urlQ.trim() ? state : { status: 'idle' }
