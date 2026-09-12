@@ -162,7 +162,9 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
 
     let response: Response
     try {
-      response = await fetch(CORPUS_URL, { cache: 'no-store' })
+      // Revalidate with If-None-Match: static assets reply 304 while the corpus is unchanged,
+      // so a reload does not re-download ~3.2 MB. Stale bytes would fail the sha256 check below.
+      response = await fetch(CORPUS_URL, { cache: 'no-cache' })
     } catch {
       throw new CorpusWorkerError('archive_data_unavailable', 'corpus is unavailable')
     }
