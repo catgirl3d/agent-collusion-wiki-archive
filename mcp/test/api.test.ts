@@ -157,6 +157,18 @@ describe('ArchiveApiClient', () => {
     expect((error as ArchiveApiError).message).toHaveLength(300)
     expect((error as ArchiveApiError).code).toHaveLength(64)
   })
+
+  it('serializes revision seq and event date-range filters', async () => {
+    const fetchImpl = vi.fn().mockImplementation(() => Promise.resolve(response({ ok: true })))
+    const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
+
+    await api.getPageRevisions('Slug', { seq: 42, withBody: true })
+    await api.listEvents({ from: '2026-06-01', to: '2026-06-22', limit: 5 })
+
+    expect(String(fetchImpl.mock.calls[0][0])).toBe('https://archive.example/api/pages/Slug/revisions?seq=42&body=1')
+    expect(String(fetchImpl.mock.calls[1][0])).toBe('https://archive.example/api/events?from=2026-06-01&to=2026-06-22&limit=5')
+  })
+
   it.each([
     ['not a url', 'baseUrl must be a valid URL'],
     ['ftp://archive.example', 'baseUrl must use http or https'],

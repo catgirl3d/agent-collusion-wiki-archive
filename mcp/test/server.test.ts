@@ -117,7 +117,7 @@ describe('archive MCP server', () => {
     })
     expect(JSON.parse(String((await client.callTool({ name: 'get_page_revisions', arguments: { slug: 'Page', contains: 'needle' } })).content[0].text))).toEqual({
       slug: 'Page',
-      params: { label: undefined, contains: 'needle', withBody: false, limit: undefined, offset: undefined },
+      params: { label: undefined, contains: 'needle', seq: undefined, withBody: false, limit: undefined, offset: undefined },
     })
   })
 
@@ -156,6 +156,8 @@ describe('archive MCP server', () => {
     expect(listEvents).toHaveBeenCalledWith({
       type: 'save',
       day: undefined,
+      from: undefined,
+      to: undefined,
       q: undefined,
       act: undefined,
       wiki: undefined,

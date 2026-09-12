@@ -30,6 +30,7 @@ export type RevisionListParams = {
   label?: string
   withBody?: boolean
   contains?: string
+  seq?: number
   limit?: number
   offset?: number
 }
@@ -40,6 +41,8 @@ export type EventListParams = {
   q?: string
   act?: string
   wiki?: string
+  from?: string
+  to?: string
   limit?: number
   offset?: number
 }

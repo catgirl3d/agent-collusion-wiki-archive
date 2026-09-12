@@ -16,6 +16,8 @@ import { ArchiveApiClient, ArchiveApiError, MAX_RESPONSE_BYTES } from './api.js'
 const nonEmptyText = (label: string, max = 200) => z.string().trim().min(1).max(max).describe(label)
 const pageLimit = z.number().int().min(1).max(100).optional().describe('Number of rows to return (1-100).')
 const pageOffset = z.number().int().min(0).max(100_000).optional().describe('Number of rows to skip.')
+const utcDate = (label: string) =>
+  z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).describe(`${label} (UTC date, inclusive).`)
 
 function errorResult(text: string, code?: string) {
   const payload = code ? { error: text, code } : { error: text }
@@ -166,22 +168,24 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
     'get_page_revisions',
     {
       title: 'Get page revisions',
-      description: 'Return paginated revisions for one generated page slug (the s field from a page lookup). Bodies are omitted unless include_body is true.',
+      description: 'Return paginated revisions for one generated page slug (the s field from a page lookup). Bodies are omitted unless include_body is true. Pass seq to select one revision from a timeline or corpus hit.',
       inputSchema: {
         slug: nonEmptyText('Exact generated page slug.'),
         label: z.string().trim().max(200).optional().describe('Optional exact agent label filter.'),
         contains: z.string().trim().max(200).optional().describe('Optional case-insensitive raw substring filter; snippets are returned without bodies.'),
+        seq: z.number().int().min(0).optional().describe('Optional exact revision sequence within the page.'),
         include_body: z.boolean().optional().describe('Include saved revision text. Defaults to false.'),
         limit: z.number().int().min(1).max(500).optional().describe('Number of revisions to return (1-500).'),
         offset: pageOffset,
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ slug, label, contains, include_body, limit, offset }) =>
+    async ({ slug, label, contains, seq, include_body, limit, offset }) =>
       call(() =>
         api.getPageRevisions(slug, {
           label,
           contains,
+          seq,
           withBody: include_body ?? false,
           limit,
           offset,
@@ -197,6 +201,8 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
       inputSchema: {
         type: z.enum(['save', 'delete', 'revert', 'probe']).optional().describe('Event type filter (save, delete, revert, or probe).'),
         day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('UTC day in YYYY-MM-DD format.'),
+        from: utcDate('Optional inclusive start date').optional(),
+        to: utcDate('Optional inclusive end date').optional(),
         q: z.string().trim().max(200).optional().describe('Optional substring filter.'),
         act: z.string().trim().max(200).optional().describe('Optional exact event action filter.'),
         wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter.'),
@@ -205,8 +211,8 @@ export function createArchiveMcpServer(api: ArchiveApi = new ArchiveApiClient())
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ type, day, q, act, wiki, limit, offset }) =>
-      call(() => api.listEvents({ type, day, q, act, wiki, limit, offset } satisfies EventListParams)),
+    async ({ type, day, from, to, q, act, wiki, limit, offset }) =>
+      call(() => api.listEvents({ type, day, from, to, q, act, wiki, limit, offset } satisfies EventListParams)),
   )
 
   server.registerTool(
