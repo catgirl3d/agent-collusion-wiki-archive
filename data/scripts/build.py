@@ -144,7 +144,11 @@ def _body_tokens(text: str) -> set[str]:
 
 
 def build_fts_index(pages: list[dict], revisions: list[dict]) -> dict:
-    """Build a body-token index using integer positions from the pages list."""
+    """Builds a complete body-token index using integer positions from the pages list.
+
+    The index is intentionally uncapped: the measured full index stays well below
+    FTS_BUDGET_BYTES, so clients get exact totals instead of adaptive truncation.
+    """
     tokens_by_page: dict[str, set[str]] = defaultdict(set)
     for revision in revisions:
         tokens_by_page[revision["page_id"]].update(_body_tokens(revision.get("body", "")))
@@ -154,34 +158,29 @@ def build_fts_index(pages: list[dict], revisions: list[dict]) -> dict:
         for token in tokens_by_page.get(page["page_id"], ()):
             postings[token].append(page_index)
 
-    caps = (500, 400, 300, 200, 150, 100)
-    for cap in caps:
-        truncated_totals = {
-            token: len(indices)
-            for token, indices in postings.items()
-            if len(indices) > cap
-        }
-        tokens = {token: indices[:cap] for token, indices in sorted(postings.items())}
-        meta = {
-            "pages": "pages.json",
-            "n_tokens": len(tokens),
-            "postings_cap": cap,
-            "truncated_tokens": len(truncated_totals),
-            "truncated_totals": dict(sorted(truncated_totals.items())),
-            "tokenizer": "build.py::_body_tokens",
-            "built_from": "collusion.wiki export",
-        }
-        result = {"tokens": tokens, "meta": meta}
-        serialized_size = len(json.dumps(result, ensure_ascii=False).encode("utf-8"))
-        if serialized_size <= FTS_BUDGET_BYTES:
-            total_postings = sum(len(values) for values in tokens.values())
-            print(
-                f"fts_index: {serialized_size} bytes, n_tokens={len(tokens)}, "
-                f"total_postings={total_postings}, postings_cap={cap}, "
-                f"truncated_tokens={len(truncated_totals)}"
-            )
-            return result
-    raise RuntimeError(f"fts_index exceeds {FTS_BUDGET_BYTES} bytes even at postings cap 100")
+    tokens = {token: indices for token, indices in sorted(postings.items())}
+    meta = {
+        "pages": "pages.json",
+        "n_tokens": len(tokens),
+        "postings_cap": None,
+        "truncated_tokens": 0,
+        "truncated_totals": {},
+        "tokenizer": "build.py::_body_tokens",
+        "built_from": "collusion.wiki export",
+    }
+    result = {"tokens": tokens, "meta": meta}
+    serialized_size = len(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+    if serialized_size > FTS_BUDGET_BYTES:
+        raise RuntimeError(
+            f"fts_index exceeds {FTS_BUDGET_BYTES} bytes without a postings cap "
+            f"({serialized_size} bytes)"
+        )
+    total_postings = sum(len(values) for values in tokens.values())
+    print(
+        f"fts_index: {serialized_size} bytes, n_tokens={len(tokens)}, "
+        f"total_postings={total_postings}, postings_cap=None"
+    )
+    return result
 
 
 _TOKEN_GOLDEN_CASES = [

@@ -122,16 +122,14 @@ def test_fts_is_body_only_with_integer_sorted_unique_postings_and_no_frequency_f
     assert all(0 <= value < len(pages) for values in index["tokens"].values() for value in values)
 
 
-def test_fts_adaptive_cap_and_truncation_metadata(monkeypatch):
+def test_fts_keeps_full_postings_for_common_tokens():
     pages = [_page(f"w/p{index}", "Page") for index in range(600)]
     revisions = [_revision(page["page_id"], 1, "common") for page in pages]
-    monkeypatch.setattr(build, "FTS_BUDGET_BYTES", 2200)
     index = build_fts_index(pages, revisions)
-    cap = index["meta"]["postings_cap"]
-    assert cap < 500
-    assert index["tokens"]["common"] == list(range(cap))
-    assert index["meta"]["truncated_totals"] == {"common": 600}
-    assert index["meta"]["truncated_tokens"] == 1
+    assert index["meta"]["postings_cap"] is None
+    assert index["meta"]["truncated_tokens"] == 0
+    assert index["meta"]["truncated_totals"] == {}
+    assert index["tokens"]["common"] == list(range(600))
 
 
 def test_fts_preserves_tokens_present_on_every_page():
@@ -146,9 +144,9 @@ def test_fts_includes_tokens_from_older_revisions():
     assert {"oldertoken", "newertoken"} <= build_fts_index(pages, revisions)["tokens"].keys()
 
 
-def test_fts_fails_when_budget_is_too_small_at_lowest_cap(monkeypatch):
+def test_fts_budget_guard_fails_closed_when_uncapped_index_is_too_large(monkeypatch):
     monkeypatch.setattr(build, "FTS_BUDGET_BYTES", 1)
-    with pytest.raises(RuntimeError, match="postings cap 100"):
+    with pytest.raises(RuntimeError, match="without a postings cap"):
         build_fts_index([_page("w/p0", "Page")], [_revision("w/p0", 1, "token")])
 
 
