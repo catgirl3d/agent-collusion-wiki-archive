@@ -97,7 +97,7 @@ describe('Worker API default fetch handler', () => {
 
     const method = await request('/api/health', { method: 'POST' })
     expect(method.response.status).toBe(405)
-    expect(await json(method.response)).toEqual({ error: 'method not allowed, use GET' })
+    expect(await json(method.response)).toEqual({ error: 'method not allowed, use GET', code: 'method_not_allowed' })
   })
 
   it('falls back static and preserves non-API request', async () => {
@@ -140,12 +140,12 @@ describe('Worker API default fetch handler', () => {
   })
 
   it.each([
-    ['/api/pages/by-id', 400, 'missing ?id=<page_id>'],
-    ['/api/pages/by-id?id=wiki%2Fmissing', 404, 'page not found'],
-  ])('handles by-id error %s', async (path, status, error) => {
+    ['/api/pages/by-id', 400, 'missing ?id=<page_id>', 'missing_param'],
+    ['/api/pages/by-id?id=wiki%2Fmissing', 404, 'page not found', 'not_found'],
+  ])('handles by-id error %s', async (path, status, error, code) => {
     const result = await request(path)
     expect(result.response.status).toBe(status)
-    expect(await json(result.response)).toEqual({ error })
+    expect(await json(result.response)).toEqual({ error, code })
   })
 
   it('returns a page by exact id', async () => {
@@ -155,12 +155,12 @@ describe('Worker API default fetch handler', () => {
   })
 
   it.each([
-    ['/api/pages/bad%20slug', 400, 'invalid slug'],
-    ['/api/pages/Missing~_h00000000', 404, 'page not found'],
-  ])('handles page slug error %s', async (path, status, error) => {
+    ['/api/pages/bad%20slug', 400, 'invalid slug', 'invalid_slug'],
+    ['/api/pages/Missing~_h00000000', 404, 'page not found', 'not_found'],
+  ])('handles page slug error %s', async (path, status, error, code) => {
     const result = await request(path)
     expect(result.response.status).toBe(status)
-    expect(await json(result.response)).toEqual({ error })
+    expect(await json(result.response)).toEqual({ error, code })
   })
 
   it('returns page metadata by slug', async () => {
@@ -184,7 +184,7 @@ describe('Worker API default fetch handler', () => {
     expect(invalid.response.status).toBe(400)
     const missing = await request('/api/pages/Unknown~_h00000000/revisions')
     expect(missing.response.status).toBe(404)
-    expect(await json(missing.response)).toEqual({ error: 'revisions not found for slug' })
+    expect(await json(missing.response)).toEqual({ error: 'revisions not found for slug', code: 'not_found' })
   })
 
   it('clears a rejected asset cache entry so a later request retries', async () => {
@@ -208,12 +208,12 @@ describe('Worker API default fetch handler', () => {
   })
 
   it.each([
-    [`/api/agents/${'a'.repeat(201)}`, 400, 'invalid agent name'],
-    ['/api/agents/Unknown', 404, 'agent not found'],
-  ])('handles agent detail error %s', async (path, status, error) => {
+    [`/api/agents/${'a'.repeat(201)}`, 400, 'invalid agent name', 'invalid_param'],
+    ['/api/agents/Unknown', 404, 'agent not found', 'not_found'],
+  ])('handles agent detail error %s', async (path, status, error, code) => {
     const result = await request(path)
     expect(result.response.status).toBe(status)
-    expect(await json(result.response)).toEqual({ error })
+    expect(await json(result.response)).toEqual({ error, code })
   })
 
   it('returns agent detail with full page pointers', async () => {
@@ -326,7 +326,7 @@ describe('Worker API default fetch handler', () => {
   it('requires search query and returns page and agent hits', async () => {
     const missing = await request('/api/search')
     expect(missing.response.status).toBe(400)
-    expect(await json(missing.response)).toEqual({ error: 'missing ?q=' })
+    expect(await json(missing.response)).toEqual({ error: 'missing ?q=', code: 'missing_param' })
 
     const result = await request('/api/search?q=alice&limit=1')
     expect(await json(result.response)).toEqual({ q: 'alice', ftsBodies: false,
@@ -337,10 +337,23 @@ describe('Worker API default fetch handler', () => {
   it('returns unknown route and converts asset failures to 500', async () => {
     const unknown = await request('/api/nope')
     expect(unknown.response.status).toBe(404)
-    expect(await json(unknown.response)).toEqual({ error: 'unknown api route, see /api/openapi' })
+    expect(await json(unknown.response)).toEqual({ error: 'unknown api route, see /api/openapi', code: 'not_found' })
 
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const failure = await request('/api/stats', {}, { '/data/summary.json': new Response('broken', { status: 503 }) })
     expect(failure.response.status).toBe(500)
-    expect(await json(failure.response)).toEqual({ error: 'asset /data/summary.json: HTTP 503' })
+    expect(await json(failure.response)).toEqual({ error: 'internal error', code: 'internal_error' })
+    logged.mockRestore()
+  })
+
+  it('logs internal asset failures without leaking their details to clients', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const failure = await request('/api/stats', {}, { '/data/summary.json': new Response('broken', { status: 503 }) })
+    const body = await json(failure.response)
+
+    expect(body).toEqual({ error: 'internal error', code: 'internal_error' })
+    expect(JSON.stringify(body)).not.toContain('/data/summary.json')
+    expect(logged).toHaveBeenCalledWith('archive worker request failed', expect.any(Error))
+    logged.mockRestore()
   })
 })
