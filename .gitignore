@@ -26,3 +26,7 @@ docs/internal/*
 signature_sample*
 context.md
 data/validation/proxy-audit-2026-09-06.md
+.playwright-mcp/*
+.kilo/plans/1789130204020-research-discovery-search-plan.md
+.kilo/plans/1789161130982-mcp-findings-fixes-plan.md
+.kilo/plans/1789164683259-timeline-corpus-errors.md
