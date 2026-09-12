@@ -12,7 +12,7 @@ describe('loadJson cache', () => {
     vi.restoreAllMocks()
   })
 
-  it('возвращает данные из сети и кеширует успешный ответ', async () => {
+  it('returns data from the network and caches a successful response', async () => {
     const fetchMock = mockFetchOnce(200)
     vi.stubGlobal('fetch', fetchMock)
 
@@ -25,7 +25,7 @@ describe('loadJson cache', () => {
     expect(fetchMock).toHaveBeenCalledWith(`${DATA_BASE}/pages.json`)
   })
 
-  it('выбрасывает ошибку при HTTP-статусе и не кеширует отклонённый промис', async () => {
+  it('throws on an HTTP error status and does not cache the rejected promise', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response('not found', { status: 404 }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -34,7 +34,7 @@ describe('loadJson cache', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
-  it('повторяет сетевую ошибку вместо вечного кеширования отклонённого промиса', async () => {
+  it('retries after a network error instead of caching the rejection forever', async () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))

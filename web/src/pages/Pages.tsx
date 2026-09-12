@@ -34,12 +34,12 @@ export default function Pages() {
   const day = searchParams.get('day') ?? ''
 
   const deferredQuery = useDeferredValue(query)
-  // полнотекстовый индекс нужен только для запросов ≥3 символов (минимум токенизатора build.py)
+  // the full-text index is only needed for queries of ≥3 chars (build.py tokenizer minimum)
   const needsIndex = deferredQuery.trim().length >= 3
   const { data: searchIndex } = useData<SearchIndex>('search_index.json')
-  // payload-индекс лёгкий (~70 КБ) — грузится для колонки бейджей и фильтра по флагу
+  // the payload index is small (~70 KB) — loaded for the badge column and flag filter
   const { data: payloadIndex } = useData<PayloadRecord[]>('payload_index.json')
-  // активность по дням — для подсказки, когда за день не было правок текста (только удаления)
+  // per-day activity — for the hint shown when a day has no text edits (deletions only)
   const { data: activity } = useData<DayActivity[]>('activity_by_day.json')
 
   const payloadByPage = useMemo(() => {
@@ -92,8 +92,8 @@ export default function Pages() {
     })
   }
 
-  if (error) return <div className="error">Ошибка: {error}</div>
-  if (!data || loading) return <div className="loading">Загрузка…</div>
+  if (error) return <div className="error">Error: {error}</div>
+  if (!data || loading) return <div className="loading">Loading…</div>
 
   const shown = filtered.slice(0, limit)
 

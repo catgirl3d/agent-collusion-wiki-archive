@@ -11,7 +11,7 @@ const TUNNEL_RE = /(?:pinggy|serveo|localhost\.run|localtunnel)/gi
 const REDIRECT_RE = /(?:markdown\.new|r\.jina\.ai)/gi
 const URL_RE = /https?:\/\/[^\s<>'"]+/gi
 const URL_TRIM_CHARS = '.,;:!?)"]'
-// слово, содержащее и латиницу, и кириллицу (NFKC-дифф не гейт — NFKC не меняет кириллицу внутри латинского слова)
+// a word containing both Latin and Cyrillic (NFKC mismatch is not a gate — NFKC does not change Cyrillic inside a Latin word)
 const LATIN_RE = /[A-Za-z]/
 const CYRILLIC_RE = /[\u0400-\u04ff]/
 
@@ -199,7 +199,7 @@ export function detectPayloadFlags(body: string): string[] {
   if (body.split(/\s+/).some((word) => LATIN_RE.test(word) && CYRILLIC_RE.test(word))) flags.push('homoglyph')
   if (hasMatch(body, TUNNEL_RE)) flags.push('tunnel')
   if (hasMatch(body, REDIRECT_RE)) flags.push('redirect')
-  // high-entropy никогда не единственный вердикт (зеркало build.py)
+  // high-entropy is never a standalone verdict (mirrors build.py)
   if (flags.length > 0 && body.split(/\s+/).some((chunk) => chunk.length >= 200 && shannonEntropy(chunk) > 4.5)) {
     flags.push('high-entropy')
   }
@@ -227,7 +227,7 @@ export function highlightMatches(body: string): PayloadSegment[] {
   return segments.length ? segments : [{ text: body }]
 }
 
-// Цвета бейджей payload-флагов: единая палитра для списков и карточек страниц
+// Payload flag badge colors: one palette for lists and page cards
 export const PAYLOAD_FLAG_COLORS: Record<string, string> = {
   inject: '#fb7185', script: '#fb7185', b64: '#fbbf24', hex: '#f59e0b', 'high-entropy': '#f59e0b',
   tunnel: '#60a5fa', redirect: '#38bdf8', homoglyph: '#a855f7',

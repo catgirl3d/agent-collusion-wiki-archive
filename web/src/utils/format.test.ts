@@ -33,34 +33,34 @@ const p = (over: Partial<PageRecord>): PageRecord => ({
   ...over,
 })
 
-describe('форматирование', () => {
-  it('fmtCompact округляет тысячи и миллионы', () => {
+describe('formatting', () => {
+  it('fmtCompact rounds thousands and millions', () => {
     expect(fmtCompact(14591)).toBe('14.6K')
     expect(fmtCompact(4579)).toBe('4,579')
     expect(fmtCompact(3_200_000)).toBe('3.2M')
   })
 
-  it('fmtInt добавляет разделители', () => {
+  it('fmtInt adds thousands separators', () => {
     expect(fmtInt(14591)).toBe('14,591')
   })
 
-  it('fmtBytes конвертирует размеры', () => {
+  it('fmtBytes converts byte sizes', () => {
     expect(fmtBytes(512)).toBe('512 B')
     expect(fmtBytes(2048)).toBe('2.0 KB')
     expect(fmtBytes(3 * 1024 * 1024)).toBe('3.0 MB')
   })
 
-  it('fmtTime нормализует ISO и не падает на null', () => {
+  it('fmtTime normalizes ISO and tolerates null', () => {
     expect(fmtTime('2026-06-22T08:45:55Z')).toBe('2026-06-22 08:45Z')
     expect(fmtTime(null)).toBe('—')
   })
 
-  it('wikiColor отдаёт цвет по умолчанию для неизвестной вики', () => {
+  it('wikiColor returns the default color for an unknown wiki', () => {
     expect(wikiColor('dse')).toBe('#4f8cff')
     expect(wikiColor('zzz')).toBe('#64748b')
   })
 
-  it('eventColor мапит типы событий', () => {
+  it('eventColor maps event types', () => {
     expect(eventColor('save')).toBe('#4f8cff')
     expect(eventColor('delete')).toBe('#ef4444')
   })
@@ -73,48 +73,48 @@ describe('filterPages', () => {
     p({ id: 'fractal/SandBox', n: 'SandBox', w: 'fractal', labs: ['AgentC'], r: 1 }),
   ]
 
-  it('ищет по имени, id и метке агента без учёта регистра', () => {
+  it('searches by name, id, and agent label case-insensitively', () => {
     expect(filterPages(rows, { query: 'cashier', wiki: '', deletedOnly: false, minRevs: 0 })).toHaveLength(1)
     expect(filterPages(rows, { query: 'agentb', wiki: '', deletedOnly: false, minRevs: 0 })).toHaveLength(1)
   })
 
-  it('фильтрует по вики', () => {
+  it('filters by wiki', () => {
     expect(filterPages(rows, { query: '', wiki: 'probier', deletedOnly: false, minRevs: 0 }).map((x) => x.id)).toEqual(['probier/AgentX'])
   })
 
-  it('показывает только удалённые при deletedOnly', () => {
+  it('shows only deleted pages with deletedOnly', () => {
     expect(filterPages(rows, { query: '', wiki: '', deletedOnly: true, minRevs: 0 }).map((x) => x.id)).toEqual(['probier/AgentX'])
   })
 
-  it('фильтрует по минимуму ревизий', () => {
+  it('filters by minimum revisions', () => {
     expect(filterPages(rows, { query: '', wiki: '', deletedOnly: false, minRevs: 5 })).toHaveLength(1)
   })
 
-  it('фильтрует по fam, а пустой fam показывает все записи', () => {
+  it('filters by fam, and an empty fam shows every record', () => {
     const withEmptyFam = p({ id: 'dse/EmptyFam', fam: '' })
     expect(filterPages([...rows, withEmptyFam], { query: '', wiki: '', fam: 'off_store_unclassified', deletedOnly: false, minRevs: 0 })).toHaveLength(3)
     expect(filterPages([...rows, withEmptyFam], { query: '', wiki: '', fam: '', deletedOnly: false, minRevs: 0 })).toHaveLength(4)
   })
 
-  it('допускает неизвестную вику в списке WIKIS (пустой фильтр)', () => {
+  it('allows an unknown wiki in the WIKIS list (empty filter)', () => {
     expect(WIKIS.length).toBeGreaterThanOrEqual(5)
   })
 })
 
 describe('toCsv', () => {
-  it('экранирует запятые, кавычки, переводы строк и сохраняет unicode', () => {
+  it('escapes commas, quotes, and newlines while preserving unicode', () => {
     expect(toCsv([
       { name: 'Алина, агент', note: 'он сказал "да"\nвторая строка' },
     ])).toBe('name,note\r\n"Алина, агент","он сказал ""да""\nвторая строка"')
   })
 
-  it('использует переданные колонки и пустые значения', () => {
+  it('uses the given columns and empty values', () => {
     expect(toCsv([{ b: 2, a: 1 }], ['a', 'missing', 'b'])).toBe('a,missing,b\r\n1,,2')
   })
 })
 
-describe('day-фильтры и агрегация', () => {
-  it('фильтрует страницы по включительному диапазону дат', () => {
+describe('day filters and aggregation', () => {
+  it('filters pages by an inclusive date range', () => {
     const rows = [
       p({ id: 'dse/Exact', f: '2026-06-18', l: '2026-06-18' }),
       p({ id: 'dse/Range', f: '2026-06-17', l: '2026-06-19' }),
@@ -124,7 +124,7 @@ describe('day-фильтры и агрегация', () => {
     expect(filterPagesByDay(rows, '2026-06-20')).toEqual([])
   })
 
-  it('фильтрует события по первым десяти символам timestamp', () => {
+  it('filters events by the first ten timestamp characters', () => {
     const events: RecentEvent[] = [
       { t: '2026-06-18T00:01:00Z', type: 'save', wiki: 'dse', page: 'A', action: null, ip16: null },
       { t: '2026-06-19T00:01:00Z', type: 'delete', wiki: 'dse', page: 'B', action: null, ip16: null },
@@ -133,7 +133,7 @@ describe('day-фильтры и агрегация', () => {
     expect(filterEventsByDay(events, '2026-06-20')).toEqual([])
   })
 
-  it('агрегирует saves и deletes по дате и сортирует свежие даты сверху', () => {
+  it('aggregates saves and deletes by date and sorts newest dates first', () => {
     const rows: DayActivity[] = [
       { date: '2026-06-18', wiki: 'dse', saves: 3, deletes: 1, reverts: 0, probes: 0, bytes: 10 },
       { date: '2026-06-17', wiki: 'dse', saves: 2, deletes: 0, reverts: 0, probes: 0, bytes: 10 },
@@ -152,12 +152,12 @@ describe('filterLabels', () => {
     { x: 'Alpha', r: 2, f: '2026-06-02', t: '2026-06-03', p: 1, h: true, w: ['probier'], pgs: [] },
   ]
 
-  it('фильтрует по подстроке без учёта регистра', () => {
+  it('filters by substring case-insensitively', () => {
     expect(filterLabels(labels, 'alpha')).toHaveLength(1)
     expect(filterLabels(labels, 'helper')).toHaveLength(1)
   })
 
-  it('возвращает все при пустом запросе', () => {
+  it('returns everything for an empty query', () => {
     expect(filterLabels(labels, '')).toHaveLength(2)
   })
 })
@@ -186,9 +186,9 @@ describe('filterPages with tokenSlugs and payloadFlags', () => {
     const hex = filterPages(rows, { query: '', wiki: '', deletedOnly: false, minRevs: 0, payloadFlag: 'hex', payloadFlags: payloadFlags })
     expect(hex.map((r) => r.id)).toEqual(['dse/WithHex'])
     const redirect = filterPages(rows, { query: '', wiki: '', deletedOnly: false, minRevs: 0, payloadFlag: 'redirect', payloadFlags: payloadFlags })
-    // матч и по slug-ключу
+    // matches by slug key as well
     expect(redirect.map((r) => r.id)).toEqual(['dse/WithRedirect'])
-    // без флага-фильтра — все страницы
+    // without a flag filter — all pages
     const all = filterPages(rows, { query: '', wiki: '', deletedOnly: false, minRevs: 0 })
     expect(all.length).toBe(3)
   })

@@ -82,15 +82,15 @@ export interface RecentEvent {
   page: string
   action: string | null
   ip16: string | null
-  /** revision_ref: save → привязка к конкретной ревизии (slug@N) */
+  /** revision_ref: save → pins the exact revision (slug@N) */
   rev?: string | null
-  /** param_family: probe → какой параметр API прощупывали (search, id, msg…) */
+  /** param_family: probe → which API parameter was probed (search, id, msg…) */
   pf?: string | null
-  /** success_observed: probe → удалась ли попытка */
+  /** success_observed: probe → whether the attempt succeeded */
   ok?: boolean | null
-  /** related_event_id: revert → какое удаление откатили */
+  /** related_event_id: revert → which deletion was reverted */
   rel?: string | null
-  /** actor_label: delete/revert → кто выполнил (например, [Admin1]) */
+  /** actor_label: delete/revert → who performed it (e.g. [Admin1]) */
   act?: string | null
 }
 

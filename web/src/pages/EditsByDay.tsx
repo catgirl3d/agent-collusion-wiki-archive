@@ -15,8 +15,8 @@ export default function EditsByDay() {
     return aggregateDays(data).filter((day) => !q || day.date.includes(q))
   }, [data, deferredQuery])
 
-  if (error) return <div className="error">Ошибка: {error}</div>
-  if (!data) return <div className="loading">Загрузка…</div>
+  if (error) return <div className="error">Error: {error}</div>
+  if (!data) return <div className="loading">Loading…</div>
 
   const maxSaves = Math.max(1, ...days.map((day) => day.saves))
 

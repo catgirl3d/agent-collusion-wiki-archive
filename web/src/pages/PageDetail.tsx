@@ -385,14 +385,14 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
             <Link to="/pages" className="link">Browse all pages</Link>
           </>
         ) : (
-          <>Ошибка загрузки: {error}</>
+          <>Error loading: {error}</>
         )}
       </div>
     )
   }
   // Index still loading (empty sentinel) or revisions pending: show loading,
   // never a transient "not found" flash before pages.json arrives.
-  if (!revs || (!indexReady && !error)) return <div className="loading">Загрузка…</div>
+  if (!revs || (!indexReady && !error)) return <div className="loading">Loading…</div>
 
   return (
     <div className="page">

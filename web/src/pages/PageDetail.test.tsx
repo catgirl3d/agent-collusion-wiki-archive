@@ -26,7 +26,7 @@ describe('PageDetail', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Загрузка…')).toBeInTheDocument()
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
     await screen.findByText('Browse all pages')
     expect(document.querySelector('.error')).toHaveTextContent('Page missing-page not found in the archive index.')
     expect(screen.getByRole('link', { name: 'Browse all pages' })).toHaveAttribute('href', '/pages')

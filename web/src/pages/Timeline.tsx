@@ -41,8 +41,8 @@ export default function Timeline() {
     return rows
   }, [data, label, wiki, day, from, to, order])
 
-  if (error) return <div className="error">Ошибка: {error}</div>
-  if (!data) return <div className="loading">Загрузка…</div>
+  if (error) return <div className="error">Error: {error}</div>
+  if (!data) return <div className="loading">Loading…</div>
 
   const paged = pageSlice(filtered, page)
 

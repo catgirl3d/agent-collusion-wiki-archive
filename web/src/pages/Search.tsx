@@ -133,7 +133,7 @@ export default function Search() {
     return (
       <div className="page">
         <h1>Text search</h1>
-        <div className="error">Ошибка: Web Worker is unavailable in this browser</div>
+        <div className="error">Error: Web Worker is unavailable in this browser</div>
       </div>
     )
   }
@@ -181,7 +181,7 @@ export default function Search() {
       {visibleState.status === 'loading' && <div className="loading">{visibleState.message}</div>}
       {visibleState.status === 'error' && (
         <div className="error">
-          Ошибка: {visibleState.message}
+          Error: {visibleState.message}
           {visibleState.code ? <span className="muted"> ({visibleState.code})</span> : null}
         </div>
       )}
