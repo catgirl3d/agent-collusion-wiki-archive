@@ -44,6 +44,12 @@ const summary = {
   },
 }
 
+const activity = [
+  { date: '2026-06-16', wiki: 'dse', saves: 1, deletes: 0, reverts: 0, probes: 0, bytes: 10 },
+  { date: '2026-06-17', wiki: 'dse', saves: 1, deletes: 0, reverts: 0, probes: 0, bytes: 10 },
+  { date: '2026-06-20', wiki: '', saves: 0, deletes: 0, reverts: 0, probes: 1, bytes: 0 },
+]
+
 function matchResult(requestId: number, snippet: string, q: string): CorpusWorkerResponse {
   return {
     type: 'result',
@@ -78,16 +84,41 @@ afterEach(() => {
   FakeWorker.instances = []
 })
 
-function stubSearchFetch(summaryData: unknown = summary, activityData: unknown = []) {
+function stubSearchFetch(summaryData: unknown = summary) {
   return vi.fn((input: RequestInfo | URL) => {
     const path = new URL(String(input), 'http://localhost').pathname
     if (path === '/data/summary.json') return Promise.resolve({ ok: true, json: async () => summaryData } as Response)
-    if (path === '/data/activity_by_day.json') return Promise.resolve({ ok: true, json: async () => activityData } as Response)
+    if (path === '/data/activity_by_day.json') return Promise.resolve({ ok: true, json: async () => activity } as Response)
     return Promise.reject(new Error(`Unexpected data request: ${path}`))
   })
 }
 
 describe('Search', () => {
+  it('uses the archive calendar for both date filters', async () => {
+    vi.stubGlobal('fetch', stubSearchFetch())
+
+    render(
+      <MemoryRouter initialEntries={['/search']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    for (const label of ['Filter from date', 'Filter to date']) {
+      await screen.findByRole('button', { name: label })
+      await waitFor(() => expect(screen.getByRole('button', { name: label })).toBeEnabled())
+      fireEvent.click(screen.getByRole('button', { name: label }))
+
+      expect(await screen.findByRole('dialog', { name: label })).toBeInTheDocument()
+      expect(screen.getByText('June 2026')).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'only days with data' })).toBeChecked()
+      expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
+      fireEvent.click(screen.getByRole('button', { name: label }))
+    }
+  })
+
   it('renders matches as inert text after a submitted search', async () => {
     vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
@@ -360,7 +391,7 @@ describe('Search', () => {
   })
 
   it('loads the full revision body on demand and collapses it again', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -408,7 +439,7 @@ describe('Search', () => {
   })
 
   it('retries loading the full revision body after a worker error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(
@@ -453,7 +484,7 @@ describe('Search', () => {
   })
 
   it('ignores a late revision body response after the search changes', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('fetch', stubSearchFetch())
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
 
     render(

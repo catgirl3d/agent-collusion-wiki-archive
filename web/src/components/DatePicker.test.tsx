@@ -45,16 +45,38 @@ describe('ArchiveCalendar', () => {
     expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
   })
 
-  it('allows every day when disableInactiveDays is false', async () => {
-    renderCalendar({ disableInactiveDays: false })
+  it('lifts the restriction via the toggle and enables every day', async () => {
+    renderCalendar()
 
     await screen.findByRole('button', { name: /pick a date/i })
     await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
+    const toggle = screen.getByRole('checkbox', { name: /only days with data/i })
+    expect(toggle).toBeChecked()
+
+    fireEvent.click(toggle)
     expect(screen.getByRole('button', { name: '15' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '18' })).toBeEnabled()
+
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
+  })
+
+  it('keeps unavailable days disabled when restriction lifting is disallowed', async () => {
+    renderCalendar({ allowLiftRestriction: false })
+
+    await screen.findByRole('button', { name: /pick a date/i })
+    await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+
+    expect(screen.queryByRole('checkbox', { name: /only days with data/i })).toBeNull()
+    expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
   })
 
   it('reports the picked day and closes the popup', async () => {

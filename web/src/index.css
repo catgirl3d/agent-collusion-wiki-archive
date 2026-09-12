@@ -839,17 +839,6 @@ a:hover {
   background: rgba(9, 13, 22, 0.6);
 }
 
-.day-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: var(--radius-md);
-  color: var(--muted-text);
-  background: rgba(56, 189, 248, 0.08);
-}
-
 .day-empty {
   margin-top: 10px;
   padding: 8px 12px;

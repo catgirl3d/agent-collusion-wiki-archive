@@ -69,8 +69,8 @@ export default function Timeline() {
           <option value="asc">oldest first</option>
         </select>
         <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={(date) => update({ day: date || null })} />
-        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={(date) => update({ from: date || null })} disableInactiveDays={false} />
-        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={(date) => update({ to: date || null })} disableInactiveDays={false} />
+        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={(date) => update({ from: date || null })} />
+        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={(date) => update({ to: date || null })} />
         <span className="muted result-count">page {paged.page + 1}/{paged.pages}</span>
       </div>
 
