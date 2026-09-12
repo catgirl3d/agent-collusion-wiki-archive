@@ -5,7 +5,7 @@ import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
-import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY } from '../utils/corpus'
+import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY, isWordChar } from '../utils/corpus'
 import { fmtBytes, fmtInt, fmtTime } from '../utils/format'
 
 const PAGE_SIZE = 20
@@ -23,6 +23,7 @@ type SearchForm = {
   from: string
   to: string
   caseSensitive: boolean
+  wholeWord: boolean
 }
 
 function progressMessage(message: Extract<CorpusWorkerResponse, { type: 'progress' }>): string {
@@ -37,6 +38,59 @@ function progressMessage(message: Extract<CorpusWorkerResponse, { type: 'progres
   return 'searching…'
 }
 
+function HighlightSnippet({
+  snippet,
+  query,
+  caseSensitive,
+  wholeWord,
+}: {
+  snippet: string
+  query: string
+  caseSensitive: boolean
+  wholeWord: boolean
+}) {
+  const q = query.trim()
+  if (!q) return <>{snippet}</>
+
+  const haystack = caseSensitive ? snippet : snippet.toLowerCase()
+  const needle = caseSensitive ? q : q.toLowerCase()
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  let index = haystack.indexOf(needle)
+
+  while (index !== -1) {
+    let match = true
+    if (wholeWord) {
+      const before = index > 0 ? isWordChar(haystack[index - 1]) : false
+      const after = index + needle.length < haystack.length ? isWordChar(haystack[index + needle.length]) : false
+      if (before || after) {
+        match = false
+      }
+    }
+
+    if (match) {
+      if (index > lastIndex) {
+        parts.push(snippet.slice(lastIndex, index))
+      }
+      parts.push(
+        <mark key={index} className="mark-search">
+          {snippet.slice(index, index + needle.length)}
+        </mark>,
+      )
+      lastIndex = index + needle.length
+      index = haystack.indexOf(needle, lastIndex)
+    } else {
+      index = haystack.indexOf(needle, index + 1)
+    }
+  }
+
+  if (lastIndex < snippet.length) {
+    parts.push(snippet.slice(lastIndex))
+  }
+
+  return <>{parts}</>
+}
+
 export default function Search() {
   const { data: summary } = useData<Summary>('summary.json')
   const [searchParams, setSearchParams] = useSearchParams()
@@ -46,19 +100,36 @@ export default function Search() {
   const urlFrom = searchParams.get('from') ?? ''
   const urlTo = searchParams.get('to') ?? ''
   const urlCase = searchParams.get('case') === '1'
+  const urlWord = searchParams.get('word') === '1'
   const page = Math.max(0, Number(searchParams.get('page') ?? '0') || 0)
 
-  const urlKey = [urlQ, urlWiki, urlLabel, urlFrom, urlTo, urlCase ? '1' : ''].join('\u0000')
+  const urlKey = [urlQ, urlWiki, urlLabel, urlFrom, urlTo, urlCase ? '1' : '', urlWord ? '1' : ''].join('\u0000')
   const [state, setState] = useState<SearchState>(() =>
     urlQ.trim() ? { status: 'loading', message: 'starting…' } : { status: 'idle' },
   )
-  const [form, setForm] = useState<SearchForm>({ q: urlQ, wiki: urlWiki, label: urlLabel, from: urlFrom, to: urlTo, caseSensitive: urlCase })
+  const [form, setForm] = useState<SearchForm>({
+    q: urlQ,
+    wiki: urlWiki,
+    label: urlLabel,
+    from: urlFrom,
+    to: urlTo,
+    caseSensitive: urlCase,
+    wholeWord: urlWord,
+  })
   const [lastUrlKey, setLastUrlKey] = useState(urlKey)
   // Render-time reset (React "adjusting state when props change"): URL is the source of truth for bookmarkable searches.
   // Clearing the previous ready result here prevents showing stale matches under a new URL while the worker answers.
   if (urlKey !== lastUrlKey) {
     setLastUrlKey(urlKey)
-    setForm({ q: urlQ, wiki: urlWiki, label: urlLabel, from: urlFrom, to: urlTo, caseSensitive: urlCase })
+    setForm({
+      q: urlQ,
+      wiki: urlWiki,
+      label: urlLabel,
+      from: urlFrom,
+      to: urlTo,
+      caseSensitive: urlCase,
+      wholeWord: urlWord,
+    })
     setState(urlQ.trim() ? { status: 'loading', message: 'starting…' } : { status: 'idle' })
   }
 
@@ -106,6 +177,7 @@ export default function Search() {
       from: searchParams.get('from') || undefined,
       to: searchParams.get('to') || undefined,
       caseSensitive: searchParams.get('case') === '1',
+      wholeWord: searchParams.get('word') === '1',
       limit: PAGE_SIZE,
       offset: Math.max(0, Number(searchParams.get('page') ?? '0') || 0) * PAGE_SIZE,
     }
@@ -114,17 +186,30 @@ export default function Search() {
 
   const visibleState: SearchState = urlQ.trim() ? state : { status: 'idle' }
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
+  const applySearchParams = (nextForm: SearchForm) => {
     const next = new URLSearchParams()
-    if (form.q.trim()) next.set('q', form.q.trim())
-    if (form.wiki) next.set('wiki', form.wiki)
-    if (form.label.trim()) next.set('label', form.label.trim())
-    if (form.from) next.set('from', form.from)
-    if (form.to) next.set('to', form.to)
-    if (form.caseSensitive) next.set('case', '1')
+    if (nextForm.q.trim()) next.set('q', nextForm.q.trim())
+    if (nextForm.wiki) next.set('wiki', nextForm.wiki)
+    if (nextForm.label.trim()) next.set('label', nextForm.label.trim())
+    if (nextForm.from) next.set('from', nextForm.from)
+    if (nextForm.to) next.set('to', nextForm.to)
+    if (nextForm.caseSensitive) next.set('case', '1')
+    if (nextForm.wholeWord) next.set('word', '1')
     setState({ status: 'loading', message: 'starting…' })
     setSearchParams(next)
+  }
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    applySearchParams(form)
+  }
+
+  const updateFilter = (patch: Partial<SearchForm>) => {
+    const nextForm = { ...form, ...patch }
+    setForm(nextForm)
+    if (nextForm.q.trim()) {
+      applySearchParams(nextForm)
+    }
   }
 
   const goToPage = (nextPage: number) => {
@@ -158,7 +243,7 @@ export default function Search() {
           value={form.q}
           onChange={(event) => setForm({ ...form, q: event.target.value })}
         />
-        <select className="input" value={form.wiki} onChange={(event) => setForm({ ...form, wiki: event.target.value })}>
+        <select className="input" value={form.wiki} onChange={(event) => updateFilter({ wiki: event.target.value })}>
           <option value="">all wikis</option>
           {wikis.map((name) => (
             <option key={name} value={name}>{name}</option>
@@ -170,15 +255,23 @@ export default function Search() {
           value={form.label}
           onChange={(event) => setForm({ ...form, label: event.target.value })}
         />
-        <label className="muted">from <input className="input" type="date" value={form.from} onChange={(event) => setForm({ ...form, from: event.target.value })} /></label>
-        <label className="muted">to <input className="input" type="date" value={form.to} onChange={(event) => setForm({ ...form, to: event.target.value })} /></label>
+        <label className="muted">from <input className="input" type="date" value={form.from} onChange={(event) => updateFilter({ from: event.target.value })} /></label>
+        <label className="muted">to <input className="input" type="date" value={form.to} onChange={(event) => updateFilter({ to: event.target.value })} /></label>
         <label className="muted">
           <input
             type="checkbox"
             checked={form.caseSensitive}
-            onChange={(event) => setForm({ ...form, caseSensitive: event.target.checked })}
+            onChange={(event) => updateFilter({ caseSensitive: event.target.checked })}
           />{' '}
           case sensitive
+        </label>
+        <label className="muted">
+          <input
+            type="checkbox"
+            checked={form.wholeWord}
+            onChange={(event) => updateFilter({ wholeWord: event.target.checked })}
+          />{' '}
+          whole word
         </label>
         <button type="submit" className="btn">Search</button>
       </form>
@@ -217,7 +310,14 @@ export default function Search() {
                     <td><PageLink id={match.id} name={match.n} max={60} /></td>
                     <td>{match.x ? <Badge>{match.x}</Badge> : <span className="muted">anon</span>}</td>
                     <td className="num">{fmtInt(match.occurrences)}</td>
-                    <td className="muted mono">{match.snippet}</td>
+                    <td className="muted mono">
+                      <HighlightSnippet
+                        snippet={match.snippet}
+                        query={urlQ}
+                        caseSensitive={urlCase}
+                        wholeWord={urlWord}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

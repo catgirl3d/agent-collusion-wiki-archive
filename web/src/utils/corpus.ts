@@ -15,22 +15,44 @@ export type CorpusPageMap = Map<string, { s?: string; n: string }>
 export type CorpusFilters = {
   q: string
   caseSensitive: boolean
+  wholeWord?: boolean
   wiki?: string
   label?: string
   from?: string
   to?: string
 }
 
-export function countOccurrences(body: string, query: string, caseSensitive: boolean): { count: number; first: number } {
+export function isWordChar(char: string): boolean {
+  return /[\p{L}\p{N}_]/u.test(char)
+}
+
+export function countOccurrences(
+  body: string,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord = false,
+): { count: number; first: number } {
   const haystack = caseSensitive ? body : body.toLowerCase()
   const needle = caseSensitive ? query : query.toLowerCase()
   let count = 0
   let first = -1
   let index = haystack.indexOf(needle)
   while (index !== -1) {
-    if (first === -1) first = index
-    count += 1
-    index = haystack.indexOf(needle, index + needle.length)
+    let match = true
+    if (wholeWord) {
+      const before = index > 0 ? isWordChar(haystack[index - 1]) : false
+      const after = index + needle.length < haystack.length ? isWordChar(haystack[index + needle.length]) : false
+      if (before || after) {
+        match = false
+      }
+    }
+    if (match) {
+      if (first === -1) first = index
+      count += 1
+      index = haystack.indexOf(needle, index + needle.length)
+    } else {
+      index = haystack.indexOf(needle, index + 1)
+    }
   }
   return { count, first }
 }
@@ -129,7 +151,7 @@ export function searchRecords(
     const day = record.t.slice(0, 10)
     if (filters.from && day < filters.from) continue
     if (filters.to && day > filters.to) continue
-    const found = countOccurrences(record.body, filters.q, filters.caseSensitive)
+    const found = countOccurrences(record.body, filters.q, filters.caseSensitive, Boolean(filters.wholeWord))
     if (!found.count) continue
     const page = pages.get(record.id)
     if (!page) throw new Error(`corpus references unknown page ${record.id}`)
@@ -160,6 +182,7 @@ export type CorpusWorkerRequest = {
   from?: string
   to?: string
   caseSensitive: boolean
+  wholeWord?: boolean
   limit: number
   offset: number
 }

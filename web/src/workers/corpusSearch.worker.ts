@@ -112,6 +112,7 @@ async function runSearch(request: CorpusWorkerRequest) {
     summary.export_generated_at ?? '',
     q,
     request.caseSensitive,
+    Boolean(request.wholeWord),
     request.wiki ?? '',
     request.label ?? '',
     request.from ?? '',
@@ -125,6 +126,7 @@ async function runSearch(request: CorpusWorkerRequest) {
     matches = searchRecords(loaded.records, loaded.pages, {
       q,
       caseSensitive: request.caseSensitive,
+      wholeWord: Boolean(request.wholeWord),
       wiki: request.wiki,
       label: request.label,
       from: request.from,
@@ -137,6 +139,7 @@ async function runSearch(request: CorpusWorkerRequest) {
   return {
     q,
     case_sensitive: request.caseSensitive,
+    whole_word: Boolean(request.wholeWord),
     total: matches.length,
     limit,
     offset,

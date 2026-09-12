@@ -98,6 +98,7 @@ describe('Search', () => {
     })
 
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+    expect(document.querySelector('mark.mark-search')).toHaveTextContent('STATE5-ID')
     const snippet = screen.getByText(/alert\(1\)/)
     expect(snippet.querySelector('script')).toBeNull()
     expect(screen.getByRole('link', { name: 'PageA' })).toHaveAttribute('href', '/page/dse%2FPageA')
@@ -185,5 +186,30 @@ describe('Search', () => {
 
     expect(await screen.findByText(/corpus data does not match summary metadata/)).toBeInTheDocument()
     expect(screen.getByText(/archive_data_invalid/)).toBeInTheDocument()
+  })
+
+  it('triggers search with wholeWord and caseSensitive filters when toggled', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=user']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ q: 'user', caseSensitive: false, wholeWord: false })
+
+    fireEvent.click(screen.getByLabelText(/whole word/i))
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1]).toMatchObject({ q: 'user', caseSensitive: false, wholeWord: true })
+
+    fireEvent.click(screen.getByLabelText(/case sensitive/i))
+    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    expect(worker.messages[2]).toMatchObject({ q: 'user', caseSensitive: true, wholeWord: true })
   })
 })

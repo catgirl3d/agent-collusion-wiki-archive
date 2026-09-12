@@ -27,6 +27,8 @@ describe('literal matching helpers', () => {
     expect(countOccurrences('STATe5-ID state5-id', 'state5-id', false)).toEqual({ count: 2, first: 0 })
     expect(countOccurrences('STATe5-ID state5-id', 'state5-id', true)).toEqual({ count: 1, first: 10 })
     expect(countOccurrences('nothing here', 'zzz', false)).toEqual({ count: 0, first: -1 })
+    expect(countOccurrences('username user superuser user_id', 'user', false, false)).toEqual({ count: 4, first: 0 })
+    expect(countOccurrences('username user superuser user_id', 'user', false, true)).toEqual({ count: 1, first: 9 })
   })
 
   it('collapses whitespace in snippets', () => {
@@ -86,6 +88,11 @@ describe('searchRecords', () => {
 
     const cased = searchRecords(records, pages, { q: 'STATE5-ID', caseSensitive: true })
     expect(cased).toHaveLength(1)
+
+    const wholeWordMatches = searchRecords(records, pages, { q: 'state', caseSensitive: false, wholeWord: true })
+    expect(wholeWordMatches).toHaveLength(0)
+    const substringMatches = searchRecords(records, pages, { q: 'state', caseSensitive: false, wholeWord: false })
+    expect(substringMatches).toHaveLength(2)
   })
 
   it('applies wiki, label, and date filters before matching', () => {
