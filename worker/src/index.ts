@@ -100,8 +100,16 @@ function json(data: unknown, status = 200, cacheControl = 'public, max-age=3600'
   })
 }
 
-function err(status: number, message: string): Response {
-  return json({ error: message }, status, 'no-store')
+function err(status: number, message: string, code = 'error'): Response {
+  return json({ error: message, code }, status, 'no-store')
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function isRealDate(value: string): boolean {
+  if (!DATE_RE.test(value)) return false
+  const parsed = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
 const SLUG_RE = /^[A-Za-z0-9_.\-]+~(_h[0-9a-f]{8})?$/
@@ -122,7 +130,7 @@ export default {
     }
     if (req.method !== 'GET') {
       return url.pathname.startsWith('/api/')
-        ? err(405, 'method not allowed, use GET')
+        ? err(405, 'method not allowed, use GET', 'method_not_allowed')
         : env.ASSETS.fetch(req)
     }
     if (!url.pathname.startsWith('/api/')) {
@@ -142,12 +150,19 @@ export default {
             openapi: '3.0.0',
             info: { title: 'agent-collusion-archive', version: '0.1.0' },
             notes: [
-              'Static-first: source of truth is /data/*.json, worker is a read-only proxy.',
-              'Body search uses a precomputed token index with adaptive posting caps; responses expose truncated=true when completeness is not guaranteed.',
-              'Exact substring search is available per page through revisions?contains=; there is no corpus-wide arbitrary substring search.',
-              'Agent history = GET /api/agents/:name (pgs) + GET /api/pages/:slug/revisions?label= per page; pgs lists hold at most 2,000 stored pages per agent.',
+              'Static-first: source of truth is /data/*, worker is a read-only asset and point-query proxy.',
+              'Body-token search uses the complete precomputed index; the legacy truncated flag stays in responses and is false for the current index. Token queries keep at least one token of 3+ characters (stop words and shorter tokens are dropped) and intersect on AND.',
+              'Exact substring search is available per page through revisions?contains=. Corpus-wide literal search runs in research clients over the published data assets, not on the worker.',
+              'Agent history = GET /api/agents/:name (pgs) + GET /api/pages/:slug/revisions?label=&seq= per page; pgs lists hold at most 2,000 stored pages per agent.',
+              'Errors return {error, code} with stable validation codes; day/from/to use real UTC dates (YYYY-MM-DD), inclusive.',
             ],
             ftsBodies: true,
+            dataAssets: [
+              { path: '/data/timeline.json', purpose: 'Global revision timeline (time desc) for cross-page agent history.' },
+              { path: '/data/activity_by_day.json', purpose: 'Daily save/delete/revert/probe and byte totals.' },
+              { path: '/data/activity_by_hour.json', purpose: 'UTC-hour save distribution (save events only).' },
+              { path: '/data/corpus/revisions.jsonl.gz', purpose: 'Canonical raw revisions dump (gzip JSONL) for client-side corpus search.' },
+            ],
             routes: [
               'GET /api/health',
               'GET /api/openapi',
@@ -155,10 +170,10 @@ export default {
               'GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset=',
               'GET /api/pages/by-id?id=<page_id>',
               'GET /api/pages/:slug',
-              'GET /api/pages/:slug/revisions?label=&contains=&body=0|1&limit=&offset=',
+              'GET /api/pages/:slug/revisions?label=&contains=&seq=&body=0|1&limit=&offset=',
               'GET /api/agents?q=&sort=name|r|pages&limit=&offset=',
               'GET /api/agents/:name',
-              'GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&q=&limit=&offset=',
+              'GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&from=YYYY-MM-DD&to=YYYY-MM-DD&q=&limit=&offset=',
               'GET /api/search?q=&limit= (names only)',
               'GET /api/fts?q=&mode=exact|prefix&wiki=&limit=&offset=',
               'GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=',
@@ -214,10 +229,10 @@ export default {
       // GET /api/pages/by-id?id=dse/Foo — page by exact id (the id contains `/`).
       if (url.pathname === '/api/pages/by-id') {
         const id = url.searchParams.get('id') || ''
-        if (!id) return err(400, 'missing ?id=<page_id>')
+        if (!id) return err(400, 'missing ?id=<page_id>', 'missing_param')
         const index = await loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json')
         const page = index.p.find((p) => p.id === id)
-        if (!page) return err(404, 'page not found')
+        if (!page) return err(404, 'page not found', 'not_found')
         return json(page, 200, 'public, max-age=86400')
       }
 
@@ -225,11 +240,18 @@ export default {
       const revMatch = url.pathname.match(/^\/api\/pages\/([^/]+)\/revisions$/)
       if (revMatch) {
         const slug = decodeURIComponent(revMatch[1])
-        if (!SLUG_RE.test(slug)) return err(400, 'invalid slug')
+        if (!SLUG_RE.test(slug)) return err(400, 'invalid slug', 'invalid_slug')
         const label = url.searchParams.get('label') || ''
         const containsParam = url.searchParams.get('contains')
         const contains = containsParam || ''
-        if (contains.length > 200) return err(400, 'contains must be 200 characters or fewer')
+        if (contains.length > 200) return err(400, 'contains must be 200 characters or fewer', 'invalid_param')
+        const seqParam = url.searchParams.get('seq')
+        let seq: number | null = null
+        if (seqParam !== null) {
+          const parsed = Number(seqParam)
+          if (!Number.isInteger(parsed) || parsed < 0) return err(400, 'seq must be a non-negative integer', 'invalid_param')
+          seq = parsed
+        }
         const body = url.searchParams.get('body') ?? '1'
         const withBody = body !== '0'
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 500)
@@ -238,13 +260,14 @@ export default {
         try {
           revs = await loadAsset<Record<string, unknown>[]>(env, req, `/data/revisions/${slug}.json`)
         } catch {
-          return err(404, 'revisions not found for slug')
+          return err(404, 'revisions not found for slug', 'not_found')
         }
         const labelFiltered = label ? revs.filter((r) => r['label'] === label) : revs
+        const seqFiltered = seq === null ? labelFiltered : labelFiltered.filter((r) => r['seq'] === seq)
         const needle = containsParam !== null && contains.length > 0 ? contains.toLowerCase() : ''
         const filtered = needle
-          ? labelFiltered.filter((r) => typeof r['body'] === 'string' && r['body'].toLowerCase().includes(needle))
-          : labelFiltered
+          ? seqFiltered.filter((r) => typeof r['body'] === 'string' && r['body'].toLowerCase().includes(needle))
+          : seqFiltered
         const page = filtered.slice(offset, offset + limit)
         const out = withBody
           ? page
@@ -257,7 +280,7 @@ export default {
               return { ...meta, snippet: body.slice(start, end).replace(/\s+/g, ' ').trim() }
             })
         return json(
-          { slug, total: filtered.length, limit, offset, label: label || null, contains: containsParam, q: containsParam, withBody, revisions: out },
+          { slug, total: filtered.length, limit, offset, label: label || null, contains: containsParam, q: containsParam, seq, withBody, revisions: out },
           200,
           'public, max-age=86400, immutable',
         )
@@ -267,10 +290,10 @@ export default {
       const pageMatch = url.pathname.match(/^\/api\/pages\/([^/]+)$/)
       if (pageMatch) {
         const slug = decodeURIComponent(pageMatch[1])
-        if (!SLUG_RE.test(slug)) return err(400, 'invalid slug')
+        if (!SLUG_RE.test(slug)) return err(400, 'invalid slug', 'invalid_slug')
         const index = await loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json')
         const page = index.p.find((p) => p.s === slug)
-        if (!page) return err(404, 'page not found')
+        if (!page) return err(404, 'page not found', 'not_found')
         return json(page, 200, 'public, max-age=86400')
       }
 
@@ -307,10 +330,10 @@ export default {
       const agentMatch = url.pathname.match(/^\/api\/agents\/(.+)$/)
       if (agentMatch) {
         const name = decodeURIComponent(agentMatch[1])
-        if (!name || name.length > 200) return err(400, 'invalid agent name')
+        if (!name || name.length > 200) return err(400, 'invalid agent name', 'invalid_param')
         const index = await loadAsset<{ l: LabelRecord[]; n_anon: number }>(env, req, '/data/labels.json')
         const agent = index.l.find((a) => a.x === name)
-        if (!agent) return err(404, 'agent not found')
+        if (!agent) return err(404, 'agent not found', 'not_found')
         return json(agent, 200, 'public, max-age=86400')
       }
 
@@ -321,6 +344,12 @@ export default {
         const act = url.searchParams.get('act') || ''
         const wiki = url.searchParams.get('wiki') || ''
         const day = url.searchParams.get('day') || ''
+        const from = url.searchParams.get('from') || ''
+        const to = url.searchParams.get('to') || ''
+        if (day && !isRealDate(day)) return err(400, 'day must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
+        if (from && !isRealDate(from)) return err(400, 'from must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
+        if (to && !isRealDate(to)) return err(400, 'to must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
+        if (from && to && from > to) return err(400, 'from must not be after to', 'invalid_param')
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 200)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
@@ -328,7 +357,10 @@ export default {
           if (type && e['type'] !== type) return false
           if (act && e['act'] !== act) return false
           if (wiki && e['wiki'] !== wiki) return false
-          if (day && typeof e['t'] === 'string' && !(e['t'] as string).startsWith(day)) return false
+          const eventDay = typeof e['t'] === 'string' ? (e['t'] as string).slice(0, 10) : ''
+          if (day && eventDay !== day) return false
+          if (from && eventDay < from) return false
+          if (to && eventDay > to) return false
           if (q) {
             const hay = `${e['page'] ?? ''} ${e['action'] ?? ''} ${e['ip16'] ?? ''}`.toLowerCase()
             if (!hay.includes(q)) return false
@@ -347,13 +379,13 @@ export default {
       // GET /api/fts — body-token search against integer postings.
       if (url.pathname === '/api/fts') {
         const q = url.searchParams.get('q') || ''
-        if (q.length > 200) return err(400, 'q must be 200 characters or fewer')
-        if (!q.trim()) return err(400, 'missing ?q=')
+        if (q.length > 200) return err(400, 'q must be 200 characters or fewer', 'invalid_param')
+        if (!q.trim()) return err(400, 'missing ?q=', 'missing_param')
         const tokens = tokenizeBody(q).sort()
-        if (!tokens.length) return err(400, 'no usable query tokens (stop words or shorter than 3 characters)')
-        if (tokens.length > 16) return err(400, 'too many query tokens (max 16)')
+        if (!tokens.length) return err(400, 'no usable query tokens (stop words or shorter than 3 characters)', 'no_usable_tokens')
+        if (tokens.length > 16) return err(400, 'too many query tokens (max 16)', 'too_many_tokens')
         const modeParam = url.searchParams.get('mode') || 'exact'
-        if (modeParam !== 'exact' && modeParam !== 'prefix') return err(400, 'invalid mode')
+        if (modeParam !== 'exact' && modeParam !== 'prefix') return err(400, 'invalid mode', 'invalid_mode')
         const mode = modeParam as 'exact' | 'prefix'
         const wiki = url.searchParams.get('wiki') || ''
         const limit = clampInt(url.searchParams.get('limit'), 20, 1, 100)
@@ -399,7 +431,7 @@ export default {
       // GET /api/artifacts — payload findings joined to page metadata.
       if (url.pathname === '/api/artifacts') {
         const flag = url.searchParams.get('flag') || ''
-        if (flag && !PAYLOAD_FLAGS.includes(flag)) return err(400, `unknown flag; allowed: ${PAYLOAD_FLAGS.join(', ')}`)
+        if (flag && !PAYLOAD_FLAGS.includes(flag)) return err(400, `unknown flag; allowed: ${PAYLOAD_FLAGS.join(', ')}`, 'invalid_flag')
         const host = (url.searchParams.get('host') || '').toLowerCase()
         const slug = url.searchParams.get('slug') || ''
         const id = url.searchParams.get('id') || ''
@@ -424,17 +456,17 @@ export default {
       // GET /api/links — precomputed navigation links or exact pair intersection.
       if (url.pathname === '/api/links') {
         const label = url.searchParams.get('label') || ''
-        if (!label) return err(400, 'missing ?label=')
+        if (!label) return err(400, 'missing ?label=', 'missing_param')
         const other = url.searchParams.get('other')
         if (other === null) {
           const links = await loadAsset<Record<string, Array<Record<string, unknown>>>>(env, req, '/data/agent_links.json')
-          if (!Object.hasOwn(links, label)) return err(404, 'agent links not found')
+          if (!Object.hasOwn(links, label)) return err(404, 'agent links not found', 'not_found')
           return json({ label, links: links[label] })
         }
         const labels = await loadAsset<{ l: LabelRecord[] }>(env, req, '/data/labels.json')
         const left = labels.l.find((entry) => entry.x === label)
         const right = labels.l.find((entry) => entry.x === other)
-        if (!left || !right) return err(404, 'agent label not found')
+        if (!left || !right) return err(404, 'agent label not found', 'not_found')
         const rightPages = new Set(right.pgs)
         const sharedPages = [...new Set(left.pgs)].filter((page) => rightPages.has(page)).sort()
         return json({ label, other, sharedCount: sharedPages.length, sharedPages })
@@ -462,7 +494,7 @@ export default {
       // GET /api/search — names only (pages + agents). Bodies are never touched.
       if (url.pathname === '/api/search') {
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
-        if (!q) return err(400, 'missing ?q=')
+        if (!q) return err(400, 'missing ?q=', 'missing_param')
         const limit = clampInt(url.searchParams.get('limit'), 20, 1, 50)
         const [pages, agents] = await Promise.all([
           loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json'),
@@ -484,9 +516,11 @@ export default {
         return json({ q, ftsBodies: false, pages: pageHits, agents: agentHits }, 200, 'public, max-age=600')
       }
 
-      return err(404, 'unknown api route, see /api/openapi')
+      return err(404, 'unknown api route, see /api/openapi', 'not_found')
     } catch (e) {
-      return err(500, e instanceof Error ? e.message : 'internal error')
+      // Keep internal exception details in logs; clients get a stable, non-leaking error body.
+      console.error('archive worker request failed', e)
+      return err(500, 'internal error', 'internal_error')
     }
   },
 }

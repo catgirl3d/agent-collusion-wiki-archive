@@ -1,3 +1,5 @@
+import gzip
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -122,16 +124,14 @@ def test_fts_is_body_only_with_integer_sorted_unique_postings_and_no_frequency_f
     assert all(0 <= value < len(pages) for values in index["tokens"].values() for value in values)
 
 
-def test_fts_adaptive_cap_and_truncation_metadata(monkeypatch):
+def test_fts_keeps_full_postings_for_common_tokens():
     pages = [_page(f"w/p{index}", "Page") for index in range(600)]
     revisions = [_revision(page["page_id"], 1, "common") for page in pages]
-    monkeypatch.setattr(build, "FTS_BUDGET_BYTES", 2200)
     index = build_fts_index(pages, revisions)
-    cap = index["meta"]["postings_cap"]
-    assert cap < 500
-    assert index["tokens"]["common"] == list(range(cap))
-    assert index["meta"]["truncated_totals"] == {"common": 600}
-    assert index["meta"]["truncated_tokens"] == 1
+    assert index["meta"]["postings_cap"] is None
+    assert index["meta"]["truncated_tokens"] == 0
+    assert index["meta"]["truncated_totals"] == {}
+    assert index["tokens"]["common"] == list(range(600))
 
 
 def test_fts_preserves_tokens_present_on_every_page():
@@ -146,10 +146,52 @@ def test_fts_includes_tokens_from_older_revisions():
     assert {"oldertoken", "newertoken"} <= build_fts_index(pages, revisions)["tokens"].keys()
 
 
-def test_fts_fails_when_budget_is_too_small_at_lowest_cap(monkeypatch):
+def test_fts_budget_guard_fails_closed_when_uncapped_index_is_too_large(monkeypatch):
     monkeypatch.setattr(build, "FTS_BUDGET_BYTES", 1)
-    with pytest.raises(RuntimeError, match="postings cap 100"):
+    with pytest.raises(RuntimeError, match="without a postings cap"):
         build_fts_index([_page("w/p0", "Page")], [_revision("w/p0", 1, "token")])
+
+
+def test_timeline_is_time_desc_with_deterministic_tie_breakers():
+    revisions = [
+        {"page_id": "w/b", "seq": 2, "rev_id": "b2", "wiki": "w", "write_date": "2026-01-02T00:00:00Z", "label": "x", "request_action": "edit", "ip16": None, "body_len": 2},
+        {"page_id": "w/a", "seq": 1, "rev_id": "a1", "wiki": "w", "write_date": "2026-01-02T00:00:00Z", "label": None, "request_action": None, "ip16": "10.0", "body_len": 1},
+        {"page_id": "w/a", "seq": 3, "rev_id": "a3", "wiki": "w", "write_date": "2026-01-03T00:00:00Z", "label": "y", "request_action": "create", "ip16": None, "body_len": 3},
+        {"page_id": "w/c", "seq": None, "rev_id": "c0", "wiki": "w", "time": "2026-01-01T00:00:00Z", "label": "z", "body_len": 0},
+    ]
+    timeline = build.build_timeline(revisions, {"w/a": "a~", "w/b": "b~", "w/c": "c~"}, "2026-01-04T00:00:00Z")
+    assert timeline["meta"] == {
+        "schema_version": 1,
+        "export_generated_at": "2026-01-04T00:00:00Z",
+        "count": 4,
+        "order": "time_desc",
+    }
+    assert [row["t"] for row in timeline["r"]] == [
+        "2026-01-03T00:00:00Z",
+        "2026-01-02T00:00:00Z",
+        "2026-01-02T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+    ]
+    assert [row["id"] for row in timeline["r"][1:3]] == ["w/a", "w/b"]
+    assert timeline["r"][0] == {
+        "t": "2026-01-03T00:00:00Z", "w": "w", "id": "w/a", "s": "a~", "seq": 3,
+        "x": "y", "a": "create", "ip": None, "l": 3,
+    }
+    assert timeline["r"][3]["seq"] is None
+
+
+def test_corpus_metadata_hashes_compressed_and_decoded_bytes(tmp_path):
+    payload = b'{"page_id": "w/p"}\n{"page_id": "w/q"}\n'
+    path = tmp_path / "revisions.jsonl.gz"
+    with gzip.open(path, "wb") as stream:
+        stream.write(payload)
+    meta = build.build_corpus_metadata(path, 2)
+    assert meta["path"] == "corpus/revisions.jsonl.gz"
+    assert meta["revisions"] == 2
+    assert meta["compressed_bytes"] == path.stat().st_size
+    assert meta["decoded_bytes"] == len(payload)
+    assert meta["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert meta["decoded_sha256"] == hashlib.sha256(payload).hexdigest()
 
 
 def test_conflicts_are_not_truncated_to_old_top_500():

@@ -3,13 +3,18 @@
 
 Input:  data/raw/{revisions,pages,events,labels,manifest}.jsonl(.gz)
 Output: data/processed/
-  summary.json            - general statistics (manifest + calculated metrics)
+  summary.json            - general statistics (manifest + calculated metrics + corpus hashes)
   activity_by_day.json    - [{"date","wiki","saves","deletes","reverts","probes","bytes"}]
-  activity_by_hour.json   - [{"hour","saves"}]  (UTC hours)
+  activity_by_hour.json   - [{"hour","saves"}]  (UTC hours, save events only)
   pages.json              - page index (lightweight, without revision bodies)
   labels.json             - agent label index
   recent_events.json      - all events (unlimited)
+  timeline.json           - global revision timeline for cross-page agent history
   revisions/<slug>.json   - per-page revisions with full text
+
+The public sync also publishes data/raw/revisions.jsonl.gz as
+corpus/revisions.jsonl.gz so research clients can load the canonical corpus
+locally without a server-side scan.
 """
 from __future__ import annotations
 
@@ -144,7 +149,11 @@ def _body_tokens(text: str) -> set[str]:
 
 
 def build_fts_index(pages: list[dict], revisions: list[dict]) -> dict:
-    """Build a body-token index using integer positions from the pages list."""
+    """Builds a complete body-token index using integer positions from the pages list.
+
+    The index is intentionally uncapped: the measured full index stays well below
+    FTS_BUDGET_BYTES, so clients get exact totals instead of adaptive truncation.
+    """
     tokens_by_page: dict[str, set[str]] = defaultdict(set)
     for revision in revisions:
         tokens_by_page[revision["page_id"]].update(_body_tokens(revision.get("body", "")))
@@ -154,34 +163,91 @@ def build_fts_index(pages: list[dict], revisions: list[dict]) -> dict:
         for token in tokens_by_page.get(page["page_id"], ()):
             postings[token].append(page_index)
 
-    caps = (500, 400, 300, 200, 150, 100)
-    for cap in caps:
-        truncated_totals = {
-            token: len(indices)
-            for token, indices in postings.items()
-            if len(indices) > cap
-        }
-        tokens = {token: indices[:cap] for token, indices in sorted(postings.items())}
-        meta = {
-            "pages": "pages.json",
-            "n_tokens": len(tokens),
-            "postings_cap": cap,
-            "truncated_tokens": len(truncated_totals),
-            "truncated_totals": dict(sorted(truncated_totals.items())),
-            "tokenizer": "build.py::_body_tokens",
-            "built_from": "collusion.wiki export",
-        }
-        result = {"tokens": tokens, "meta": meta}
-        serialized_size = len(json.dumps(result, ensure_ascii=False).encode("utf-8"))
-        if serialized_size <= FTS_BUDGET_BYTES:
-            total_postings = sum(len(values) for values in tokens.values())
-            print(
-                f"fts_index: {serialized_size} bytes, n_tokens={len(tokens)}, "
-                f"total_postings={total_postings}, postings_cap={cap}, "
-                f"truncated_tokens={len(truncated_totals)}"
-            )
-            return result
-    raise RuntimeError(f"fts_index exceeds {FTS_BUDGET_BYTES} bytes even at postings cap 100")
+    tokens = {token: indices for token, indices in sorted(postings.items())}
+    meta = {
+        "pages": "pages.json",
+        "n_tokens": len(tokens),
+        "postings_cap": None,
+        "truncated_tokens": 0,
+        "truncated_totals": {},
+        "tokenizer": "build.py::_body_tokens",
+        "built_from": "collusion.wiki export",
+    }
+    result = {"tokens": tokens, "meta": meta}
+    serialized_size = len(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+    if serialized_size > FTS_BUDGET_BYTES:
+        raise RuntimeError(
+            f"fts_index exceeds {FTS_BUDGET_BYTES} bytes without a postings cap "
+            f"({serialized_size} bytes)"
+        )
+    total_postings = sum(len(values) for values in tokens.values())
+    print(
+        f"fts_index: {serialized_size} bytes, n_tokens={len(tokens)}, "
+        f"total_postings={total_postings}, postings_cap=None"
+    )
+    return result
+
+
+def build_timeline(
+    revisions: list[dict],
+    slug_map: dict[str, str],
+    export_generated_at: str | None,
+) -> dict:
+    """Builds the global revision timeline used for cross-page agent history."""
+    rows = []
+    for r in revisions:
+        page_id = r["page_id"]
+        rows.append({
+            "t": r.get("write_date") or r.get("time") or "",
+            "w": r.get("wiki") or page_id.partition("/")[0],
+            "id": page_id,
+            "s": slug_map.get(page_id, slugify(page_id)),
+            "seq": r.get("seq"),
+            "x": r.get("label"),
+            "a": r.get("request_action"),
+            "ip": r.get("ip16"),
+            "l": r.get("body_len"),
+            "_rev": r.get("rev_id", ""),
+        })
+    # Stable two-pass sort: deterministic tie-breakers first, then t desc.
+    rows.sort(key=lambda row: (row["id"], row["seq"] if row["seq"] is not None else 0, row["_rev"]))
+    rows.sort(key=lambda row: row["t"], reverse=True)
+    for row in rows:
+        row.pop("_rev")
+    print(f"timeline: {len(rows)} revisions")
+    return {
+        "meta": {
+            "schema_version": 1,
+            "export_generated_at": export_generated_at,
+            "count": len(rows),
+            "order": "time_desc",
+        },
+        "r": rows,
+    }
+
+
+def build_corpus_metadata(path: Path, revision_count: int) -> dict:
+    """Hashes the tracked raw revisions dump published for client-side search."""
+    compressed_hash = hashlib.sha256()
+    decoded_hash = hashlib.sha256()
+    compressed_bytes = 0
+    decoded_bytes = 0
+    with open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            compressed_hash.update(chunk)
+            compressed_bytes += len(chunk)
+    with gzip.open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            decoded_hash.update(chunk)
+            decoded_bytes += len(chunk)
+    return {
+        "path": "corpus/revisions.jsonl.gz",
+        "sha256": compressed_hash.hexdigest(),
+        "compressed_bytes": compressed_bytes,
+        "decoded_sha256": decoded_hash.hexdigest(),
+        "decoded_bytes": decoded_bytes,
+        "revisions": revision_count,
+    }
 
 
 _TOKEN_GOLDEN_CASES = [
@@ -458,13 +524,13 @@ def main() -> int:
             by_type[etype] += 1
             if etype == "save":
                 day[day_key]["saves"] += 1
+                hour[e.get("time", "")[11:13] or "?"] += 1
             elif etype == "delete":
                 day[day_key]["deletes"] += 1
             elif etype == "revert":
                 day[day_key]["reverts"] += 1
             elif etype == "probe":
                 day[day_key]["probes"] += 1
-        hour[e.get("time", "")[11:13] or "?"] += 1
 
     for r in revisions:
         d = (r.get("write_date") or r.get("time") or "")[:10]
@@ -547,6 +613,8 @@ def main() -> int:
 
     # --- summary ---
     n_revs_total = sum(rev_counts.values())
+    timeline = build_timeline(revisions, slug_map, manifest.get("generated_at"))
+    corpus_metadata = build_corpus_metadata(RAW / "revisions.jsonl.gz", n_revs_total)
     summary = {
         "source": "https://collusion.wiki/explorer/download.html",
         "export_generated_at": manifest.get("generated_at"),
@@ -562,6 +630,7 @@ def main() -> int:
             "date": max(day, key=lambda k: day[k]["saves"])[0],
             "saves": max(v["saves"] for v in day.values()),
         },
+        "corpus": corpus_metadata,
     }
 
     OUT.mkdir(parents=True, exist_ok=True)
@@ -572,6 +641,7 @@ def main() -> int:
         ("pages.json", pages_index),
         ("labels.json", labels_index),
         ("recent_events.json", recent_events),
+        ("timeline.json", timeline),
         ("agent_links.json", agent_links),
         ("conflicts.json", conflicts),
         ("search_index.json", search_index),
@@ -592,7 +662,10 @@ def main() -> int:
         PUBLIC.mkdir(parents=True, exist_ok=True)
         shutil.rmtree(PUBLIC, ignore_errors=True)
         shutil.copytree(OUT, PUBLIC)
-        print(f"synced {OUT} -> {PUBLIC}")
+        corpus_dir = PUBLIC / "corpus"
+        corpus_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(RAW / "revisions.jsonl.gz", corpus_dir / "revisions.jsonl.gz")
+        print(f"synced {OUT} -> {PUBLIC} (+ raw corpus gzip)")
 
     return 0
 

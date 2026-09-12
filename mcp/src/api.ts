@@ -3,6 +3,8 @@ const DEFAULT_TIMEOUT_MS = 15_000
 const MIN_TIMEOUT_MS = 100
 const MAX_TIMEOUT_MS = 120_000
 export const MAX_RESPONSE_BYTES = 2_000_000
+export const MAX_ERROR_BODY_BYTES = 4096
+export const MAX_ERROR_MESSAGE_CHARS = 300
 
 type QueryValue = string | number | boolean | undefined
 
@@ -28,6 +30,7 @@ export type RevisionListParams = {
   label?: string
   withBody?: boolean
   contains?: string
+  seq?: number
   limit?: number
   offset?: number
 }
@@ -38,6 +41,8 @@ export type EventListParams = {
   q?: string
   act?: string
   wiki?: string
+  from?: string
+  to?: string
   limit?: number
   offset?: number
 }
@@ -92,11 +97,13 @@ export interface ArchiveApi {
 
 export class ArchiveApiError extends Error {
   readonly status?: number
+  readonly code?: string
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, code?: string) {
     super(message)
     this.name = 'ArchiveApiError'
     this.status = status
+    this.code = code
   }
 }
 
@@ -106,7 +113,7 @@ export type ArchiveApiClientOptions = {
   timeoutMs?: number
 }
 
-function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
+export function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
   let url: URL
   try {
     url = new URL(value)
@@ -128,7 +135,7 @@ function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
   return url
 }
 
-function readTimeoutMs(configured: number | undefined): number {
+export function readTimeoutMs(configured: number | undefined): number {
   const raw = configured ?? process.env.ARCHIVE_API_TIMEOUT_MS
   if (raw === undefined || (typeof raw === 'string' && raw.trim() === '')) return DEFAULT_TIMEOUT_MS
 
@@ -187,6 +194,62 @@ async function readResponseBody(response: Response): Promise<string> {
   }
 
   return body + decoder.decode()
+}
+
+async function readBoundedText(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) {
+    const text = await response.text()
+    return text.slice(0, maxBytes)
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  let size = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      text += decoder.decode(value, { stream: true })
+      if (size >= maxBytes) {
+        await reader.cancel().catch(() => undefined)
+        break
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  return text
+}
+
+async function readApiError(response: Response): Promise<ArchiveApiError> {
+  const fallback = `Archive API returned HTTP ${response.status}`
+  // Only a JSON error contract is trusted; anything else stays a generic status error.
+  const contentType = (response.headers?.get?.('content-type') ?? '').toLowerCase()
+  if (!contentType.includes('application/json')) {
+    await response.body?.cancel().catch(() => undefined)
+    return new ArchiveApiError(fallback, response.status)
+  }
+
+  let text: string
+  try {
+    text = await readBoundedText(response, MAX_ERROR_BODY_BYTES)
+  } catch {
+    return new ArchiveApiError(fallback, response.status)
+  }
+
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown; code?: unknown }
+    const message =
+      typeof parsed.error === 'string' && parsed.error.trim()
+        ? parsed.error.trim().slice(0, MAX_ERROR_MESSAGE_CHARS)
+        : fallback
+    const code =
+      typeof parsed.code === 'string' && parsed.code.trim() ? parsed.code.trim().slice(0, 64) : undefined
+    return new ArchiveApiError(message, response.status, code)
+  } catch {
+    return new ArchiveApiError(fallback, response.status)
+  }
 }
 
 export class ArchiveApiClient implements ArchiveApi {
@@ -278,8 +341,7 @@ export class ArchiveApiClient implements ArchiveApi {
       })
 
       if (!response.ok) {
-        await response.body?.cancel().catch(() => undefined)
-        throw new ArchiveApiError(`Archive API returned HTTP ${response.status}`, response.status)
+        throw await readApiError(response)
       }
 
       const body = await readResponseBody(response)

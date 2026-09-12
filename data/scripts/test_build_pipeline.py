@@ -157,6 +157,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         "pages.json",
         "labels.json",
         "recent_events.json",
+        "timeline.json",
         "agent_links.json",
         "conflicts.json",
         "search_index.json",
@@ -170,9 +171,11 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     assert not (out / "revisions" / "stale.json").exists()
     out_paths = {path.relative_to(out).as_posix() for path in out.rglob("*") if path.is_file()}
     public_paths = {path.relative_to(public).as_posix() for path in public.rglob("*") if path.is_file()}
-    assert public_paths == out_paths
+    assert public_paths == out_paths | {"corpus/revisions.jsonl.gz"}
     for relative_path in out_paths:
         assert (out / relative_path).read_bytes() == (public / relative_path).read_bytes()
+    corpus_copy = public / "corpus" / "revisions.jsonl.gz"
+    assert corpus_copy.read_bytes() == (raw / "revisions.jsonl.gz").read_bytes()
 
     slug_map = _read_json(out / "pages.json")["p"]
     first_slug = next(page["s"] for page in slug_map if page["id"] == colliding_ids[0])
@@ -181,6 +184,21 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     assert second_slug == f"wiki~Page_A_h{hashlib.sha1(colliding_ids[1].encode()).hexdigest()[:8]}"
     assert [_read_json(out / "revisions" / f"{first_slug}.json")[0]["seq"], _read_json(out / "revisions" / f"{first_slug}.json")[1]["seq"]] == [1, 2]
 
+    timeline = _read_json(out / "timeline.json")
+    assert timeline["meta"] == {
+        "schema_version": 1,
+        "export_generated_at": "2026-02-04T00:00:00Z",
+        "count": 3,
+        "order": "time_desc",
+    }
+    assert [row["t"] for row in timeline["r"]] == [
+        "2026-02-03T04:05:06Z",
+        "2026-02-02T03:04:05Z",
+        "2026-02-01T01:02:03Z",
+    ]
+    assert timeline["r"][0]["id"] == colliding_ids[1]
+    assert timeline["r"][0]["s"] == second_slug
+
     assert _read_json(out / "activity_by_day.json") == [
         {"date": "2026-02-01", "wiki": "other", "saves": 1, "deletes": 0, "reverts": 0, "probes": 0, "bytes": 0},
         {"date": "2026-02-01", "wiki": "wiki", "saves": 0, "deletes": 0, "reverts": 0, "probes": 1, "bytes": 7},
@@ -188,9 +206,8 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         {"date": "2026-02-03", "wiki": "wiki", "saves": 1, "deletes": 1, "reverts": 0, "probes": 0, "bytes": 12},
     ]
     hourly = _read_json(out / "activity_by_hour.json")
-    assert [entry["hour"] for entry in hourly] == sorted(entry["hour"] for entry in hourly)
+    assert hourly == [{"hour": "00", "saves": 1}, {"hour": "04", "saves": 1}]
     assert all(set(entry) == {"hour", "saves"} for entry in hourly)
-    assert {entry["hour"] for entry in hourly} >= {"00", "04"}
     assert _read_json(out / "recent_events.json")[0] == {
         "t": "2026-02-03T14:00:00Z", "type": "delete", "wiki": "", "page": "Page_A", "action": None, "ip16": None,
     }
@@ -205,6 +222,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     assert label_index["l"][0]["pgs"] == [f"page-{index}" for index in range(2000)]
 
     summary = _read_json(out / "summary.json")
+    corpus = summary.pop("corpus")
     assert summary == {
         "source": "https://collusion.wiki/explorer/download.html",
         "export_generated_at": "2026-02-04T00:00:00Z",
@@ -213,3 +231,12 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         "days": 3,
         "max_day": {"date": "2026-02-03", "saves": 1},
     }
+    assert sum(entry["saves"] for entry in hourly) == summary["counts"]["events"]["save"]
+    assert corpus["path"] == "corpus/revisions.jsonl.gz"
+    assert corpus["revisions"] == 3
+    raw_corpus = (raw / "revisions.jsonl.gz").read_bytes()
+    decoded_corpus = gzip.decompress(raw_corpus)
+    assert corpus["sha256"] == hashlib.sha256(raw_corpus).hexdigest()
+    assert corpus["compressed_bytes"] == len(raw_corpus)
+    assert corpus["decoded_bytes"] == len(decoded_corpus)
+    assert corpus["decoded_sha256"] == hashlib.sha256(decoded_corpus).hexdigest()

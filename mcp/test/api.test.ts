@@ -112,6 +112,63 @@ describe('ArchiveApiClient', () => {
     expect(cancel).toHaveBeenCalledOnce()
   })
 
+  it('forwards the sanitized Worker error message and code', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: 'no usable query tokens (stop words or shorter than 3 characters)', code: 'no_usable_tokens' }),
+        { status: 400, headers: { 'content-type': 'application/json' } },
+      ),
+    )
+    const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
+
+    await expect(api.searchFts({ q: 'the' })).rejects.toEqual(
+      new ArchiveApiError('no usable query tokens (stop words or shorter than 3 characters)', 400, 'no_usable_tokens'),
+    )
+  })
+
+  it('falls back to a generic error for non-JSON, malformed, and oversized error bodies', async () => {
+    const html = new ArchiveApiClient({
+      baseUrl: 'https://archive.example',
+      fetchImpl: vi.fn().mockResolvedValue(
+        new Response('<html>private upstream details</html>', { status: 502, headers: { 'content-type': 'text/html' } }),
+      ),
+    })
+    await expect(html.getStats()).rejects.toEqual(new ArchiveApiError('Archive API returned HTTP 502', 502))
+
+    const malformed = new ArchiveApiClient({
+      baseUrl: 'https://archive.example',
+      fetchImpl: vi.fn().mockResolvedValue(
+        new Response('{oops', { status: 400, headers: { 'content-type': 'application/json' } }),
+      ),
+    })
+    await expect(malformed.getStats()).rejects.toEqual(new ArchiveApiError('Archive API returned HTTP 400', 400))
+
+    const oversized = new ArchiveApiClient({
+      baseUrl: 'https://archive.example',
+      fetchImpl: vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: 'x'.repeat(500), code: 'y'.repeat(100) }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    })
+    const error = await oversized.getStats().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ArchiveApiError)
+    expect((error as ArchiveApiError).message).toHaveLength(300)
+    expect((error as ArchiveApiError).code).toHaveLength(64)
+  })
+
+  it('serializes revision seq and event date-range filters', async () => {
+    const fetchImpl = vi.fn().mockImplementation(() => Promise.resolve(response({ ok: true })))
+    const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
+
+    await api.getPageRevisions('Slug', { seq: 42, withBody: true })
+    await api.listEvents({ from: '2026-06-01', to: '2026-06-22', limit: 5 })
+
+    expect(String(fetchImpl.mock.calls[0][0])).toBe('https://archive.example/api/pages/Slug/revisions?seq=42&body=1')
+    expect(String(fetchImpl.mock.calls[1][0])).toBe('https://archive.example/api/events?from=2026-06-01&to=2026-06-22&limit=5')
+  })
+
   it.each([
     ['not a url', 'baseUrl must be a valid URL'],
     ['ftp://archive.example', 'baseUrl must use http or https'],

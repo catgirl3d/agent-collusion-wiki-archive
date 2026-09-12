@@ -10,6 +10,16 @@ export interface Summary {
   per_wiki?: Record<string, { revisions: { value: number }; pages: { value: number }; body_bytes?: { value: number } }>
   days: number
   max_day: { date: string; saves: number }
+  corpus?: CorpusMeta
+}
+
+export interface CorpusMeta {
+  path: string
+  sha256: string
+  compressed_bytes: number
+  decoded_sha256: string
+  decoded_bytes: number
+  revisions: number
 }
 
 export interface DayActivity {
@@ -124,5 +134,52 @@ export interface SearchIndex {
   tokens: Record<string, string[]>
   urls: Record<string, number>
   meta: { built_from: string; n_tokens: number }
+}
+
+export interface TimelineEntry {
+  t: string
+  w: string
+  id: string
+  s: string
+  seq: number | null
+  x: string | null
+  a: string | null
+  ip: string | null
+  l: number | null
+}
+
+export interface TimelineFile {
+  meta: { schema_version: number; export_generated_at: string | null; count: number; order: string }
+  r: TimelineEntry[]
+}
+
+export interface CorpusRecord {
+  w: string
+  id: string
+  seq: number | null
+  t: string
+  x: string | null
+  body: string
+}
+
+export interface CorpusMatch {
+  w: string
+  id: string
+  s: string
+  n: string
+  seq: number | null
+  t: string
+  x: string | null
+  occurrences: number
+  snippet: string
+}
+
+export interface CorpusSearchResult {
+  q: string
+  case_sensitive: boolean
+  total: number
+  limit: number
+  offset: number
+  matches: CorpusMatch[]
 }
 

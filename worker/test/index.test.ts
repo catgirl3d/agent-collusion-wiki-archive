@@ -25,8 +25,8 @@ const labels = {
   ],
 }
 const revisions = [
-  { label: 'Alice', body: 'first body', t: '2026-01-03T10:00:00Z' },
-  { label: 'Bob', body: 'prefix '.repeat(20) + 'Needle   appears here', t: '2026-01-04T10:00:00Z' },
+  { seq: 1, label: 'Alice', body: 'first body', t: '2026-01-03T10:00:00Z' },
+  { seq: 2, label: 'Bob', body: 'prefix '.repeat(20) + 'Needle   appears here', t: '2026-01-04T10:00:00Z' },
 ]
 const events = [
   { type: 'edit', act: '[Admin1]', wiki: 'wiki', t: '2026-01-03T10:00:00Z', page: 'Page One', action: 'update', ip16: 'aabb' },
@@ -97,7 +97,7 @@ describe('Worker API default fetch handler', () => {
 
     const method = await request('/api/health', { method: 'POST' })
     expect(method.response.status).toBe(405)
-    expect(await json(method.response)).toEqual({ error: 'method not allowed, use GET' })
+    expect(await json(method.response)).toEqual({ error: 'method not allowed, use GET', code: 'method_not_allowed' })
   })
 
   it('falls back static and preserves non-API request', async () => {
@@ -118,7 +118,8 @@ describe('Worker API default fetch handler', () => {
     const openapi = await request('/api/openapi')
     const body = await json(openapi.response)
     expect(body.openapi).toBe('3.0.0')
-    expect(body.routes).toContain('GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&q=&limit=&offset=')
+    expect(body.routes).toContain('GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&from=YYYY-MM-DD&to=YYYY-MM-DD&q=&limit=&offset=')
+    expect(body.dataAssets.map((asset: { path: string }) => asset.path)).toContain('/data/corpus/revisions.jsonl.gz')
     expect(openapi.setup.calls).toEqual([])
   })
 
@@ -140,12 +141,12 @@ describe('Worker API default fetch handler', () => {
   })
 
   it.each([
-    ['/api/pages/by-id', 400, 'missing ?id=<page_id>'],
-    ['/api/pages/by-id?id=wiki%2Fmissing', 404, 'page not found'],
-  ])('handles by-id error %s', async (path, status, error) => {
+    ['/api/pages/by-id', 400, 'missing ?id=<page_id>', 'missing_param'],
+    ['/api/pages/by-id?id=wiki%2Fmissing', 404, 'page not found', 'not_found'],
+  ])('handles by-id error %s', async (path, status, error, code) => {
     const result = await request(path)
     expect(result.response.status).toBe(status)
-    expect(await json(result.response)).toEqual({ error })
+    expect(await json(result.response)).toEqual({ error, code })
   })
 
   it('returns a page by exact id', async () => {
@@ -155,12 +156,12 @@ describe('Worker API default fetch handler', () => {
   })
 
   it.each([
-    ['/api/pages/bad%20slug', 400, 'invalid slug'],
-    ['/api/pages/Missing~_h00000000', 404, 'page not found'],
-  ])('handles page slug error %s', async (path, status, error) => {
+    ['/api/pages/bad%20slug', 400, 'invalid slug', 'invalid_slug'],
+    ['/api/pages/Missing~_h00000000', 404, 'page not found', 'not_found'],
+  ])('handles page slug error %s', async (path, status, error, code) => {
     const result = await request(path)
     expect(result.response.status).toBe(status)
-    expect(await json(result.response)).toEqual({ error })
+    expect(await json(result.response)).toEqual({ error, code })
   })
 
   it('returns page metadata by slug', async () => {
@@ -171,9 +172,21 @@ describe('Worker API default fetch handler', () => {
   it('filters revisions, omits body, and paginates', async () => {
     const result = await request('/api/pages/Page_One~_h12345678/revisions?label=Alice&body=0&limit=1&offset=0')
     expect(await json(result.response)).toEqual({
-      slug: 'Page_One~_h12345678', total: 1, limit: 1, offset: 0, label: 'Alice', contains: null, q: null, withBody: false,
-      revisions: [{ label: 'Alice', t: '2026-01-03T10:00:00Z' }],
+      slug: 'Page_One~_h12345678', total: 1, limit: 1, offset: 0, label: 'Alice', contains: null, q: null, seq: null, withBody: false,
+      revisions: [{ seq: 1, label: 'Alice', t: '2026-01-03T10:00:00Z' }],
     })
+  })
+
+  it('selects one revision by seq and rejects invalid seq values', async () => {
+    const result = await request('/api/pages/Page_One~_h12345678/revisions?seq=1&body=0')
+    expect(await json(result.response)).toMatchObject({ total: 1, seq: 1, revisions: [{ label: 'Alice' }] })
+    const missing = await request('/api/pages/Page_One~_h12345678/revisions?seq=99&body=0')
+    expect(await json(missing.response)).toMatchObject({ total: 0, seq: 99, revisions: [] })
+    const bad = await request('/api/pages/Page_One~_h12345678/revisions?seq=-1')
+    expect(bad.response.status).toBe(400)
+    expect(await json(bad.response)).toEqual({ error: 'seq must be a non-negative integer', code: 'invalid_param' })
+    const fractional = await request('/api/pages/Page_One~_h12345678/revisions?seq=1.5')
+    expect(fractional.response.status).toBe(400)
   })
 
   it('returns revision bodies and reports invalid or missing revision assets', async () => {
@@ -184,7 +197,7 @@ describe('Worker API default fetch handler', () => {
     expect(invalid.response.status).toBe(400)
     const missing = await request('/api/pages/Unknown~_h00000000/revisions')
     expect(missing.response.status).toBe(404)
-    expect(await json(missing.response)).toEqual({ error: 'revisions not found for slug' })
+    expect(await json(missing.response)).toEqual({ error: 'revisions not found for slug', code: 'not_found' })
   })
 
   it('clears a rejected asset cache entry so a later request retries', async () => {
@@ -208,12 +221,12 @@ describe('Worker API default fetch handler', () => {
   })
 
   it.each([
-    [`/api/agents/${'a'.repeat(201)}`, 400, 'invalid agent name'],
-    ['/api/agents/Unknown', 404, 'agent not found'],
-  ])('handles agent detail error %s', async (path, status, error) => {
+    [`/api/agents/${'a'.repeat(201)}`, 400, 'invalid agent name', 'invalid_param'],
+    ['/api/agents/Unknown', 404, 'agent not found', 'not_found'],
+  ])('handles agent detail error %s', async (path, status, error, code) => {
     const result = await request(path)
     expect(result.response.status).toBe(status)
-    expect(await json(result.response)).toEqual({ error })
+    expect(await json(result.response)).toEqual({ error, code })
   })
 
   it('returns agent detail with full page pointers', async () => {
@@ -308,6 +321,26 @@ describe('Worker API default fetch handler', () => {
     expect((await json(fallback.response)).agents[0].x).toBe('Alice')
   })
 
+  it('filters events by inclusive from/to dates and validates bounds', async () => {
+    const range = await request('/api/events?from=2026-01-03&to=2026-01-04')
+    const ranged = await json(range.response)
+    expect(ranged.total).toBe(2)
+    expect(ranged.events.map((event: { type: string }) => event.type)).toEqual(['edit', 'delete'])
+    const fromOnly = await request('/api/events?from=2026-01-04')
+    expect((await json(fromOnly.response)).total).toBe(2)
+    const toOnly = await request('/api/events?to=2026-01-03')
+    expect((await json(toOnly.response)).total).toBe(1)
+    const invalidFrom = await request('/api/events?from=2026-13-01')
+    expect(invalidFrom.response.status).toBe(400)
+    expect(await json(invalidFrom.response)).toEqual({ error: 'from must be a real UTC date (YYYY-MM-DD)', code: 'invalid_param' })
+    const invalidDay = await request('/api/events?day=01-02-2026')
+    expect(invalidDay.response.status).toBe(400)
+    expect(await json(invalidDay.response)).toEqual({ error: 'day must be a real UTC date (YYYY-MM-DD)', code: 'invalid_param' })
+    const reversed = await request('/api/events?from=2026-02-01&to=2026-01-01')
+    expect(reversed.response.status).toBe(400)
+    expect(await json(reversed.response)).toEqual({ error: 'from must not be after to', code: 'invalid_param' })
+  })
+
   it('matches tokenizer golden fixture and advertises new routes', async () => {
     const fixture = JSON.parse(readFileSync(new URL('../../data/validation/token_golden.json', import.meta.url), 'utf8'))
     for (const testCase of fixture.cases) expect(tokenizeBody(testCase.text).sort()).toEqual(testCase.tokens.sort())
@@ -315,6 +348,13 @@ describe('Worker API default fetch handler', () => {
     expect(body.ftsBodies).toBe(true)
     expect(body.routes).toContain('GET /api/fts?q=&mode=exact|prefix&wiki=&limit=&offset=')
     expect(body.routes).toContain('GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=')
+    expect(body.routes).toContain('GET /api/pages/:slug/revisions?label=&contains=&seq=&body=0|1&limit=&offset=')
+    expect(body.dataAssets.map((asset: { path: string }) => asset.path)).toEqual([
+      '/data/timeline.json',
+      '/data/activity_by_day.json',
+      '/data/activity_by_hour.json',
+      '/data/corpus/revisions.jsonl.gz',
+    ])
 
     const buildSource = readFileSync(new URL('../../data/scripts/build.py', import.meta.url), 'utf8')
     const flagsLiteral = buildSource.match(/PAYLOAD_FLAGS = \(([^)]*)\)/)
@@ -326,7 +366,7 @@ describe('Worker API default fetch handler', () => {
   it('requires search query and returns page and agent hits', async () => {
     const missing = await request('/api/search')
     expect(missing.response.status).toBe(400)
-    expect(await json(missing.response)).toEqual({ error: 'missing ?q=' })
+    expect(await json(missing.response)).toEqual({ error: 'missing ?q=', code: 'missing_param' })
 
     const result = await request('/api/search?q=alice&limit=1')
     expect(await json(result.response)).toEqual({ q: 'alice', ftsBodies: false,
@@ -337,10 +377,23 @@ describe('Worker API default fetch handler', () => {
   it('returns unknown route and converts asset failures to 500', async () => {
     const unknown = await request('/api/nope')
     expect(unknown.response.status).toBe(404)
-    expect(await json(unknown.response)).toEqual({ error: 'unknown api route, see /api/openapi' })
+    expect(await json(unknown.response)).toEqual({ error: 'unknown api route, see /api/openapi', code: 'not_found' })
 
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const failure = await request('/api/stats', {}, { '/data/summary.json': new Response('broken', { status: 503 }) })
     expect(failure.response.status).toBe(500)
-    expect(await json(failure.response)).toEqual({ error: 'asset /data/summary.json: HTTP 503' })
+    expect(await json(failure.response)).toEqual({ error: 'internal error', code: 'internal_error' })
+    logged.mockRestore()
+  })
+
+  it('logs internal asset failures without leaking their details to clients', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const failure = await request('/api/stats', {}, { '/data/summary.json': new Response('broken', { status: 503 }) })
+    const body = await json(failure.response)
+
+    expect(body).toEqual({ error: 'internal error', code: 'internal_error' })
+    expect(JSON.stringify(body)).not.toContain('/data/summary.json')
+    expect(logged).toHaveBeenCalledWith('archive worker request failed', expect.any(Error))
+    logged.mockRestore()
   })
 })
