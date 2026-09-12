@@ -26,35 +26,33 @@ export function isWordChar(char: string): boolean {
   return /[\p{L}\p{N}_]/u.test(char)
 }
 
+export function findMatchIndices(body: string, query: string, caseSensitive: boolean, wholeWord = false): number[] {
+  const haystack = caseSensitive ? body : body.toLowerCase()
+  const needle = caseSensitive ? query : query.toLowerCase()
+  const indices: number[] = []
+  if (!needle) return indices
+  let index = haystack.indexOf(needle)
+  while (index !== -1) {
+    const before = index > 0 ? isWordChar(haystack[index - 1]) : false
+    const after = index + needle.length < haystack.length ? isWordChar(haystack[index + needle.length]) : false
+    if (!wholeWord || (!before && !after)) {
+      indices.push(index)
+      index = haystack.indexOf(needle, index + needle.length)
+    } else {
+      index = haystack.indexOf(needle, index + 1)
+    }
+  }
+  return indices
+}
+
 export function countOccurrences(
   body: string,
   query: string,
   caseSensitive: boolean,
   wholeWord = false,
 ): { count: number; first: number } {
-  const haystack = caseSensitive ? body : body.toLowerCase()
-  const needle = caseSensitive ? query : query.toLowerCase()
-  let count = 0
-  let first = -1
-  let index = haystack.indexOf(needle)
-  while (index !== -1) {
-    let match = true
-    if (wholeWord) {
-      const before = index > 0 ? isWordChar(haystack[index - 1]) : false
-      const after = index + needle.length < haystack.length ? isWordChar(haystack[index + needle.length]) : false
-      if (before || after) {
-        match = false
-      }
-    }
-    if (match) {
-      if (first === -1) first = index
-      count += 1
-      index = haystack.indexOf(needle, index + needle.length)
-    } else {
-      index = haystack.indexOf(needle, index + 1)
-    }
-  }
-  return { count, first }
+  const indices = findMatchIndices(body, query, caseSensitive, wholeWord)
+  return { count: indices.length, first: indices[0] ?? -1 }
 }
 
 export function snippetAround(body: string, index: number, length: number): string {

@@ -14,6 +14,7 @@ import {
   searchRecords,
 } from '../utils/corpus'
 import type { CorpusPageMap, CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
+import { createLruCache } from '../utils/lru'
 
 const PROGRESS_STEP_BYTES = 4 * 1024 * 1024
 
@@ -37,8 +38,8 @@ const workerScope = self as unknown as {
 let summary: Summary | null = null
 let version = ''
 let loadPromise: Promise<{ records: CorpusRecord[]; pages: CorpusPageMap }> | null = null
-let lastQueryKey = ''
-let lastMatches: ReturnType<typeof searchRecords> | null = null
+const SEARCH_CACHE_CAPACITY = 20
+const searchCache = createLruCache<string, ReturnType<typeof searchRecords>>(SEARCH_CACHE_CAPACITY)
 
 let pending: CorpusWorkerRequest | null = null
 let running = false
@@ -102,8 +103,7 @@ async function runSearch(request: CorpusWorkerRequest) {
   if (nextVersion !== version) {
     version = nextVersion
     loadPromise = null
-    lastQueryKey = ''
-    lastMatches = null
+    searchCache.clear()
   }
   if (!summary.corpus) throw new CorpusWorkerError('archive_data_invalid', 'summary.json is missing corpus metadata')
 
@@ -119,7 +119,7 @@ async function runSearch(request: CorpusWorkerRequest) {
     request.to ?? '',
   ])
 
-  let matches = lastMatches && lastQueryKey === key ? lastMatches : null
+  let matches = searchCache.get(key)
   if (!matches) {
     progress(request.requestId, { phase: 'search' })
     const loaded = await loadCorpus(request.requestId, summary)
@@ -132,8 +132,7 @@ async function runSearch(request: CorpusWorkerRequest) {
       from: request.from,
       to: request.to,
     })
-    lastMatches = matches
-    lastQueryKey = key
+    searchCache.set(key, matches)
   }
 
   return {

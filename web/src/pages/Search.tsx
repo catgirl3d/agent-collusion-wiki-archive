@@ -5,7 +5,7 @@ import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
-import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY, isWordChar } from '../utils/corpus'
+import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY, findMatchIndices } from '../utils/corpus'
 import { fmtBytes, fmtInt, fmtTime } from '../utils/format'
 
 const PAGE_SIZE = 20
@@ -52,36 +52,21 @@ function HighlightSnippet({
   const q = query.trim()
   if (!q) return <>{snippet}</>
 
-  const haystack = caseSensitive ? snippet : snippet.toLowerCase()
-  const needle = caseSensitive ? q : q.toLowerCase()
+  const indices = findMatchIndices(snippet, q, caseSensitive, wholeWord)
+  if (!indices.length) return <>{snippet}</>
+
   const parts: React.ReactNode[] = []
   let lastIndex = 0
-  let index = haystack.indexOf(needle)
-
-  while (index !== -1) {
-    let match = true
-    if (wholeWord) {
-      const before = index > 0 ? isWordChar(haystack[index - 1]) : false
-      const after = index + needle.length < haystack.length ? isWordChar(haystack[index + needle.length]) : false
-      if (before || after) {
-        match = false
-      }
+  for (const index of indices) {
+    if (index > lastIndex) {
+      parts.push(snippet.slice(lastIndex, index))
     }
-
-    if (match) {
-      if (index > lastIndex) {
-        parts.push(snippet.slice(lastIndex, index))
-      }
-      parts.push(
-        <mark key={index} className="mark-search">
-          {snippet.slice(index, index + needle.length)}
-        </mark>,
-      )
-      lastIndex = index + needle.length
-      index = haystack.indexOf(needle, lastIndex)
-    } else {
-      index = haystack.indexOf(needle, index + 1)
-    }
+    parts.push(
+      <mark key={index} className="mark-search">
+        {snippet.slice(index, index + q.length)}
+      </mark>,
+    )
+    lastIndex = index + q.length
   }
 
   if (lastIndex < snippet.length) {
@@ -89,6 +74,18 @@ function HighlightSnippet({
   }
 
   return <>{parts}</>
+}
+
+function buildSearchParams(form: SearchForm): URLSearchParams {
+  const next = new URLSearchParams()
+  if (form.q.trim()) next.set('q', form.q.trim())
+  if (form.wiki) next.set('wiki', form.wiki)
+  if (form.label.trim()) next.set('label', form.label.trim())
+  if (form.from) next.set('from', form.from)
+  if (form.to) next.set('to', form.to)
+  if (form.caseSensitive) next.set('case', '1')
+  if (form.wholeWord) next.set('word', '1')
+  return next
 }
 
 export default function Search() {
@@ -117,6 +114,7 @@ export default function Search() {
     wholeWord: urlWord,
   })
   const [lastUrlKey, setLastUrlKey] = useState(urlKey)
+  const [runId, setRunId] = useState(0)
   // Render-time reset (React "adjusting state when props change"): URL is the source of truth for bookmarkable searches.
   // Clearing the previous ready result here prevents showing stale matches under a new URL while the worker answers.
   if (urlKey !== lastUrlKey) {
@@ -163,7 +161,7 @@ export default function Search() {
     if (!q || workerUnavailable) return
     const worker = workerRef.current
     if (!worker) return
-    const key = searchParams.toString()
+    const key = `${searchParams.toString()}|${runId}`
     if (key === lastRunKey.current) return
     lastRunKey.current = key
     const requestId = ++requestCounter.current
@@ -182,26 +180,27 @@ export default function Search() {
       offset: Math.max(0, Number(searchParams.get('page') ?? '0') || 0) * PAGE_SIZE,
     }
     worker.postMessage(message)
-  }, [searchParams, workerUnavailable])
+  }, [searchParams, runId, workerUnavailable])
 
   const visibleState: SearchState = urlQ.trim() ? state : { status: 'idle' }
 
   const applySearchParams = (nextForm: SearchForm) => {
-    const next = new URLSearchParams()
-    if (nextForm.q.trim()) next.set('q', nextForm.q.trim())
-    if (nextForm.wiki) next.set('wiki', nextForm.wiki)
-    if (nextForm.label.trim()) next.set('label', nextForm.label.trim())
-    if (nextForm.from) next.set('from', nextForm.from)
-    if (nextForm.to) next.set('to', nextForm.to)
-    if (nextForm.caseSensitive) next.set('case', '1')
-    if (nextForm.wholeWord) next.set('word', '1')
-    setState({ status: 'loading', message: 'starting…' })
-    setSearchParams(next)
+    setSearchParams(buildSearchParams(nextForm))
   }
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    applySearchParams(form)
+    const next = buildSearchParams(form)
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next)
+      return
+    }
+    if (!form.q.trim()) {
+      setState({ status: 'idle' })
+      return
+    }
+    setState({ status: 'loading', message: 'starting…' })
+    setRunId((id) => id + 1)
   }
 
   const updateFilter = (patch: Partial<SearchForm>) => {

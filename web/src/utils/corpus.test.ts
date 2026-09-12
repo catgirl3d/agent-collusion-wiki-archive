@@ -3,6 +3,7 @@ import type { CorpusRecord } from '../types'
 import {
   countOccurrences,
   createJsonlParser,
+  findMatchIndices,
   isGzip,
   isRealDate,
   searchRecords,
@@ -29,6 +30,15 @@ describe('literal matching helpers', () => {
     expect(countOccurrences('nothing here', 'zzz', false)).toEqual({ count: 0, first: -1 })
     expect(countOccurrences('username user superuser user_id', 'user', false, false)).toEqual({ count: 4, first: 0 })
     expect(countOccurrences('username user superuser user_id', 'user', false, true)).toEqual({ count: 1, first: 9 })
+  })
+
+  it('reports highlight indices that match the occurrence count', () => {
+    expect(findMatchIndices('username user superuser user_id', 'user', false)).toEqual([0, 9, 19, 24])
+    expect(findMatchIndices('username user superuser user_id', 'user', false, true)).toEqual([9])
+    expect(findMatchIndices('a user b user c', 'user', false, true)).toEqual([2, 9])
+    expect(findMatchIndices('user safeUser', 'user', false)).toEqual([0, 9])
+    expect(findMatchIndices('user safeUser', 'user', false, true)).toEqual([0])
+    expect(findMatchIndices('anything', '', false)).toEqual([])
   })
 
   it('collapses whitespace in snippets', () => {

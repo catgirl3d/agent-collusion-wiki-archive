@@ -40,6 +40,33 @@ const summary = {
   },
 }
 
+function matchResult(requestId: number, snippet: string, q: string): CorpusWorkerResponse {
+  return {
+    type: 'result',
+    requestId,
+    result: {
+      q,
+      case_sensitive: false,
+      total: 1,
+      limit: 20,
+      offset: 0,
+      matches: [
+        {
+          w: 'dse',
+          id: 'dse/PageA',
+          s: 'dse_PageA~',
+          n: 'PageA',
+          seq: 1,
+          t: '2026-06-18T10:00:00Z',
+          x: 'AgentX',
+          occurrences: 1,
+          snippet,
+        },
+      ],
+    },
+  }
+}
+
 afterEach(() => {
   FakeWorker.instances = []
 })
@@ -211,5 +238,84 @@ describe('Search', () => {
     fireEvent.click(screen.getByLabelText(/case sensitive/i))
     await waitFor(() => expect(worker.messages).toHaveLength(3))
     expect(worker.messages[2]).toMatchObject({ q: 'user', caseSensitive: true, wholeWord: true })
+  })
+
+  it('re-runs an identical search instead of hanging on starting…', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(screen.getByText('starting…')).toBeInTheDocument()
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1]).toMatchObject({ q: 'STATE5-ID', offset: 0 })
+
+    act(() => {
+      worker.respond(matchResult(worker.messages[1].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+    expect(screen.queryByText('starting…')).toBeNull()
+  })
+
+  it('highlights only whole-word matches in the snippet', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=user&word=1']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'username user superuser', 'user'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    const marks = document.querySelectorAll('mark.mark-search')
+    expect(marks).toHaveLength(1)
+    expect(marks[0]).toHaveTextContent('user')
+  })
+
+  it('highlights only case-sensitive matches in the snippet', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => summary } as Response))
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=User&case=1']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'user User', 'User'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    const marks = document.querySelectorAll('mark.mark-search')
+    expect(marks).toHaveLength(1)
+    expect(marks[0]).toHaveTextContent('User')
   })
 })
