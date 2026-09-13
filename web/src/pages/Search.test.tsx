@@ -82,6 +82,11 @@ function matchResult(requestId: number, snippet: string, q: string): CorpusWorke
   }
 }
 
+function requireSearchRequest(message: CorpusWorkerRequest) {
+  if (message.type !== 'search') throw new Error('expected a search request')
+  return message
+}
+
 afterEach(() => {
   loadJsonMock.mockReset()
   resetCorpusWorkerForTests()
@@ -120,6 +125,111 @@ describe('Search', () => {
       expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
       fireEvent.click(screen.getByRole('button', { name: label }))
     }
+  })
+
+  it('clears the range start when a new end date would invert the range', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID&from=2026-06-20']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ from: '2026-06-20' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
+    expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '16' }))
+
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    const request = requireSearchRequest(worker.messages[1])
+    expect(request.from).toBeUndefined()
+    expect(request.to).toBe('2026-06-16')
+    expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-20')
+  })
+
+  it('clears the range end when a new start date would invert the range', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID&to=2026-06-16']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ to: '2026-06-16' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter from date' }))
+    expect(await screen.findByRole('dialog', { name: 'Filter from date' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '20' }))
+
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    const request = requireSearchRequest(worker.messages[1])
+    expect(request.to).toBeUndefined()
+    expect(request.from).toBe('2026-06-20')
+    expect(screen.getByRole('button', { name: 'Filter to date' })).not.toHaveTextContent('2026-06-16')
+  })
+
+  it('keeps both range bounds when they stay ordered', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID&from=2026-06-16']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
+    expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '20' }))
+
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })
+  })
+
+  it('keeps the opposite bound when a date picker is cleared', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID&from=2026-06-16&to=2026-06-20']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Filter from date' }))
+    expect(await screen.findByRole('dialog', { name: 'Filter from date' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    const request = requireSearchRequest(worker.messages[1])
+    expect(request.from).toBeUndefined()
+    expect(request.to).toBe('2026-06-20')
+    expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-16')
   })
 
   it('renders matches as inert text after a submitted search', async () => {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
@@ -32,6 +32,31 @@ export default function Timeline() {
     if (resetPage) next.delete('page')
     setSearchParams(next, { replace: true })
   }
+
+  // The exact day and the date range are mutually exclusive: picking one clears the other,
+  // and a freshly picked bound wins over a stale bound that would invert the range.
+  const pickDay = (date: string) => update(date ? { day: date, from: null, to: null } : { day: null })
+  const pickFrom = (date: string) => update(date ? { from: date, day: null, ...(to && date > to ? { to: null } : {}) } : { from: null })
+  const pickTo = (date: string) => update(date ? { to: date, day: null, ...(from && date < from ? { from: null } : {}) } : { to: null })
+
+  // Legacy or hand-edited links self-heal to the same contract: the day wins over a range,
+  // and an inverted range keeps its start.
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    let changed = false
+    if (day && (from || to)) {
+      next.delete('from')
+      next.delete('to')
+      changed = true
+    } else if (from && to && from > to) {
+      next.delete('to')
+      changed = true
+    }
+    if (changed) {
+      next.delete('page')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams, day, from, to])
 
   const wikis = useMemo(() => [...new Set((data?.r ?? []).map((row) => row.w))].sort(), [data])
 
@@ -80,9 +105,9 @@ export default function Timeline() {
           options={[{ value: 'desc', label: 'newest first' }, { value: 'asc', label: 'oldest first' }]}
           onChange={(value) => update({ order: value === 'asc' ? 'asc' : null })}
         />
-        <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={(date) => update({ day: date || null })} />
-        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={(date) => update({ from: date || null })} />
-        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={(date) => update({ to: date || null })} />
+        <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={pickDay} />
+        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={pickFrom} />
+        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={pickTo} />
         <span className="muted result-count">page {paged.page + 1}/{paged.pages}</span>
       </div>
 
