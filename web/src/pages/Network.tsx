@@ -2,6 +2,7 @@ import type { Core, EdgeSingular, ElementDefinition, LayoutOptions, NodeSingular
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { loadJson, revisionFile } from '../api'
+import { Dropdown } from '../components/Dropdown'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import { Badge, Chip } from '../components/ui'
 import { useData } from '../components/useQuery'
@@ -626,13 +627,18 @@ export default function Network() {
         {/* Min Shared Edits Filter */}
         <div className="control-group">
           <label htmlFor="min-shared-select" className="control-label">Min shared:</label>
-          <select
+          <Dropdown
             id="min-shared-select"
-            className="input sm"
             value={minShared}
-            onChange={(e) => {
+            className="sm"
+            options={[
+              { value: 2, label: '≥ 2 pages' },
+              { value: 3, label: '≥ 3 pages' },
+              { value: 5, label: '≥ 5 pages' },
+              { value: 10, label: '≥ 10 pages' },
+            ]}
+            onChange={(val) => {
               const next = new URLSearchParams(searchParams)
-              const val = Number(e.target.value)
               if (val === 2) {
                 next.delete('min')
               } else {
@@ -640,24 +646,22 @@ export default function Network() {
               }
               setSearchParams(next, { replace: true })
             }}
-          >
-            <option value={2}>≥ 2 pages</option>
-            <option value={3}>≥ 3 pages</option>
-            <option value={5}>≥ 5 pages</option>
-            <option value={10}>≥ 10 pages</option>
-          </select>
+          />
         </div>
 
         {/* Depth / Cluster Scope */}
         <div className="control-group">
           <label htmlFor="depth-select" className="control-label">Scope:</label>
-          <select
+          <Dropdown
             id="depth-select"
-            className="input sm"
             value={depth}
-            onChange={(e) => {
+            className="sm"
+            options={[
+              { value: 'cluster', label: 'Cluster (with peer links)' },
+              { value: 'ego', label: 'Ego network (1-hop)' },
+            ]}
+            onChange={(val) => {
               const next = new URLSearchParams(searchParams)
-              const val = e.target.value
               if (val === 'cluster') {
                 next.delete('scope')
               } else {
@@ -665,22 +669,23 @@ export default function Network() {
               }
               setSearchParams(next, { replace: true })
             }}
-          >
-            <option value="cluster">Cluster (with peer links)</option>
-            <option value="ego">Ego network (1-hop)</option>
-          </select>
+          />
         </div>
 
         {/* Layout Switch */}
         <div className="control-group">
           <label htmlFor="layout-select" className="control-label">Layout:</label>
-          <select
+          <Dropdown
             id="layout-select"
-            className="input sm"
             value={layoutName}
-            onChange={(e) => {
+            className="sm"
+            options={[
+              { value: 'cose', label: 'Physics (Springs)' },
+              { value: 'concentric', label: 'Concentric (Radial)' },
+              { value: 'circle', label: 'Circular' },
+            ]}
+            onChange={(val) => {
               const next = new URLSearchParams(searchParams)
-              const val = e.target.value
               if (val === 'cose') {
                 next.delete('layout')
               } else {
@@ -688,11 +693,7 @@ export default function Network() {
               }
               setSearchParams(next, { replace: true })
             }}
-          >
-            <option value="cose">Physics (Springs)</option>
-            <option value="concentric">Concentric (Radial)</option>
-            <option value="circle">Circular</option>
-          </select>
+          />
         </div>
 
         {/* View Controls */}
