@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const processed = resolve(webRoot, '..', 'data', 'processed')
 const rawCorpus = resolve(webRoot, '..', 'data', 'raw', 'revisions.jsonl.gz')
+const rawSupplement = resolve(webRoot, '..', 'data', 'raw', 'other-wikis.json.gz')
 const target = join(webRoot, 'public', 'data')
 
 function sha256(buffer) {
@@ -25,28 +26,51 @@ function copyRecursive(src, dst) {
   }
 }
 
+function readSummary() {
+  return JSON.parse(readFileSync(join(processed, 'summary.json'), 'utf8'))
+}
+
+function readVerifiedSource(sourcePath, expectedSha256, expectedBytes, label) {
+  let bytes
+  try {
+    bytes = readFileSync(sourcePath)
+  } catch {
+    throw new Error(`missing ${label} source ${sourcePath}; run \`python data/scripts/build.py\``)
+  }
+  if (sha256(bytes) !== expectedSha256 || bytes.length !== expectedBytes) {
+    throw new Error(`${label} source and processed summary are out of sync; run \`python data/scripts/build.py\``)
+  }
+  return bytes
+}
+
 function publishCorpus() {
-  const summary = JSON.parse(readFileSync(join(processed, 'summary.json'), 'utf8'))
+  const summary = readSummary()
   const corpus = summary?.corpus
   if (!corpus || typeof corpus.sha256 !== 'string') {
     throw new Error('summary.json has no corpus metadata; run `python data/scripts/build.py`')
   }
-
-  let bytes
-  try {
-    bytes = readFileSync(rawCorpus)
-  } catch {
-    throw new Error(`missing corpus source ${rawCorpus}; run \`python data/scripts/build.py\``)
-  }
-
-  const revisionMismatch = corpus.revisions !== summary?.counts?.revisions
-  if (sha256(bytes) !== corpus.sha256 || bytes.length !== corpus.compressed_bytes || revisionMismatch) {
+  const bytes = readVerifiedSource(rawCorpus, corpus.sha256, corpus.compressed_bytes, 'corpus')
+  if (corpus.revisions !== summary?.counts?.revisions) {
     throw new Error('corpus source and processed summary are out of sync; run `python data/scripts/build.py`')
   }
-
   const corpusDir = join(target, 'corpus')
   mkdirSync(corpusDir, { recursive: true })
   copyFileSync(rawCorpus, join(corpusDir, 'revisions.jsonl.gz'))
+  return bytes.length
+}
+
+function publishSupplement() {
+  const summary = readSummary()
+  const supplement = summary?.supplement
+  if (!supplement) return 0
+  const bytes = readVerifiedSource(rawSupplement, supplement.sha256, supplement.bytes, 'supplement')
+  const canonical = summary.counts?.revisions
+  const recovered = supplement.counts?.revisions
+  const combined = summary.combined?.revisions
+  if (canonical !== undefined && recovered !== undefined && combined !== undefined && canonical + recovered !== combined) {
+    throw new Error('supplement source and processed summary are out of sync; run `python data/scripts/build.py`')
+  }
+  copyFileSync(rawSupplement, join(target, 'other-wikis.json.gz'))
   return bytes.length
 }
 
@@ -62,7 +86,8 @@ function main() {
 
   copyRecursive(processed, target)
   const corpusBytes = publishCorpus()
-  console.log(`synced ${processed} -> ${target} (+ corpus/revisions.jsonl.gz, ${corpusBytes} bytes)`)
+  const supplementBytes = publishSupplement()
+  console.log(`synced ${processed} -> ${target} (+ corpus/revisions.jsonl.gz, ${corpusBytes} bytes${supplementBytes ? `, other-wikis.json.gz, ${supplementBytes} bytes` : ''})`)
 
   if (!process.env.CI) {
     try {
