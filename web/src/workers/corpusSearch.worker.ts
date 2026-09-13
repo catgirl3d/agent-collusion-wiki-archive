@@ -6,15 +6,19 @@ import {
   CORPUS_MAX_RECEIVED_BYTES,
   CORPUS_MAX_ROWS,
   CORPUS_MIN_QUERY,
+  CORPUS_SORT_DEFAULTS,
+  CORPUS_SORT_KEYS,
   CORPUS_URL,
   JSON_ASSET_MAX_BYTES,
   createJsonlParser,
   isGzip,
   isRealDate,
+  selectMatches,
   searchRecords,
 } from '../utils/corpus'
 import type { CorpusBodyRequest, CorpusPageMap, CorpusSearchRequest, CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
 import { createLruCache } from '../utils/lru'
+import { resolveSort } from '../utils/sort'
 
 const PROGRESS_STEP_BYTES = 4 * 1024 * 1024
 
@@ -120,6 +124,7 @@ async function runSearch(request: CorpusSearchRequest) {
 
   const limit = Math.min(100, Math.max(1, Math.floor(request.limit || 20)))
   const offset = Math.min(100_000, Math.max(0, Math.floor(request.offset || 0)))
+  const sortState = resolveSort(request.sort, request.dir, CORPUS_SORT_KEYS, CORPUS_SORT_DEFAULTS)
 
   const current = await ensureSummary()
 
@@ -157,7 +162,7 @@ async function runSearch(request: CorpusSearchRequest) {
     total: matches.length,
     limit,
     offset,
-    matches: matches.slice(offset, offset + limit),
+    matches: selectMatches(matches, sortState.sort, sortState.dir, offset, limit),
   }
 }
 

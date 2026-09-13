@@ -184,4 +184,23 @@ describe('corpusWorkerClient', () => {
       requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' }),
     ).rejects.toThrow('web worker is unavailable')
   })
+
+  it('cleans up pending body request when postMessage throws synchronously', async () => {
+    class ThrowingWorker extends FakeWorker {
+      override postMessage() {
+        throw new Error('post failed')
+      }
+    }
+    vi.stubGlobal('Worker', ThrowingWorker as unknown as typeof Worker)
+
+    await expect(requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })).rejects.toThrow('post failed')
+
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    resetCorpusWorkerForTests()
+    const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
+    const message = FakeWorker.instances.at(-1)?.messages[0]
+    expect(message).toBeDefined()
+    FakeWorker.instances.at(-1)?.respond({ type: 'body', requestId: message!.requestId, body: 'recovered' })
+    await expect(promise).resolves.toBe('recovered')
+  })
 })

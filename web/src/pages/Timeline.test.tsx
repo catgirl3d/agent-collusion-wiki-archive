@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Timeline from './Timeline'
 
@@ -32,10 +32,16 @@ function LocationProbe() {
   return <div data-testid="location">{location.search}</div>
 }
 
+function HistoryBack() {
+  const navigate = useNavigate()
+  return <button type="button" aria-label="go back" onClick={() => navigate(-1)} />
+}
+
 function renderTimeline(entry = '/timeline') {
   render(
     <MemoryRouter initialEntries={[entry]}>
       <LocationProbe />
+      <HistoryBack />
       <Routes>
         <Route path="/timeline" element={<Timeline />} />
       </Routes>
@@ -74,6 +80,90 @@ describe('Timeline', () => {
       expect(await screen.findByRole('checkbox', { name: 'only days with data' })).toBeChecked()
       fireEvent.click(screen.getByRole('button', { name: label }))
     }
+  })
+
+  it('sorts by clickable headers and resets pagination', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?page=2')
+
+    await screen.findByRole('link', { name: 'PageB' })
+    expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageB')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Time' }))
+    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    expect(currentSearch().get('dir')).toBe('asc')
+    expect(currentSearch().has('page')).toBe(false)
+    expect(screen.getByRole('columnheader', { name: /Time/ })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageA')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Time' }))
+    await waitFor(() => expect(currentSearch().has('sort')).toBe(false))
+    expect(currentSearch().has('dir')).toBe(false)
+    expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageB')
+
+    fireEvent.click(screen.getByRole('button', { name: 'go back' }))
+    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    expect(currentSearch().get('dir')).toBe('asc')
+    expect(screen.getByRole('columnheader', { name: /Time/ })).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  it('uses the column default for Len and toggles it', async () => {
+    stubArchiveData()
+    renderTimeline()
+
+    await screen.findByRole('link', { name: 'PageB' })
+    fireEvent.click(screen.getByRole('button', { name: 'Len' }))
+    await waitFor(() => expect(currentSearch().get('sort')).toBe('len'))
+    expect(currentSearch().get('dir')).toBe('desc')
+    expect(screen.getByRole('columnheader', { name: /Len/ })).toHaveAttribute('aria-sort', 'descending')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Len' }))
+    await waitFor(() => expect(currentSearch().get('dir')).toBe('asc'))
+    expect(screen.getByRole('columnheader', { name: /Len/ })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageA')
+  })
+
+  it('migrates the legacy order parameter to the shared sort URL', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?order=asc')
+
+    await screen.findByRole('link', { name: 'PageA' })
+    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    expect(currentSearch().get('dir')).toBe('asc')
+    expect(currentSearch().has('order')).toBe(false)
+    expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageA')
+  })
+
+  it('preserves filters and page while migrating legacy order', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?order=asc&page=3&label=AgentX')
+
+    await screen.findByRole('link', { name: 'PageB' })
+    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    expect(currentSearch().get('dir')).toBe('asc')
+    expect(currentSearch().get('label')).toBe('AgentX')
+    expect(currentSearch().has('order')).toBe(false)
+    expect(currentSearch().get('page')).toBe('3')
+  })
+
+  it('gives a modern sort pair priority over legacy order', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?sort=len&dir=desc&order=asc')
+
+    await screen.findByRole('link', { name: 'PageB' })
+    await waitFor(() => expect(currentSearch().has('order')).toBe(false))
+    expect(currentSearch().get('sort')).toBe('len')
+    expect(currentSearch().get('dir')).toBe('desc')
+  })
+
+  it('keeps the page when only sort URL formatting is normalized', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?sort=time&dir=desc&page=3')
+
+    await screen.findByRole('link', { name: 'PageB' })
+    await waitFor(() => expect(currentSearch().has('sort')).toBe(false))
+    expect(currentSearch().has('dir')).toBe(false)
+    expect(currentSearch().get('page')).toBe('3')
   })
 
   it('marks recovered rows and filters them without calling them anonymous', async () => {
@@ -221,5 +311,28 @@ describe('Timeline', () => {
     expect(currentSearch().get('from')).toBe('2026-06-19')
     expect(await screen.findByRole('link', { name: 'PageB' })).toBeInTheDocument()
     expect(screen.getByText(/2 of 2 revisions/)).toBeInTheDocument()
+  })
+
+  it('normalizes invalid source and fractional page', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?src=invalid&page=2.5&sort=time&dir=desc')
+    await screen.findByRole('link', { name: 'PageB' })
+    await waitFor(() => expect(currentSearch().has('src')).toBe(false))
+    expect(currentSearch().get('page')).toBe('2')
+  })
+
+  it('preserves a valid page during cosmetic sort normalization', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?sort=time&dir=desc&page=3')
+    await screen.findByRole('link', { name: 'PageB' })
+    await waitFor(() => expect(currentSearch().has('sort')).toBe(false))
+    expect(currentSearch().get('page')).toBe('3')
+  })
+
+  it('exposes durable labels for text filters', async () => {
+    stubArchiveData()
+    renderTimeline()
+    await screen.findByRole('link', { name: 'PageB' })
+    expect(screen.getByLabelText('Filter by agent label')).toBeInTheDocument()
   })
 })
