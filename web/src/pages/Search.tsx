@@ -222,6 +222,11 @@ export default function Search() {
 
   const updateFilter = (patch: Partial<SearchForm>) => {
     const nextForm = { ...form, ...patch }
+    // The range boundaries stay ordered: the freshly picked bound wins and the stale one is cleared.
+    if (nextForm.from && nextForm.to && nextForm.from > nextForm.to) {
+      if ('from' in patch) nextForm.to = ''
+      else if ('to' in patch) nextForm.from = ''
+    }
     setForm(nextForm)
     if (nextForm.q.trim()) {
       applySearchParams(nextForm)
