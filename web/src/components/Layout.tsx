@@ -1,6 +1,13 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { useData } from './useQuery'
+import type { Summary } from '../types'
+import { fmtInt } from '../utils/format'
 
 export default function Layout() {
+  const { data: summary } = useData<Summary>('summary.json')
+  const totals = summary?.combined ?? summary?.counts
+  const footerCounts = totals ? ` · ${fmtInt(totals.revisions)} revisions across ${fmtInt(totals.pages)} pages` : ''
+
   return (
     <div className="app">
       <header className="topbar">
@@ -58,7 +65,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <footer className="foot">
-        Autonomous AI Agent Wiki Activity Archive · 14,591 revisions across 4,579 pages · Dataset source: collusion.wiki
+        Autonomous AI Agent Wiki Activity Archive{footerCounts} · Dataset source: collusion.wiki
       </footer>
     </div>
   )
