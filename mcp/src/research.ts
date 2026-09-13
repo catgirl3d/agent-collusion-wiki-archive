@@ -23,6 +23,8 @@ export type SummaryCorpus = {
 export type Summary = {
   export_generated_at?: string | null
   counts?: { revisions?: number }
+  supplement?: { sha256?: string; counts?: { pages?: number; revisions?: number } }
+  combined?: { revisions?: number; pages?: number }
   corpus?: SummaryCorpus
 }
 
@@ -36,10 +38,11 @@ export type TimelineEntry = {
   a: string | null
   ip: string | null
   l: number | null
+  partial?: boolean
 }
 
 export type TimelineFile = {
-  meta: { schema_version: number; export_generated_at: string | null; count: number; order: string }
+  meta: { schema_version: number; export_generated_at: string | null; count: number; order: string; supplement_count?: number }
   r: TimelineEntry[]
 }
 
@@ -62,9 +65,10 @@ export type ActivityDay = {
   reverts: number
   probes: number
   bytes: number
+  rec?: number
 }
 
-export type ActivityHour = { hour: string; saves: number }
+export type ActivityHour = { hour: string; saves: number; rec?: number }
 
 export type CorpusMatch = {
   w: string
@@ -260,7 +264,7 @@ export type AssetReader = Pick<ArchiveAssets, 'getJson' | 'getBytes'>
 type CacheEntry<T> = { version: string; value: T }
 
 function versionOf(summary: Summary): string {
-  return `${summary.export_generated_at ?? ''}|${summary.corpus?.sha256 ?? ''}`
+  return `${summary.export_generated_at ?? ''}|${summary.corpus?.sha256 ?? ''}|${summary.supplement?.sha256 ?? ''}`
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -296,8 +300,20 @@ export class ArchiveResearch {
     if (file.meta.count !== file.r.length) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json count does not match its rows')
     }
-    if (summary.counts?.revisions !== undefined && file.r.length !== summary.counts.revisions) {
+    const expectedCount = summary.combined?.revisions ?? summary.counts?.revisions
+    if (expectedCount !== undefined && file.r.length !== expectedCount) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json does not match summary counts')
+    }
+    const canonicalCount = summary.counts?.revisions
+    const supplementCount = summary.supplement?.counts?.revisions
+    const combinedCount = summary.combined?.revisions
+    if (
+      canonicalCount !== undefined &&
+      supplementCount !== undefined &&
+      combinedCount !== undefined &&
+      canonicalCount + supplementCount !== combinedCount
+    ) {
+      throw new ArchiveDataError('archive_data_invalid', 'summary counts do not match combined revisions')
     }
     this.timelineCache = { version, value: file }
     return file

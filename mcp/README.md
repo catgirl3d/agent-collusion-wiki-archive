@@ -21,6 +21,12 @@ npm test
 npm run build
 ```
 
+When the published archive assets change (data release or Worker deploy), rebuild
+the adapter and restart MCP clients in the same release: the timeline and
+combined-count consistency checks are bound to the asset generation, and older
+builds reject the combined timeline with `archive_data_invalid` instead of
+serving mixed data.
+
 Start the Worker first. Locally, its default origin is
 `http://127.0.0.1:8787`. Override it with `ARCHIVE_API_URL` when using a
 deployed Worker:
@@ -60,6 +66,7 @@ at the compiled entrypoint:
 
 - `get_stats` returns aggregate archive statistics.
 - `get_activity` returns activity aggregates: `by=day` (per-wiki saves/deletes/reverts/probes/bytes with optional `wiki` and inclusive UTC `from`/`to`) or `by=hour` (global UTC-hour save distribution; rejects wiki/date filters). Loaded locally from `/data/activity_by_*.json`.
+- Recovered observations from the optional Other sites supplement are included in combined timeline/activity read models. Such partial rows carry `partial: true` and have no retained label or body; revision rows preserve `added`/`removed`, while activity rows expose recovered saves in `rec`. Summary canonical counts remain separate from combined counts.
 - `search_archive` searches page names, IDs, labels, and agent names. It does not search revision bodies.
 - `list_agents` returns paginated agent labels and page previews.
 - `get_agent` returns one exact agent label and up to 2,000 canonical page IDs; the page list may be truncated by the Worker index.
@@ -67,7 +74,7 @@ at the compiled entrypoint:
 - `get_page` returns metadata for one generated page slug.
 - `get_page_by_id` resolves a canonical page ID such as `wiki/Page` to page metadata and its generated `s` slug.
 - `get_page_revisions` returns paginated revisions for a generated page slug; set `include_body` to `true` to include saved text, use `contains` for a case-insensitive raw substring on one page with snippets when bodies are omitted, or pass `seq` to select one revision from a timeline/corpus hit.
-- `list_revisions` reconstructs cross-page agent history from `/data/timeline.json` without walking every page. Filters: exact `label`, `wiki`, `id`, `slug`, UTC `day` or inclusive `from`/`to`, and `order=asc|desc`; returns one row per revision (no bodies). Read a body with `get_page_revisions` using the returned `slug`+`seq`.
+- `list_revisions` reconstructs cross-page agent history from `/data/timeline.json` without walking every page. Filters: exact `label`, `wiki`, `id`, `slug`, UTC `day` or inclusive `from`/`to`, and `order=asc|desc`; returns one row per revision (no bodies; recovered rows carry `partial: true`). Read a body — or the `added`/`removed` lines of a recovered revision — with `get_page_revisions` using the returned `slug`+`seq`.
 - `list_events` filters and paginates recorded events, including exact `act`/`wiki` filters and inclusive UTC `from`/`to` dates.
 - `search_content` searches revision body tokens only, not page names. `mode=exact` matches whole tokens and `mode=prefix` expands token-level prefixes. The index is complete for the current data release, so `truncated` stays `false`; query text is limited to 200 characters and 16 usable tokens (3+ characters, stop words dropped, tokens intersected with AND); `wiki` to 100; pagination is limited to 100 rows and offset 100000.
 - `search_corpus` performs literal substring search across all revision bodies, case-insensitive by default (`case_sensitive: true` for exact case). The first search downloads `/data/corpus/revisions.jsonl.gz` (~3.2 MB gzip, ~41 MB decoded), verifies it against `summary.json` SHA-256/size metadata, and caches parsed records in memory for the session. Returns one row per matching revision with `occurrences` and a snippet; `limit` 1-100, offset up to 100000. Rows whose corpus hash changes mid-session invalidate the cache. Local filters: `wiki`, `label`, inclusive UTC `from`/`to`; `q` is 3-120 characters.
