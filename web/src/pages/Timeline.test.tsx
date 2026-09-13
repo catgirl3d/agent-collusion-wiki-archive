@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Timeline from './Timeline'
 
@@ -27,9 +27,15 @@ function stubArchiveData() {
   })
 }
 
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="location">{location.search}</div>
+}
+
 function renderTimeline(entry = '/timeline') {
   render(
     <MemoryRouter initialEntries={[entry]}>
+      <LocationProbe />
       <Routes>
         <Route path="/timeline" element={<Timeline />} />
       </Routes>
@@ -94,7 +100,34 @@ describe('Timeline', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-19')
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?day=2026-06-20'))
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
+  })
+
+  it('clears the exact day when a new range start is picked', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?day=2026-06-19')
+
+    await openCalendar('Filter from date')
+    fireEvent.click(screen.getByRole('button', { name: '20' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-20'))
+    expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?from=2026-06-20'))
+    expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
+  })
+
+  it('clears the exact day when a new range end is picked', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?day=2026-06-19')
+
+    await openCalendar('Filter to date')
+    fireEvent.click(screen.getByRole('button', { name: '20' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Filter to date' })).toHaveTextContent('2026-06-20'))
+    expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?to=2026-06-20'))
+    expect(await screen.findByText(/2 of 2 revisions/)).toBeInTheDocument()
   })
 
   it('drops the range start when the picked end date is earlier', async () => {
@@ -113,18 +146,24 @@ describe('Timeline', () => {
 
   it('normalizes a legacy URL where an exact day competes with a range', async () => {
     stubArchiveData()
-    renderTimeline('/timeline?day=2026-06-19&from=2026-06-20')
+    renderTimeline('/timeline?day=2026-06-19&from=2026-06-20&page=3')
 
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?day=2026-06-19'))
+    expect(screen.getByTestId('location')).not.toHaveTextContent('from=')
+    expect(screen.getByTestId('location')).not.toHaveTextContent('page=')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('2026-06-19'))
     expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-20')
   })
 
   it('normalizes an inverted legacy range by keeping its start', async () => {
     stubArchiveData()
-    renderTimeline('/timeline?from=2026-06-20&to=2026-06-19')
+    renderTimeline('/timeline?from=2026-06-20&to=2026-06-19&page=2')
 
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?from=2026-06-20'))
+    expect(screen.getByTestId('location')).not.toHaveTextContent('to=')
+    expect(screen.getByTestId('location')).not.toHaveTextContent('page=')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter to date' })).not.toHaveTextContent('2026-06-19')
   })

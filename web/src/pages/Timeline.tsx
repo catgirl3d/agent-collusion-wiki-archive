@@ -52,7 +52,10 @@ export default function Timeline() {
       next.delete('to')
       changed = true
     }
-    if (changed) setSearchParams(next, { replace: true })
+    if (changed) {
+      next.delete('page')
+      setSearchParams(next, { replace: true })
+    }
   }, [searchParams, setSearchParams, day, from, to])
 
   const wikis = useMemo(() => [...new Set((data?.r ?? []).map((row) => row.w))].sort(), [data])
