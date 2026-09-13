@@ -1,4 +1,6 @@
 import type { CorpusMatch, CorpusRecord, CorpusRevisionKey, CorpusSearchResult } from '../types'
+import { compareNullableNumber, compareNullableText, type SortDir, type SortState } from './sort'
+import { compareCanonicalRevisionOrder } from './revision'
 
 export const CORPUS_MIN_QUERY = 3
 export const CORPUS_MAX_QUERY = 120
@@ -9,6 +11,20 @@ export const CORPUS_MAX_DECODED_BYTES = 64 * 1024 * 1024
 export const CORPUS_MAX_ROWS = 100_000
 
 export const CORPUS_URL = '/data/corpus/revisions.jsonl.gz'
+
+export const CORPUS_SORT_KEYS = ['time', 'wiki', 'page', 'label', 'hits'] as const
+export type CorpusSortKey = (typeof CORPUS_SORT_KEYS)[number]
+export const CORPUS_SORT_DEFAULTS: Record<CorpusSortKey, SortDir> = {
+  time: 'desc',
+  wiki: 'asc',
+  page: 'asc',
+  label: 'asc',
+  hits: 'desc',
+}
+export const CORPUS_SORT_DEFAULT: SortState<CorpusSortKey> = {
+  sort: CORPUS_SORT_KEYS[0],
+  dir: CORPUS_SORT_DEFAULTS[CORPUS_SORT_KEYS[0]],
+}
 
 export type CorpusPageMap = Map<string, { s?: string; n: string }>
 
@@ -242,8 +258,45 @@ export function searchRecords(
       snippet: snippetAround(record.body, found.first, filters.q.length),
     })
   }
-  matches.sort((a, b) => b.t.localeCompare(a.t) || a.id.localeCompare(b.id) || (a.seq ?? 0) - (b.seq ?? 0))
+  matches.sort(compareCanonicalRevisionOrder)
   return matches
+}
+
+function comparePrimary(a: CorpusMatch, b: CorpusMatch, sort: CorpusSortKey, dir: SortDir): number {
+  switch (sort) {
+    case 'time': {
+      return compareNullableText(a.t, b.t, dir)
+    }
+    case 'wiki': {
+      return compareNullableText(a.w, b.w, dir)
+    }
+    case 'page': {
+      return compareNullableText(a.n, b.n, dir)
+    }
+    case 'label':
+      return compareNullableText(a.x, b.x, dir)
+    case 'hits':
+      return compareNullableNumber(a.occurrences, b.occurrences, dir)
+  }
+}
+
+export function sortMatches(matches: CorpusMatch[], sort: CorpusSortKey, dir: SortDir): CorpusMatch[] {
+  return [...matches].sort((a, b) => (
+    comparePrimary(a, b, sort, dir)
+    || compareCanonicalRevisionOrder(a, b)
+  ))
+}
+
+export function selectMatches(
+  matches: CorpusMatch[],
+  sort: CorpusSortKey,
+  dir: SortDir,
+  offset: number,
+  limit: number,
+): CorpusMatch[] {
+  // searchRecords already emits the canonical newest-first order; avoid copying the cached array for it.
+  const ordered = sort === CORPUS_SORT_DEFAULT.sort && dir === CORPUS_SORT_DEFAULT.dir ? matches : sortMatches(matches, sort, dir)
+  return ordered.slice(offset, offset + limit)
 }
 
 export type CorpusWorkerProgressPhase = 'download' | 'decode' | 'search'
@@ -260,6 +313,8 @@ export type CorpusSearchRequest = {
   wholeWord?: boolean
   limit: number
   offset: number
+  sort?: CorpusSortKey
+  dir?: SortDir
 }
 
 export type CorpusBodyRequest = CorpusRevisionKey & {

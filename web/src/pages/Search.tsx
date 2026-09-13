@@ -4,10 +4,18 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, PageLink } from '../components/ui'
+import { Badge, PageLink, SortHeader } from '../components/ui'
 import type { CorpusMatch, CorpusRevisionKey, CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
-import { CORPUS_MAX_QUERY, CORPUS_MIN_QUERY, findMatchRanges } from '../utils/corpus'
+import {
+  CORPUS_MAX_QUERY,
+  CORPUS_MIN_QUERY,
+  CORPUS_SORT_DEFAULT,
+  CORPUS_SORT_DEFAULTS,
+  CORPUS_SORT_KEYS,
+  findMatchRanges,
+  type CorpusSortKey,
+} from '../utils/corpus'
 import {
   createCorpusRequestId,
   isCorpusWorkerAvailable,
@@ -16,8 +24,11 @@ import {
   subscribeCorpusWorker,
 } from '../utils/corpusWorkerClient'
 import { fmtBytes, fmtInt, fmtTime } from '../utils/format'
+import { resolveSort, updateSortSearchParams, writeSortParams } from '../utils/sort'
+import { applyDateBound } from '../utils/dateRange'
 
 const PAGE_SIZE = 20
+const MAX_PAGE = 5_000
 
 type SearchState =
   | { status: 'idle' }
@@ -119,9 +130,31 @@ export default function Search() {
   const urlTo = searchParams.get('to') ?? ''
   const urlCase = searchParams.get('case') === '1'
   const urlWord = searchParams.get('word') === '1'
-  const page = Math.max(0, Number(searchParams.get('page') ?? '0') || 0)
+  const rawPage = searchParams.get('page')
+  const parsedPage = rawPage === null ? 0 : Number(rawPage)
+  const page = Number.isFinite(parsedPage) ? Math.min(MAX_PAGE, Math.max(0, Math.floor(parsedPage))) : 0
+  const rawSort = searchParams.get('sort')
+  const rawDir = searchParams.get('dir')
+  const sortState = useMemo(
+    () => resolveSort(rawSort, rawDir, CORPUS_SORT_KEYS, CORPUS_SORT_DEFAULTS),
+    [rawSort, rawDir],
+  )
 
-  const urlKey = [urlQ, urlWiki, urlLabel, urlFrom, urlTo, urlCase ? '1' : '', urlWord ? '1' : ''].join('\u0000')
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    let changed = false
+    const beforeSort = next.toString()
+    writeSortParams(next, sortState, CORPUS_SORT_DEFAULT)
+    changed ||= next.toString() !== beforeSort
+    if (rawPage !== null && rawPage !== String(page)) {
+      if (page === 0) next.delete('page')
+      else next.set('page', String(page))
+      changed = true
+    }
+    if (changed) setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams, sortState, rawPage, page])
+
+  const urlKey = [urlQ, urlWiki, urlLabel, urlFrom, urlTo, urlCase ? '1' : '', urlWord ? '1' : '', sortState.sort, sortState.dir].join('\u0000')
   const [state, setState] = useState<SearchState>(() =>
     urlQ.trim() ? { status: 'loading', message: 'starting…' } : { status: 'idle' },
   )
@@ -195,19 +228,18 @@ export default function Search() {
       wholeWord: searchParams.get('word') === '1',
       limit: PAGE_SIZE,
       offset: Math.max(0, Number(searchParams.get('page') ?? '0') || 0) * PAGE_SIZE,
+      sort: sortState.sort,
+      dir: sortState.dir,
     }
     postCorpusRequest(message)
-  }, [searchParams, runId, workerUnavailable])
+  }, [searchParams, runId, workerUnavailable, sortState.sort, sortState.dir])
 
   const visibleState: SearchState = urlQ.trim() ? state : { status: 'idle' }
-
-  const applySearchParams = (nextForm: SearchForm) => {
-    setSearchParams(buildSearchParams(nextForm))
-  }
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const next = buildSearchParams(form)
+    writeSortParams(next, sortState, CORPUS_SORT_DEFAULT)
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next)
       return
@@ -223,13 +255,13 @@ export default function Search() {
   const updateFilter = (patch: Partial<SearchForm>) => {
     const nextForm = { ...form, ...patch }
     // The range boundaries stay ordered: the freshly picked bound wins and the stale one is cleared.
-    if (nextForm.from && nextForm.to && nextForm.from > nextForm.to) {
-      if ('from' in patch) nextForm.to = ''
-      else if ('to' in patch) nextForm.from = ''
-    }
+    if ('from' in patch) Object.assign(nextForm, applyDateBound({ from: nextForm.from, to: nextForm.to }, 'from', nextForm.from))
+    if ('to' in patch) Object.assign(nextForm, applyDateBound({ from: nextForm.from, to: nextForm.to }, 'to', nextForm.to))
     setForm(nextForm)
     if (nextForm.q.trim()) {
-      applySearchParams(nextForm)
+      const next = buildSearchParams(nextForm)
+      writeSortParams(next, sortState, CORPUS_SORT_DEFAULT)
+      setSearchParams(next)
     }
   }
 
@@ -274,6 +306,11 @@ export default function Search() {
     const next = new URLSearchParams(searchParams)
     if (nextPage > 0) next.set('page', String(nextPage))
     else next.delete('page')
+    setSearchParams(next)
+  }
+
+  const toggleSort = (key: CorpusSortKey) => {
+    const next = updateSortSearchParams(searchParams, sortState, key, CORPUS_SORT_DEFAULTS, CORPUS_SORT_DEFAULT)
     setSearchParams(next)
   }
 
@@ -352,12 +389,12 @@ export default function Search() {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Time</th>
-                  <th>Wiki</th>
-                  <th>Page</th>
-                  <th>Label</th>
-                  <th className="num">Hits</th>
-                  <th>Snippet</th>
+                  <SortHeader label="Time" sortKey="time" current={sortState} onToggle={toggleSort} />
+                  <SortHeader label="Wiki" sortKey="wiki" current={sortState} onToggle={toggleSort} />
+                  <SortHeader label="Page" sortKey="page" current={sortState} onToggle={toggleSort} />
+                  <SortHeader label="Label" sortKey="label" current={sortState} onToggle={toggleSort} />
+                  <SortHeader label="Hits" sortKey="hits" current={sortState} numeric onToggle={toggleSort} />
+                  <th scope="col">Snippet</th>
                 </tr>
               </thead>
               <tbody>

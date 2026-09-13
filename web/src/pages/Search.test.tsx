@@ -288,6 +288,68 @@ describe('Search', () => {
     expect(screen.getByRole('link', { name: 'PageA' })).toHaveAttribute('href', '/page/dse%2FPageA')
   })
 
+  it('sorts the full result set through the worker and toggles direction', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
+      initialEntries: ['/search?q=STATE5-ID&page=2'],
+    })
+    render(<RouterProvider router={router} />)
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ sort: 'time', dir: 'desc', offset: 40 })
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hits' }))
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(router.state.location.search).toBe('?q=STATE5-ID&sort=hits&dir=desc')
+    expect(worker.messages[1]).toMatchObject({ sort: 'hits', dir: 'desc', offset: 0 })
+    act(() => {
+      worker.respond(matchResult(worker.messages[1].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByRole('columnheader', { name: /Hits/ })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('columnheader', { name: /Time/ })).not.toHaveAttribute('aria-sort')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hits' }))
+    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    expect(router.state.location.search).toBe('?q=STATE5-ID&sort=hits&dir=asc')
+    expect(worker.messages[2]).toMatchObject({ sort: 'hits', dir: 'asc', offset: 0 })
+    act(() => {
+      worker.respond(matchResult(worker.messages[2].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    expect(await screen.findByRole('columnheader', { name: /Hits/ })).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  it('preserves the selected sort when a search filter changes', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID&sort=hits&dir=desc']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ sort: 'hits', dir: 'desc' })
+    act(() => {
+      worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
+    })
+    await screen.findByText(/1 matching revisions/)
+
+    fireEvent.click(screen.getByLabelText(/case sensitive/))
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1]).toMatchObject({ sort: 'hits', dir: 'desc', caseSensitive: true })
+  })
+
   it('clears stale matches when the URL query changes', async () => {
     stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
@@ -374,6 +436,20 @@ describe('Search', () => {
     expect(screen.getByText(/archive_data_invalid/)).toBeInTheDocument()
   })
 
+  it('normalizes invalid sort and page URL state without misleading display', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
+      initialEntries: ['/search?q=STATE5-ID&sort=bogus&dir=sideways&page=-2.5'],
+    })
+    render(<RouterProvider router={router} />)
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages.length).toBeGreaterThan(0))
+    expect(worker.messages.at(-1)).toMatchObject({ sort: 'time', dir: 'desc', offset: 0 })
+    await waitFor(() => expect(router.state.location.search).toBe('?q=STATE5-ID'))
+  })
   it('triggers search with wholeWord and caseSensitive filters when toggled', async () => {
     stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)

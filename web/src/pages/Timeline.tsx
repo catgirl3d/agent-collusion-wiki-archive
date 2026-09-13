@@ -3,11 +3,24 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, PageLink } from '../components/ui'
+import { Badge, PageLink, SortHeader } from '../components/ui'
 import type { TimelineFile } from '../types'
 import { fmtInt, fmtTime, SOURCE_FILTER_OPTIONS } from '../utils/format'
 import type { SourceFilter } from '../utils/format'
-import { filterTimeline, pageSlice } from '../utils/timeline'
+import {
+  filterTimeline,
+  getTimelinePageName,
+  pageSlice,
+  sortTimelineRows,
+  TIMELINE_SORT_DEFAULT,
+  TIMELINE_SORT_DEFAULTS,
+  TIMELINE_SORT_KEYS,
+  type TimelineSortKey,
+} from '../utils/timeline'
+import { resolveSort, updateSortSearchParams, writeSortParams } from '../utils/sort'
+import { applyDateBound } from '../utils/dateRange'
+
+const MAX_PAGE = 5_000
 
 export default function Timeline() {
   const { data, error } = useData<TimelineFile>('timeline.json')
@@ -20,8 +33,16 @@ export default function Timeline() {
   const to = searchParams.get('to') ?? ''
   const rawSrc = searchParams.get('src')
   const src: SourceFilter = rawSrc === 'canonical' || rawSrc === 'recovered' ? rawSrc : ''
-  const order = searchParams.get('order') === 'asc' ? 'asc' : 'desc'
-  const page = Math.max(0, Number(searchParams.get('page') ?? '0') || 0)
+  const rawSort = searchParams.get('sort')
+  const legacyOrder = searchParams.get('order')
+  const rawDir = rawSort ? searchParams.get('dir') : (legacyOrder === 'asc' ? 'asc' : null)
+  const sortState = useMemo(
+    () => resolveSort(rawSort ?? (legacyOrder === 'asc' ? 'time' : null), rawDir, TIMELINE_SORT_KEYS, TIMELINE_SORT_DEFAULTS),
+    [rawSort, rawDir, legacyOrder],
+  )
+  const rawPage = searchParams.get('page')
+  const parsedPage = rawPage === null ? 0 : Number(rawPage)
+  const page = Number.isFinite(parsedPage) ? Math.min(MAX_PAGE, Math.max(0, Math.floor(parsedPage))) : 0
 
   const update = (changes: Record<string, string | null>, resetPage = true) => {
     const next = new URLSearchParams(searchParams)
@@ -36,40 +57,65 @@ export default function Timeline() {
   // The exact day and the date range are mutually exclusive: picking one clears the other,
   // and a freshly picked bound wins over a stale bound that would invert the range.
   const pickDay = (date: string) => update(date ? { day: date, from: null, to: null } : { day: null })
-  const pickFrom = (date: string) => update(date ? { from: date, day: null, ...(to && date > to ? { to: null } : {}) } : { from: null })
-  const pickTo = (date: string) => update(date ? { to: date, day: null, ...(from && date < from ? { from: null } : {}) } : { to: null })
+  const pickFrom = (date: string) => {
+    const range = applyDateBound({ from, to }, 'from', date)
+    update(date ? { from: date, to: range.to || null, day: null } : { from: null })
+  }
+  const pickTo = (date: string) => {
+    const range = applyDateBound({ from, to }, 'to', date)
+    update(date ? { from: range.from || null, to: date, day: null } : { to: null })
+  }
 
   // Legacy or hand-edited links self-heal to the same contract: the day wins over a range,
   // and an inverted range keeps its start.
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
     let changed = false
+    let resetPage = false
+    if (rawSrc !== null && src === '') {
+      next.delete('src')
+      changed = true
+    }
     if (day && (from || to)) {
       next.delete('from')
       next.delete('to')
       changed = true
+      resetPage = true
     } else if (from && to && from > to) {
       next.delete('to')
       changed = true
+      resetPage = true
     }
+    if (next.has('order')) {
+      next.delete('order')
+      changed = true
+    }
+    if (rawPage !== null && rawPage !== String(page)) {
+      if (page === 0) next.delete('page')
+      else next.set('page', String(page))
+      changed = true
+    }
+    const beforeSort = next.toString()
+    writeSortParams(next, sortState, TIMELINE_SORT_DEFAULT)
+    if (next.toString() !== beforeSort) changed = true
     if (changed) {
-      next.delete('page')
+      if (resetPage) next.delete('page')
       setSearchParams(next, { replace: true })
     }
-  }, [searchParams, setSearchParams, day, from, to])
+  }, [searchParams, setSearchParams, day, from, to, sortState, rawSrc, src, rawPage, page])
 
   const wikis = useMemo(() => [...new Set((data?.r ?? []).map((row) => row.w))].sort(), [data])
 
   const filtered = useMemo(() => {
     if (!data) return []
     const rows = filterTimeline(data.r, { label, wiki, day, from, to, src })
-    if (order === 'asc') {
-      return [...rows].sort(
-        (a, b) => a.t.localeCompare(b.t) || a.id.localeCompare(b.id) || (a.seq ?? 0) - (b.seq ?? 0),
-      )
-    }
-    return rows
-  }, [data, label, wiki, day, from, to, order, src])
+    return sortTimelineRows(rows, sortState.sort, sortState.dir)
+  }, [data, label, wiki, day, from, to, sortState, src])
+
+  const toggleSort = (key: TimelineSortKey) => {
+    const next = updateSortSearchParams(searchParams, sortState, key, TIMELINE_SORT_DEFAULTS, TIMELINE_SORT_DEFAULT)
+    setSearchParams(next)
+  }
 
   if (error) return <div className="error">Error: {error}</div>
   if (!data) return <div className="loading">Loading…</div>
@@ -83,6 +129,7 @@ export default function Timeline() {
       <div className="filters">
         <input
           className="input"
+          aria-label="Filter by agent label"
           placeholder="Agent label…"
           value={label}
           onChange={(event) => update({ label: event.target.value || null })}
@@ -99,12 +146,6 @@ export default function Timeline() {
           options={[{ value: '', label: 'all wikis' }, ...wikis.map((name) => ({ value: name, label: name }))]}
           onChange={(value) => update({ wiki: value || null })}
         />
-        <Dropdown
-          value={order}
-          ariaLabel="Sort timeline order"
-          options={[{ value: 'desc', label: 'newest first' }, { value: 'asc', label: 'oldest first' }]}
-          onChange={(value) => update({ order: value === 'asc' ? 'asc' : null })}
-        />
         <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={pickDay} />
         <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={pickFrom} />
         <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={pickTo} />
@@ -115,13 +156,13 @@ export default function Timeline() {
         <table className="tbl">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Wiki</th>
-              <th>Page</th>
-              <th>Label</th>
-              <th>Action</th>
-              <th>IP16</th>
-              <th className="num">Len</th>
+              <SortHeader label="Time" sortKey="time" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="Wiki" sortKey="wiki" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="Page" sortKey="page" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="Label" sortKey="label" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="Action" sortKey="action" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="IP16" sortKey="ip" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="Len" sortKey="len" current={sortState} numeric onToggle={toggleSort} />
             </tr>
           </thead>
           <tbody>
@@ -129,7 +170,7 @@ export default function Timeline() {
               <tr key={`${row.id}-${row.seq}-${row.t}-${index}`}>
                 <td className="muted nowrap">{fmtTime(row.t)}</td>
                 <td>{row.w}</td>
-                <td><PageLink id={row.id} name={row.id.split('/').slice(1).join('/') || row.id} max={70} /></td>
+                <td><PageLink id={row.id} name={getTimelinePageName(row.id)} max={70} /></td>
                 <td>{row.partial ? <Badge>recovered</Badge> : row.x ? <Badge>{row.x}</Badge> : <span className="muted">anon</span>}</td>
                 <td className="muted">{row.a ?? '—'}</td>
                 <td className="muted nowrap">{row.ip ?? '—'}</td>

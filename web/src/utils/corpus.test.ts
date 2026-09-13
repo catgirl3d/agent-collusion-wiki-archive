@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CorpusRecord } from '../types'
+import type { CorpusMatch, CorpusRecord } from '../types'
 import {
   countOccurrences,
   createJsonlParser,
@@ -7,7 +7,9 @@ import {
   isGzip,
   isRealDate,
   measureBody,
+  selectMatches,
   searchRecords,
+  sortMatches,
   snippetAround,
 } from './corpus'
 
@@ -177,5 +179,80 @@ describe('searchRecords', () => {
     const frozen = [Object.freeze(record())]
     expect(() => searchRecords(frozen as CorpusRecord[], pages, { q: 'state5', caseSensitive: false })).not.toThrow()
     expect(frozen[0].body).toBe('STATE5-ID appears twice: STATE5-ID')
+  })
+})
+
+function match(overrides: Partial<CorpusMatch> = {}): CorpusMatch {
+  return {
+    w: 'dse',
+    id: 'dse/PageA',
+    s: 'dse_PageA~',
+    n: 'PageA',
+    seq: 1,
+    t: '2026-06-18T10:00:00Z',
+    x: 'AgentX',
+    occurrences: 1,
+    bytes: 10,
+    lines: 1,
+    snippet: 'snippet',
+    ...overrides,
+  }
+}
+
+describe('corpus sorting', () => {
+  it('sorts hits before slicing the requested page', () => {
+    const matches = [
+      match({ id: 'dse/Low', n: 'Low', t: '2026-06-20T10:00:00Z', occurrences: 1 }),
+      match({ id: 'dse/High', n: 'High', t: '2026-06-19T10:00:00Z', occurrences: 9 }),
+      match({ id: 'dse/Middle', n: 'Middle', t: '2026-06-18T10:00:00Z', occurrences: 5 }),
+    ]
+
+    expect(selectMatches(matches, 'hits', 'desc', 0, 2).map((item) => item.id)).toEqual(['dse/High', 'dse/Middle'])
+    expect(selectMatches(matches, 'hits', 'desc', 1, 1).map((item) => item.id)).toEqual(['dse/Middle'])
+    expect(selectMatches(matches, 'hits', 'desc', 2, 1).map((item) => item.id)).toEqual(['dse/Low'])
+    expect(matches.map((item) => item.id)).toEqual(['dse/Low', 'dse/High', 'dse/Middle'])
+  })
+
+  it('sorts every supported key in both directions', () => {
+    const matches = [
+      match({ id: 'z/PageB', w: 'z', n: 'PageB', x: 'AgentB', t: '2026-06-20T10:00:00Z', occurrences: 2 }),
+      match({ id: 'a/PageA', w: 'a', n: 'PageA', x: 'AgentA', t: '2026-06-19T10:00:00Z', occurrences: 8 }),
+    ]
+
+    expect(sortMatches(matches, 'time', 'asc').map((item) => item.id)).toEqual(['a/PageA', 'z/PageB'])
+    expect(sortMatches(matches, 'wiki', 'asc').map((item) => item.id)).toEqual(['a/PageA', 'z/PageB'])
+    expect(sortMatches(matches, 'page', 'desc').map((item) => item.id)).toEqual(['z/PageB', 'a/PageA'])
+    expect(sortMatches(matches, 'label', 'desc').map((item) => item.id)).toEqual(['z/PageB', 'a/PageA'])
+    expect(sortMatches(matches, 'hits', 'desc').map((item) => item.id)).toEqual(['a/PageA', 'z/PageB'])
+  })
+
+  it('keeps anonymous labels last and uses stable tie-breakers', () => {
+    const matches = [
+      match({ id: 'dse/PageB', x: null, seq: 2, t: '2026-06-19T10:00:00Z' }),
+      match({ id: 'dse/PageA', x: 'AgentA', seq: 2, t: '2026-06-19T10:00:00Z' }),
+      match({ id: 'dse/PageC', x: 'AgentB', seq: 1, t: '2026-06-19T10:00:00Z' }),
+      match({ id: 'dse/PageA', x: 'AgentA', seq: 1, t: '2026-06-19T10:00:00Z' }),
+    ]
+
+    expect(sortMatches(matches, 'label', 'asc').map((item) => `${item.id}:${item.seq}`)).toEqual([
+      'dse/PageA:1',
+      'dse/PageA:2',
+      'dse/PageC:1',
+      'dse/PageB:2',
+    ])
+    expect(sortMatches(matches, 'label', 'desc').map((item) => `${item.id}:${item.seq}`)).toEqual([
+      'dse/PageC:1',
+      'dse/PageA:1',
+      'dse/PageA:2',
+      'dse/PageB:2',
+    ])
+  })
+
+  it('does not mutate the input for non-default orders', () => {
+    const matches = [match({ id: 'dse/PageB', occurrences: 9 }), match({ id: 'dse/PageA', occurrences: 1 })]
+    const ordered = sortMatches(matches, 'hits', 'desc')
+
+    expect(ordered).not.toBe(matches)
+    expect(matches.map((item) => item.id)).toEqual(['dse/PageB', 'dse/PageA'])
   })
 })
