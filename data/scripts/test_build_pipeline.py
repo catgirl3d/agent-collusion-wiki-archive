@@ -240,3 +240,126 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     assert corpus["compressed_bytes"] == len(raw_corpus)
     assert corpus["decoded_bytes"] == len(decoded_corpus)
     assert corpus["decoded_sha256"] == hashlib.sha256(decoded_corpus).hexdigest()
+
+
+def test_main_merges_recovered_layer_and_is_idempotent(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    out = tmp_path / "processed"
+    public = tmp_path / "public" / "data"
+    raw.mkdir()
+    revision = {"page_id": "wiki/Canonical", "seq": 1, "rev_id": "r1", "wiki": "wiki",
+                "write_date": "2026-05-11T00:00:00Z", "label": "a", "ip16": None,
+                "change_summary": None, "body_len": 1, "body": "x", "request_action": None, "round_id": None}
+    page = {"page_id": "wiki/Canonical", "wiki": "wiki", "name": "Canonical", "n_revs": 1,
+            "first_write": revision["write_date"], "last_write": revision["write_date"],
+            "deleted_live": False, "n_deletions": 0, "page_family": None, "n_labels": 1, "labels": ["a"]}
+    for name, rows in (("revisions.jsonl.gz", [revision]), ("pages.jsonl.gz", [page]),
+                       ("events.jsonl.gz", []), ("labels.jsonl.gz", [])):
+        _write_gzip_jsonl(raw / name, rows)
+    _write_gzip_json(raw / "manifest.json.gz", {"generated_at": "2026-05-12T00:00:00Z", "per_wiki": {}})
+    supplement = {"pages": [{"page_id": "other/Recovered", "wiki": "other", "name": "Recovered",
+                              "revisions": [{"seq": 4, "time": "2026-05-11T01:00:00Z", "ip16": "192.0.2",
+                                             "added": ["added"], "removed": ["removed"]}]}]}
+    _write_gzip_json(raw / "other-wikis.json.gz", supplement)
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", out)
+    monkeypatch.setattr(build, "PUBLIC", public)
+    assert build.main() == 0
+    first = {p.relative_to(out).as_posix(): p.read_bytes() for p in out.rglob("*") if p.is_file()}
+    pages = _read_json(out / "pages.json")["p"]
+    assert pages[0]["id"] == "wiki/Canonical"
+    assert pages[1]["id"] == "other/Recovered" and pages[1]["partial"] is True
+    timeline = _read_json(out / "timeline.json")
+    assert timeline["meta"]["count"] == 2 and timeline["meta"]["supplement_count"] == 1
+    assert [row["t"] for row in timeline["r"]] == ["2026-05-11T01:00:00Z", "2026-05-11T00:00:00Z"]
+    assert _read_json(out / "activity_by_day.json")[0]["rec"] == 1
+    assert _read_json(out / "recent_events.json")[0]["partial"] is True
+    recovered = _read_json(out / "revisions" / "other_Recovered~.json")[0]
+    assert recovered["body"] == "" and recovered["added"] == ["added"] and recovered["removed"] == ["removed"]
+    summary = _read_json(out / "summary.json")
+    assert summary["supplement"]["counts"] == {"pages": 1, "revisions": 1}
+    assert summary["combined"] == {"pages": 2, "revisions": 2}
+    assert build.main() == 0
+    second = {p.relative_to(out).as_posix(): p.read_bytes() for p in out.rglob("*") if p.is_file()}
+    assert first == second
+    assert (public / "other-wikis.json.gz").read_bytes() == (raw / "other-wikis.json.gz").read_bytes()
+    public_paths = {path.relative_to(public).as_posix() for path in public.rglob("*") if path.is_file()}
+    assert "other-wikis.json.gz" in public_paths
+
+
+def test_main_rejects_recovered_page_overlap(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    base = {"page_id": "wiki/Page", "wiki": "wiki", "name": "Page", "n_revs": 0,
+            "first_write": "", "last_write": "", "deleted_live": False, "n_deletions": 0,
+            "page_family": None, "n_labels": 0, "labels": []}
+    _write_gzip_jsonl(raw / "pages.jsonl.gz", [base])
+    _write_gzip_jsonl(raw / "revisions.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "events.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "labels.jsonl.gz", [])
+    _write_gzip_json(raw / "manifest.json.gz", {})
+    _write_gzip_json(raw / "other-wikis.json.gz", {"pages": [{"page_id": "wiki/Page", "wiki": "wiki", "name": "Page", "revisions": []}]})
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", tmp_path / "out")
+    monkeypatch.setattr(build, "PUBLIC", tmp_path / "public")
+    import pytest
+    with pytest.raises(RuntimeError, match="reconcile"):
+        build.main()
+
+
+def test_main_rejects_duplicate_recovered_page_ids(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _write_gzip_jsonl(raw / "pages.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "revisions.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "events.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "labels.jsonl.gz", [])
+    _write_gzip_json(raw / "manifest.json.gz", {})
+    duplicate = {"pages": [
+        {"page_id": "other/Dup", "wiki": "other", "name": "Dup", "revisions": []},
+        {"page_id": "other/Dup", "wiki": "other", "name": "Dup copy", "revisions": []},
+    ]}
+    _write_gzip_json(raw / "other-wikis.json.gz", duplicate)
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", tmp_path / "out")
+    monkeypatch.setattr(build, "PUBLIC", tmp_path / "public")
+    import pytest
+    with pytest.raises(RuntimeError, match="duplicate page_id"):
+        build.main()
+
+
+def test_main_rejects_oversized_recovered_supplement(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _write_gzip_jsonl(raw / "pages.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "revisions.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "events.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "labels.jsonl.gz", [])
+    _write_gzip_json(raw / "manifest.json.gz", {})
+    (raw / "other-wikis.json.gz").write_bytes(b"x" * (build._SUPPLEMENT_MAX_BYTES + 1))
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", tmp_path / "out")
+    monkeypatch.setattr(build, "PUBLIC", tmp_path / "public")
+    import pytest
+    with pytest.raises(RuntimeError, match="exceeds"):
+        build.main()
+
+
+def test_main_rejects_supplement_that_expands_beyond_decoded_limit(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _write_gzip_jsonl(raw / "pages.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "revisions.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "events.jsonl.gz", [])
+    _write_gzip_jsonl(raw / "labels.jsonl.gz", [])
+    _write_gzip_json(raw / "manifest.json.gz", {})
+    monkeypatch.setattr(build, "_SUPPLEMENT_MAX_DECODED_CHARS", 256)
+    _write_gzip_json(raw / "other-wikis.json.gz", {"pages": [
+        {"page_id": "other/Big", "wiki": "other", "name": "x" * 1024, "revisions": []},
+    ]})
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", tmp_path / "out")
+    monkeypatch.setattr(build, "PUBLIC", tmp_path / "public")
+    import pytest
+    with pytest.raises(RuntimeError, match="decoded size"):
+        build.main()

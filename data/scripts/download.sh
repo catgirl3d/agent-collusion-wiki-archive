@@ -18,6 +18,7 @@ FILES=(
   events.jsonl.gz
   labels.jsonl.gz
   manifest.json.gz
+  other-wikis.json.gz
 )
 
 for f in "${FILES[@]}"; do
