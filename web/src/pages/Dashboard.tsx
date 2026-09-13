@@ -55,6 +55,26 @@ export default function Dashboard() {
     return [...new Set(byDay.map((d) => d.wiki))]
   }, [byDay])
 
+  const perWiki = useMemo(() => {
+    const stats = new Map<string, { revisions: number; pages: number; bodyBytes?: number }>()
+    for (const [wiki, value] of Object.entries(summary?.per_wiki ?? {})) {
+      stats.set(wiki, {
+        revisions: value.revisions.value,
+        pages: value.pages.value,
+        bodyBytes: value.body_bytes?.value,
+      })
+    }
+    for (const [wiki, value] of Object.entries(summary?.supplement?.per_wiki ?? {})) {
+      const current = stats.get(wiki)
+      stats.set(wiki, {
+        revisions: (current?.revisions ?? 0) + value.revisions,
+        pages: (current?.pages ?? 0) + value.pages,
+        bodyBytes: current?.bodyBytes,
+      })
+    }
+    return [...stats.entries()].sort((a, b) => b[1].revisions - a[1].revisions)
+  }, [summary])
+
   const err = errSummary ?? errDay ?? errHour ?? errEvents
   if (err) return <div className="error">Error loading data: {err}</div>
   if (!summary || !byDay || !byHour || !events) return <div className="loading">Loading…</div>
@@ -136,18 +156,16 @@ export default function Dashboard() {
           <h2>Edits per wiki</h2>
           <table className="tbl">
             <tbody>
-              {Object.entries(summary.per_wiki ?? {})
-                .sort((a, b) => b[1].revisions.value - a[1].revisions.value)
-                .map(([w, v]) => (
-                  <tr key={w}>
-                    <td>
-                      <Badge color={wikiColor(w)}>{w}</Badge>
-                    </td>
-                    <td className="num">{fmtInt(v.revisions.value)}</td>
-                    <td className="num muted">{v.body_bytes ? fmtBytes(v.body_bytes.value) : ''}</td>
-                    <td className="num muted">{fmtInt(v.pages.value)} pages</td>
-                  </tr>
-                ))}
+              {perWiki.map(([w, v]) => (
+                <tr key={w}>
+                  <td>
+                    <Badge color={wikiColor(w)}>{w}</Badge>
+                  </td>
+                  <td className="num">{fmtInt(v.revisions)}</td>
+                  <td className="num muted">{v.bodyBytes != null ? fmtBytes(v.bodyBytes) : '—'}</td>
+                  <td className="num muted">{fmtInt(v.pages)} pages</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </section>

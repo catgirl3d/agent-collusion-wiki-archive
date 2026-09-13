@@ -70,4 +70,27 @@ describe('Dashboard', () => {
     expect(await screen.findByText('14,591 full + 90 recovered')).toBeInTheDocument()
     expect(screen.getByText('4,579 full + 8 recovered')).toBeInTheDocument()
   })
+
+  it('includes recovered wiki totals in the edits table', async () => {
+    mockData({
+      ...summary,
+      per_wiki: { dse: { revisions: { value: 3 }, pages: { value: 1 }, body_bytes: { value: 10 } } },
+      supplement: {
+        source: 'x', recovered: '2026-09-07', sha256: 'z', bytes: 1,
+        counts: { pages: 8, revisions: 90 },
+        per_wiki: { publictestwiki: { pages: 4, revisions: 58 } },
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('publictestwiki')).toBeInTheDocument()
+    expect(screen.getByText('58')).toBeInTheDocument()
+    expect(screen.getByText('4 pages')).toBeInTheDocument()
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
 })
