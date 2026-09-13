@@ -18,6 +18,16 @@ function Body({ body, enabled }: { body: string; enabled: boolean }) {
   return <>{highlightMatches(body).map((segment, i) => segment.flag ? <mark key={i} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={i}>{segment.text}</span>)}</>
 }
 
+function RecoveredBody({ revision }: { revision: Revision }) {
+  return (
+    <div>
+      <p className="muted">Recovered partial revision — full body not retained</p>
+      {(revision.added ?? []).map((line, index) => <div className="mono" key={`a-${index}`}>+{line}</div>)}
+      {(revision.removed ?? []).map((line, index) => <div className="mono" key={`r-${index}`}>-{line}</div>)}
+    </div>
+  )
+}
+
 function AgentGraph({
   label,
   links,
@@ -396,7 +406,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   if (!revs || (!indexReady && !error)) return <div className="loading">Loading…</div>
   const revisionOptions = revs.map((revision, index) => ({
     value: index,
-    label: `#${index + 1} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}`,
+    label: `#${index + 1} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
   }))
 
   return (
@@ -407,7 +417,8 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         <p className="muted">
           <Chip tone="wiki"><span style={{ color: wikiColor(meta.w) }}>{meta.w}</span></Chip>{' '}
           {fmtInt(meta.r)} revisions · first {meta.f} · last {meta.l}
-          {meta.d && <Chip tone="del">deleted live</Chip>}
+           {meta.d && <Chip tone="del">deleted live</Chip>}
+           {meta.partial && <Badge>recovered</Badge>}
           {meta.fam && <span> · family: <code>{meta.fam}</code></span>}
         </p>
       )}
@@ -446,7 +457,9 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
           <span className="muted">→</span>
           <Dropdown ariaLabel="Compare to revision" value={to} options={revisionOptions} onChange={(value) => setSel({ from, to: value })} />
         </div>
-        {revs[from] && revs[to] && <DiffView before={revs[from].body} after={revs[to].body} />}
+        {revs[from] && revs[to] && (revs[from].partial || revs[to].partial)
+          ? <p className="muted">Recovered partial revision — full body not retained</p>
+          : revs[from] && revs[to] && <DiffView before={revs[from].body} after={revs[to].body} />}
       </section>
 
       <section className="card">
@@ -459,20 +472,30 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
               <header className="rev-head">
                 <strong>#{i + 1}</strong>
                 <span className="muted nowrap">{fmtTime(r.time)}</span>
-                {r.label && <Badge>{r.label}</Badge>}
+                {r.partial ? <Badge>recovered</Badge> : r.label && <Badge>{r.label}</Badge>}
                 {r.ip16 && <span className="muted nowrap">ip16:{r.ip16}</span>}
                 {r.summary && <span className="sum">{r.summary}</span>}
-                <span className="muted nowrap">{r.len != null ? fmtInt(r.len) : ''} chars</span>
+                <span className="muted nowrap">{r.partial ? '—' : r.len != null ? `${fmtInt(r.len)} chars` : ''}</span>
                 <button
                   type="button"
                   className="btn ghost sm"
                   style={{ marginLeft: 'auto' }}
                   onClick={() => toggleExpand(i)}
                 >
-                  {open ? 'hide body' : 'view body'}
+                  {r.partial ? (open ? 'hide diff' : 'view diff') : (open ? 'hide body' : 'view body')}
                 </button>
               </header>
-              {open && <pre className="body">{r.body ? <Body body={r.body} enabled={r.body.length <= 200_000 && Boolean(payload?.f.length || detectPayloadFlags(r.body).length)} /> : <i className="muted">(empty)</i>}</pre>}
+              {open && (
+                r.partial ? (
+                  <div className="body">
+                    <RecoveredBody revision={r} />
+                  </div>
+                ) : (
+                  <pre className="body">
+                    {r.body ? <Body body={r.body} enabled={r.body.length <= 200_000 && Boolean(payload?.f.length || detectPayloadFlags(r.body).length)} /> : <i className="muted">(empty)</i>}
+                  </pre>
+                )
+              )}
             </article>
           )
         })}

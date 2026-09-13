@@ -23,6 +23,12 @@ describe('filterTimeline', () => {
     expect(filterTimeline(anon, {})).toHaveLength(1)
     expect(filterTimeline(anon, { label: 'AgentX' })).toHaveLength(0)
   })
+
+  it('filters canonical and recovered rows by source', () => {
+    const recovered = { ...rows[0], id: 'usemod/SandBox', partial: true }
+    expect(filterTimeline([...rows, recovered], { src: 'canonical' }).every((row) => !row.partial)).toBe(true)
+    expect(filterTimeline([...rows, recovered], { src: 'recovered' })).toEqual([recovered])
+  })
 })
 
 describe('pageSlice', () => {

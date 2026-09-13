@@ -5,7 +5,8 @@ import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { TimelineFile } from '../types'
-import { fmtInt, fmtTime } from '../utils/format'
+import { fmtInt, fmtTime, SOURCE_FILTER_OPTIONS } from '../utils/format'
+import type { SourceFilter } from '../utils/format'
 import { filterTimeline, pageSlice } from '../utils/timeline'
 
 export default function Timeline() {
@@ -17,6 +18,8 @@ export default function Timeline() {
   const day = searchParams.get('day') ?? ''
   const from = searchParams.get('from') ?? ''
   const to = searchParams.get('to') ?? ''
+  const rawSrc = searchParams.get('src')
+  const src: SourceFilter = rawSrc === 'canonical' || rawSrc === 'recovered' ? rawSrc : ''
   const order = searchParams.get('order') === 'asc' ? 'asc' : 'desc'
   const page = Math.max(0, Number(searchParams.get('page') ?? '0') || 0)
 
@@ -34,14 +37,14 @@ export default function Timeline() {
 
   const filtered = useMemo(() => {
     if (!data) return []
-    const rows = filterTimeline(data.r, { label, wiki, day, from, to })
+    const rows = filterTimeline(data.r, { label, wiki, day, from, to, src })
     if (order === 'asc') {
       return [...rows].sort(
         (a, b) => a.t.localeCompare(b.t) || a.id.localeCompare(b.id) || (a.seq ?? 0) - (b.seq ?? 0),
       )
     }
     return rows
-  }, [data, label, wiki, day, from, to, order])
+  }, [data, label, wiki, day, from, to, order, src])
 
   if (error) return <div className="error">Error: {error}</div>
   if (!data) return <div className="loading">Loading…</div>
@@ -58,6 +61,12 @@ export default function Timeline() {
           placeholder="Agent label…"
           value={label}
           onChange={(event) => update({ label: event.target.value || null })}
+        />
+        <Dropdown<SourceFilter>
+          value={src}
+          ariaLabel="Filter by source"
+          options={SOURCE_FILTER_OPTIONS}
+          onChange={(value) => update({ src: value || null })}
         />
         <Dropdown
           value={wiki}
@@ -96,7 +105,7 @@ export default function Timeline() {
                 <td className="muted nowrap">{fmtTime(row.t)}</td>
                 <td>{row.w}</td>
                 <td><PageLink id={row.id} name={row.id.split('/').slice(1).join('/') || row.id} max={70} /></td>
-                <td>{row.x ? <Badge>{row.x}</Badge> : <span className="muted">anon</span>}</td>
+                <td>{row.partial ? <Badge>recovered</Badge> : row.x ? <Badge>{row.x}</Badge> : <span className="muted">anon</span>}</td>
                 <td className="muted">{row.a ?? '—'}</td>
                 <td className="muted nowrap">{row.ip ?? '—'}</td>
                 <td className="num muted">{row.l ?? '—'}</td>
