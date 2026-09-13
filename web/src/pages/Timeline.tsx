@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
+import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { TimelineFile } from '../types'
@@ -58,16 +59,18 @@ export default function Timeline() {
           value={label}
           onChange={(event) => update({ label: event.target.value || null })}
         />
-        <select className="input" value={wiki} onChange={(event) => update({ wiki: event.target.value || null })}>
-          <option value="">all wikis</option>
-          {wikis.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
-        <select className="input" value={order} onChange={(event) => update({ order: event.target.value === 'asc' ? 'asc' : null })}>
-          <option value="desc">newest first</option>
-          <option value="asc">oldest first</option>
-        </select>
+        <Dropdown
+          value={wiki}
+          ariaLabel="Filter by wiki"
+          options={[{ value: '', label: 'all wikis' }, ...wikis.map((name) => ({ value: name, label: name }))]}
+          onChange={(value) => update({ wiki: value || null })}
+        />
+        <Dropdown
+          value={order}
+          ariaLabel="Sort timeline order"
+          options={[{ value: 'desc', label: 'newest first' }, { value: 'asc', label: 'oldest first' }]}
+          onChange={(value) => update({ order: value === 'asc' ? 'asc' : null })}
+        />
         <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={(date) => update({ day: date || null })} />
         <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={(date) => update({ from: date || null })} />
         <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={(date) => update({ to: date || null })} />

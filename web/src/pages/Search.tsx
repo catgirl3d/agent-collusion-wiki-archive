@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
+import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { CorpusMatch, CorpusRevisionKey, CorpusSearchResult, Summary } from '../types'
@@ -295,12 +296,12 @@ export default function Search() {
           value={form.q}
           onChange={(event) => setForm({ ...form, q: event.target.value })}
         />
-        <select className="input" value={form.wiki} onChange={(event) => updateFilter({ wiki: event.target.value })}>
-          <option value="">all wikis</option>
-          {wikis.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
+        <Dropdown
+          value={form.wiki}
+          ariaLabel="Filter by wiki"
+          options={[{ value: '', label: 'all wikis' }, ...wikis.map((name) => ({ value: name, label: name }))]}
+          onChange={(value) => updateFilter({ wiki: value })}
+        />
         <input
           className="input"
           placeholder="Agent label…"

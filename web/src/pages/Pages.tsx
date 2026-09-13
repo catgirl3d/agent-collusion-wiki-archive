@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
+import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
 import { Badge, Chip, PageLink } from '../components/ui'
 import type { DayActivity, PagesIndex, PayloadRecord, SearchIndex } from '../types'
@@ -109,28 +110,36 @@ export default function Pages() {
           onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setLimit(PAGE_LIMIT) }}
         />
         <input className="input" placeholder="Search name / id / agent label / full text…" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE_LIMIT) }} />
-        <select className="input" value={wiki} onChange={(e) => { setWiki(e.target.value); setLimit(PAGE_LIMIT) }}>
-          <option value="">all wikis</option>
-          {WIKIS.map((w) => (
-            <option key={w} value={w}>{w}</option>
-          ))}
-        </select>
-        <select className="input" value={fam} onChange={(e) => { setFam(e.target.value); setLimit(PAGE_LIMIT) }}>
-          <option value="">all families</option>
-          {families.map(([name, count]) => <option key={name} value={name}>{name} ({count})</option>)}
-        </select>
-        <select className="input" value={minRevs} onChange={(e) => { setMinRevs(Number(e.target.value)); setLimit(PAGE_LIMIT) }}>
-          <option value={0}>any revs</option>
-          <option value={2}>≥ 2 revs</option>
-          <option value={10}>≥ 10 revs</option>
-          <option value={50}>≥ 50 revs</option>
-        </select>
-        <select className="input" value={payloadFlag} onChange={(e) => { setPayloadFlag(e.target.value); setLimit(PAGE_LIMIT) }}>
-          <option value="">all payload flags</option>
-          {PAYLOAD_FLAGS_ORDER.map((flag) => (
-            <option key={flag} value={flag}>{flag} ({payloadByPage && data ? data.p.filter((p) => (payloadByPage.get(p.id) ?? []) .includes(flag)).length : 0})</option>
-          ))}
-        </select>
+        <Dropdown
+          value={wiki}
+          ariaLabel="Filter by wiki"
+          options={[{ value: '', label: 'all wikis' }, ...WIKIS.map((w) => ({ value: w, label: w }))]}
+          onChange={(value) => { setWiki(value); setLimit(PAGE_LIMIT) }}
+        />
+        <Dropdown
+          value={fam}
+          ariaLabel="Filter by family"
+          options={[{ value: '', label: 'all families' }, ...families.map(([name, count]) => ({ value: name, label: `${name} (${count})` }))]}
+          onChange={(value) => { setFam(value); setLimit(PAGE_LIMIT) }}
+        />
+        <Dropdown
+          value={minRevs}
+          ariaLabel="Minimum revisions"
+          options={[{ value: 0, label: 'any revs' }, { value: 2, label: '≥ 2 revs' }, { value: 10, label: '≥ 10 revs' }, { value: 50, label: '≥ 50 revs' }]}
+          onChange={(value) => { setMinRevs(value); setLimit(PAGE_LIMIT) }}
+        />
+        <Dropdown
+          value={payloadFlag}
+          ariaLabel="Filter by payload flag"
+          options={[
+            { value: '', label: 'all payload flags' },
+            ...PAYLOAD_FLAGS_ORDER.map((flag) => ({
+              value: flag,
+              label: `${flag} (${payloadByPage && data ? data.p.filter((p) => (payloadByPage.get(p.id) ?? []).includes(flag)).length : 0})`,
+            })),
+          ]}
+          onChange={(value) => { setPayloadFlag(value); setLimit(PAGE_LIMIT) }}
+        />
         <label className="check">
           <input type="checkbox" checked={deletedOnly} onChange={(e) => { setDeletedOnly(e.target.checked); setLimit(PAGE_LIMIT) }} />
           deleted only

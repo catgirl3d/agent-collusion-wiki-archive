@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { buildPairTimeline, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
 import { loadJson, revisionFile } from '../api'
+import { Dropdown } from '../components/Dropdown'
 import { Badge, Chip, PageLink } from '../components/ui'
 import { DiffView } from '../components/DiffView'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
@@ -393,6 +394,10 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   // Index still loading (empty sentinel) or revisions pending: show loading,
   // never a transient "not found" flash before pages.json arrives.
   if (!revs || (!indexReady && !error)) return <div className="loading">Loading…</div>
+  const revisionOptions = revs.map((revision, index) => ({
+    value: index,
+    label: `#${index + 1} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}`,
+  }))
 
   return (
     <div className="page">
@@ -437,21 +442,9 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
       <section className="card">
         <h2>Compare revisions</h2>
         <div className="filters">
-          <select className="input" value={from} onChange={(e) => setSel({ from: Number(e.target.value), to })}>
-            {revs.map((r, i) => (
-              <option key={i} value={i}>
-                #{i + 1} {fmtTime(r.time)} {r.label ? `· ${r.label}` : ''}
-              </option>
-            ))}
-          </select>
+          <Dropdown ariaLabel="Compare from revision" value={from} options={revisionOptions} onChange={(value) => setSel({ from: value, to })} />
           <span className="muted">→</span>
-          <select className="input" value={to} onChange={(e) => setSel({ from, to: Number(e.target.value) })}>
-            {revs.map((r, i) => (
-              <option key={i} value={i}>
-                #{i + 1} {fmtTime(r.time)} {r.label ? `· ${r.label}` : ''}
-              </option>
-            ))}
-          </select>
+          <Dropdown ariaLabel="Compare to revision" value={to} options={revisionOptions} onChange={(value) => setSel({ from, to: value })} />
         </div>
         {revs[from] && revs[to] && <DiffView before={revs[from].body} after={revs[to].body} />}
       </section>
