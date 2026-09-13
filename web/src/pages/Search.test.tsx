@@ -450,6 +450,32 @@ describe('Search', () => {
     expect(worker.messages.at(-1)).toMatchObject({ sort: 'time', dir: 'desc', offset: 0 })
     await waitFor(() => expect(router.state.location.search).toBe('?q=STATE5-ID'))
   })
+
+  it('keeps the newest search result when an older response arrives later', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
+      initialEntries: ['/search?q=AAA'],
+    })
+    render(<RouterProvider router={router} />)
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await act(async () => { await router.navigate('/search?q=BBB') })
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    act(() => worker.respond(matchResult(worker.messages[1].requestId, 'B-result', 'BBB')))
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+    act(() => worker.respond(matchResult(worker.messages[0].requestId, 'A-result', 'AAA')))
+    expect(screen.getByText('B-result')).toBeInTheDocument()
+    expect(screen.queryByText('A-result')).toBeNull()
+  })
+
+  it('exposes durable labels for text filters', async () => {
+    stubSearchData()
+    render(<MemoryRouter initialEntries={['/search']}><Routes><Route path="/search" element={<Search />} /></Routes></MemoryRouter>)
+    expect(screen.getByLabelText('Search text')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter by agent label')).toBeInTheDocument()
+  })
+
   it('triggers search with wholeWord and caseSensitive filters when toggled', async () => {
     stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
