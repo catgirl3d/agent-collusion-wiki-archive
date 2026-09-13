@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
+import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { EventType, RecentEvent } from '../types'
@@ -52,12 +53,12 @@ export default function Events() {
           value={day}
           onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setPage(0) }}
         />
-        <select className="input" value={type} onChange={(e) => { setType(e.target.value as '' | EventType); setPage(0) }}>
-          <option value="">all types</option>
-          {(Object.keys(TYPE_COLORS) as EventType[]).map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
+        <Dropdown
+          value={type}
+          ariaLabel="Filter by event type"
+          options={[{ value: '', label: 'all types' }, ...(Object.keys(TYPE_COLORS) as EventType[]).map((t) => ({ value: t, label: t }))]}
+          onChange={(value) => { setType(value); setPage(0) }}
+        />
         <input className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
         <span className="muted result-count">
           page {cur + 1}/{pages}
