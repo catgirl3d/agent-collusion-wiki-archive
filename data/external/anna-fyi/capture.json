@@ -1,0 +1,20 @@
+{
+  "discovered_pastes": 146,
+  "ended_at": "2026-09-12T23:14:05.015Z",
+  "excluded_pastes": 58,
+  "included_pastes": 88,
+  "public_raw_exchanges": 88,
+  "public_view_metadata_exchanges": 88,
+  "published_times_sha256": "41516a4e6b0bdb177ce41558979b87fc50ee7293c952e28a815bd3da413a6e47",
+  "published_times_source": "https://anna.fyi/api/paste/<id> (created field)",
+  "raw_diagnostic_banner_files": 4,
+  "raw_hashes_matched_approved_selection": 88,
+  "schema_version": 2,
+  "selection_source_commit": "e694240",
+  "selection_source_commit_oid": "e694240b04821ed6b83a82baa0183b26269318e7",
+  "selection_version": 1,
+  "source": "https://anna.fyi",
+  "source_body_semantics": "HTTP response entity bytes before content/text decoding or transforms",
+  "source_run_id": "provisional-20260912T230949Z-004252d8",
+  "started_at": "2026-09-12T23:09:49.702Z"
+}
