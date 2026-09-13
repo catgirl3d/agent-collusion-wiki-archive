@@ -79,6 +79,73 @@ def read_json(path: Path):
         return json.load(f)
 
 
+_SUPPLEMENT_MAX_BYTES = 4 * 1024 * 1024
+_SUPPLEMENT_MAX_DECODED_CHARS = 32 * 1024 * 1024
+_SUPPLEMENT_MAX_PAGES = 10_000
+_SUPPLEMENT_MAX_REVISIONS = 100_000
+
+
+def read_supplement(path: Path) -> tuple[list[dict], list[dict]]:
+    """Normalize the optional recovered export to the canonical internal shapes."""
+    if not path.exists():
+        return [], []
+    if path.stat().st_size > _SUPPLEMENT_MAX_BYTES:
+        raise RuntimeError(f"supplement file exceeds {_SUPPLEMENT_MAX_BYTES} bytes: {path}")
+    with open_maybe_gz(path) as f:
+        text = f.read(_SUPPLEMENT_MAX_DECODED_CHARS + 1)
+    if len(text) > _SUPPLEMENT_MAX_DECODED_CHARS:
+        raise RuntimeError(f"supplement decoded size exceeds {_SUPPLEMENT_MAX_DECODED_CHARS} characters: {path}")
+    source = json.loads(text)
+    pages = source.get("pages", [])
+    if len(pages) > _SUPPLEMENT_MAX_PAGES:
+        raise RuntimeError(f"supplement has too many pages: {len(pages)}")
+    seen_page_ids: set[str] = set()
+    normalized_pages = []
+    normalized_revisions = []
+    for page in pages:
+        page_id = page["page_id"]
+        if page_id in seen_page_ids:
+            raise RuntimeError(f"supplement duplicate page_id: {page_id}")
+        seen_page_ids.add(page_id)
+        revisions = page.get("revisions", [])
+        normalized_pages.append({
+            "page_id": page_id,
+            "wiki": page.get("wiki") or page_id.partition("/")[0],
+            "name": page.get("name") or page_id.partition("/")[2],
+            "n_revs": len(revisions),
+            "first_write": min((r.get("time", "") for r in revisions), default=""),
+            "last_write": max((r.get("time", "") for r in revisions), default=""),
+            "deleted_live": False,
+            "n_deletions": 0,
+            "page_family": "",
+            "n_labels": 0,
+            "labels": [],
+            "partial": True,
+        })
+        for revision in revisions:
+            normalized_revisions.append({
+                "page_id": page_id,
+                "wiki": page.get("wiki") or page_id.partition("/")[0],
+                "seq": revision.get("seq"),
+                "time": revision.get("time"),
+                "time_grade": revision.get("time_grade"),
+                "ip16": revision.get("ip16"),
+                "label": None,
+                "change_summary": None,
+                "body_len": None,
+                "body": "",
+                "request_action": None,
+                "round_id": None,
+                "append": revision.get("append"),
+                "added": revision.get("added", []),
+                "removed": revision.get("removed", []),
+                "partial": True,
+            })
+    if len(normalized_revisions) > _SUPPLEMENT_MAX_REVISIONS:
+        raise RuntimeError(f"supplement has too many revisions: {len(normalized_revisions)}")
+    return normalized_pages, normalized_revisions
+
+
 def slugify(page_key: str) -> str:
     wiki, _, name = page_key.partition("~")
     return f"{_SLUG_SAFE.sub('_', wiki)}~{_SLUG_SAFE.sub('_', name)}"
@@ -107,7 +174,7 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
 
     for page_id, revs in sorted(by_page.items()):
         slug = slugify(page_id)
-        revs_sorted = sorted(revs, key=lambda r: (r["seq"] if r.get("seq") is not None else 0, r["rev_id"]))
+        revs_sorted = sorted(revs, key=lambda r: (r["seq"] if r.get("seq") is not None else 0, r.get("rev_id", "")))
         payload = []
         for r in revs_sorted:
             payload.append({
@@ -121,6 +188,13 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
                 "action": r.get("request_action"),
                 "round": r.get("round_id"),
             })
+            if r.get("partial"):
+                payload[-1].update({
+                    "partial": True,
+                    "added": r.get("added", []),
+                    "removed": r.get("removed", []),
+                    "append": r.get("append"),
+                })
         # Slug collisions, including on case-insensitive filesystems (Windows/macOS)
         if any(k in used and used[k] != page_id for k in (slug, slug.lower())):
             slug = f"{slug}_h{hashlib.sha1(page_id.encode()).hexdigest()[:8]}"
@@ -197,7 +271,7 @@ def build_timeline(
     rows = []
     for r in revisions:
         page_id = r["page_id"]
-        rows.append({
+        row = {
             "t": r.get("write_date") or r.get("time") or "",
             "w": r.get("wiki") or page_id.partition("/")[0],
             "id": page_id,
@@ -208,20 +282,27 @@ def build_timeline(
             "ip": r.get("ip16"),
             "l": r.get("body_len"),
             "_rev": r.get("rev_id", ""),
-        })
+        }
+        if r.get("partial"):
+            row["partial"] = True
+        rows.append(row)
     # Stable two-pass sort: deterministic tie-breakers first, then t desc.
     rows.sort(key=lambda row: (row["id"], row["seq"] if row["seq"] is not None else 0, row["_rev"]))
     rows.sort(key=lambda row: row["t"], reverse=True)
     for row in rows:
         row.pop("_rev")
     print(f"timeline: {len(rows)} revisions")
-    return {
-        "meta": {
+    meta = {
             "schema_version": 1,
             "export_generated_at": export_generated_at,
             "count": len(rows),
             "order": "time_desc",
-        },
+    }
+    supplement_count = sum(1 for r in revisions if r.get("partial"))
+    if supplement_count:
+        meta["supplement_count"] = supplement_count
+    return {
+        "meta": meta,
         "r": rows,
     }
 
@@ -507,13 +588,30 @@ def main() -> int:
     labels = list(read_jsonl(RAW / "labels.jsonl.gz"))
     manifest = read_json(RAW / "manifest.json.gz")
 
-    rev_counts, slug_map = build_revision_files(revisions)
+    supplement_pages, supplement_revisions = read_supplement(RAW / "other-wikis.json.gz")
+    canonical_page_ids = {page["page_id"] for page in pages}
+    overlap = canonical_page_ids.intersection(page["page_id"] for page in supplement_pages)
+    if overlap:
+        page_id = sorted(overlap)[0]
+        raise RuntimeError(
+            f"supplement page_id overlap: {page_id}; reconcile the supplement before merging"
+        )
+    canonical_wikis = {page.get("wiki") for page in pages}
+    supplement_wikis = {page.get("wiki") for page in supplement_pages}
+    wiki_overlap = canonical_wikis.intersection(supplement_wikis)
+    if wiki_overlap:
+        print(f"WARNING: supplement wiki overlap without page overlap: {', '.join(sorted(wiki_overlap))}")
+    all_pages = pages + sorted(supplement_pages, key=lambda page: page["page_id"])
+    all_revisions = revisions + supplement_revisions
+
+    _, slug_map = build_revision_files(all_revisions)
 
     # --- activity by day and hour from events ---
     day: dict[tuple[str, str], dict[str, int]] = defaultdict(
         lambda: {"saves": 0, "deletes": 0, "reverts": 0, "probes": 0, "bytes": 0}
     )
     hour = Counter()
+    hour_recovered = Counter()
     by_type: Counter[str] = Counter()
 
     for e in events:
@@ -537,13 +635,26 @@ def main() -> int:
         if d:
             day[(d, r.get("wiki", ""))]["bytes"] += r.get("body_len") or 0
 
+    for r in supplement_revisions:
+        d = (r.get("time") or "")[:10]
+        wiki = r.get("wiki", "")
+        if d:
+            day[(d, wiki)]["saves"] += 1
+            day[(d, wiki)]["rec"] = day[(d, wiki)].get("rec", 0) + 1
+        hour_key = (r.get("time") or "")[11:13] or "?"
+        hour[hour_key] += 1
+        hour_recovered[hour_key] += 1
+
     activity_by_day = [
         {"date": date, "wiki": wiki, **counts}
         for (date, wiki), counts in sorted(day.items())
     ]
-    activity_by_hour = [
-        {"hour": h, "saves": hour[h]} for h in sorted(hour, key=lambda x: (x == "?", x))
-    ]
+    activity_by_hour = []
+    for h in sorted(hour, key=lambda x: (x == "?", x)):
+        entry = {"hour": h, "saves": hour[h]}
+        if hour_recovered[h]:
+            entry["rec"] = hour_recovered[h]
+        activity_by_hour.append(entry)
 
     # --- page index (compact keys) ---
     pages_index = {
@@ -560,7 +671,8 @@ def main() -> int:
             "fam": p.get("page_family") or "",
             "lb": p["n_labels"],
             "labs": p["labels"][:8],
-        } for p in pages],
+            **({"partial": True} if p.get("partial") else {}),
+        } for p in all_pages],
         "order": "last_write desc",
     }
 
@@ -602,19 +714,42 @@ def main() -> int:
             if value is not None:
                 entry[key] = value
         recent.append(entry)
+    for r in supplement_revisions:
+        recent.append({
+            "t": r.get("time"), "type": "save", "wiki": r.get("wiki", ""),
+            "page": r.get("page_id", "").partition("/")[2], "ip16": r.get("ip16"),
+            "partial": True,
+        })
     recent.sort(key=lambda e: e["t"] or "", reverse=True)
     recent_events = recent
 
     agent_links = build_agent_links(labels)
     conflicts = build_conflicts(pages, revisions, slug_map)
-    search_index = build_search_index(pages, revisions, slug_map)
+    search_index = build_search_index(all_pages, revisions, slug_map)
     payload_index = build_payload_index(pages, revisions, slug_map)
     fts_index = build_fts_index(pages, revisions)
 
     # --- summary ---
-    n_revs_total = sum(rev_counts.values())
-    timeline = build_timeline(revisions, slug_map, manifest.get("generated_at"))
+    n_revs_total = len(revisions)
+    timeline = build_timeline(all_revisions, slug_map, manifest.get("generated_at"))
     corpus_metadata = build_corpus_metadata(RAW / "revisions.jsonl.gz", n_revs_total)
+    supplement_metadata = None
+    supplement_path = RAW / "other-wikis.json.gz"
+    if supplement_pages:
+        per_wiki = {}
+        for page in supplement_pages:
+            item = per_wiki.setdefault(page["wiki"], {"pages": 0, "revisions": 0})
+            item["pages"] += 1
+            item["revisions"] += page["n_revs"]
+        raw_bytes = supplement_path.read_bytes()
+        supplement_metadata = {
+            "source": "https://collusion.wiki/explorer/download/other-wikis.json.gz",
+            "recovered": "2026-09-07",
+            "sha256": hashlib.sha256(raw_bytes).hexdigest(),
+            "bytes": len(raw_bytes),
+            "counts": {"pages": len(supplement_pages), "revisions": len(supplement_revisions)},
+            "per_wiki": per_wiki,
+        }
     summary = {
         "source": "https://collusion.wiki/explorer/download.html",
         "export_generated_at": manifest.get("generated_at"),
@@ -632,6 +767,9 @@ def main() -> int:
         },
         "corpus": corpus_metadata,
     }
+    if supplement_metadata:
+        summary["supplement"] = supplement_metadata
+        summary["combined"] = {"revisions": len(all_revisions), "pages": len(all_pages)}
 
     OUT.mkdir(parents=True, exist_ok=True)
     for name, data in [
@@ -665,6 +803,9 @@ def main() -> int:
         corpus_dir = PUBLIC / "corpus"
         corpus_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(RAW / "revisions.jsonl.gz", corpus_dir / "revisions.jsonl.gz")
+        supplement_source = RAW / "other-wikis.json.gz"
+        if supplement_metadata:
+            shutil.copyfile(supplement_source, PUBLIC / supplement_source.name)
         print(f"synced {OUT} -> {PUBLIC} (+ raw corpus gzip)")
 
     return 0

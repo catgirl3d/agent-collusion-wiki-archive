@@ -11,9 +11,11 @@ import {
   filterPages,
   filterPagesByDay,
   fmtInt,
+  SOURCE_FILTER_OPTIONS,
   toCsv,
   wikiColor,
 } from '../utils/format'
+import type { SourceFilter } from '../utils/format'
 import { downloadBlob } from '../utils/download'
 import { PAYLOAD_FLAG_COLORS } from '../utils/payload'
 import { lookupTokenPostings } from '../utils/search'
@@ -26,6 +28,7 @@ export default function Pages() {
   const { data, error, loading } = useData<PagesIndex>('pages.json')
   const [query, setQuery] = useState('')
   const [wiki, setWiki] = useState('')
+  const [src, setSrc] = useState<SourceFilter>('')
   const [deletedOnly, setDeletedOnly] = useState(false)
   const [minRevs, setMinRevs] = useState(0)
   const [fam, setFam] = useState('')
@@ -60,8 +63,8 @@ export default function Pages() {
   )
 
   const filtered = useMemo(
-    () => (data ? filterPagesByDay(filterPages(data.p, { query: deferredQuery, wiki, fam, deletedOnly, minRevs, tokenSlugs, payloadFlag, payloadFlags: payloadByPage }), day) : []),
-    [data, day, deferredQuery, wiki, fam, deletedOnly, minRevs, tokenSlugs, payloadFlag, payloadByPage],
+    () => (data ? filterPagesByDay(filterPages(data.p, { query: deferredQuery, wiki, fam, deletedOnly, minRevs, tokenSlugs, payloadFlag, payloadFlags: payloadByPage, src }), day) : []),
+    [data, day, deferredQuery, wiki, fam, deletedOnly, minRevs, tokenSlugs, payloadFlag, payloadByPage, src],
   )
 
   const dayStats = useMemo(() => {
@@ -110,6 +113,12 @@ export default function Pages() {
           onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setLimit(PAGE_LIMIT) }}
         />
         <input className="input" placeholder="Search name / id / agent label / full text…" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE_LIMIT) }} />
+        <Dropdown
+          value={src}
+          ariaLabel="Filter by source"
+           options={SOURCE_FILTER_OPTIONS}
+          onChange={(value) => { setSrc(value); setLimit(PAGE_LIMIT) }}
+        />
         <Dropdown
           value={wiki}
           ariaLabel="Filter by wiki"
@@ -182,7 +191,8 @@ export default function Pages() {
               <tr key={p.id} className={p.d ? 'row-deleted' : undefined}>
                 <td>
                   <PageLink id={p.id} name={p.n} max={64} />
-                  {p.d && <Chip tone="del">deleted</Chip>}
+                   {p.d && <Chip tone="del">deleted</Chip>}
+                   {p.partial && <Chip>recovered</Chip>}
                 </td>
                 <td>
                   <Chip tone="wiki" ><span style={{ color: wikiColor(p.w) }}>{p.w}</span></Chip>

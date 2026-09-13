@@ -16,6 +16,10 @@ const pageThree = {
   id: 'other/Notes', s: 'Notes', w: 'other', n: 'Notes', r: 1,
   f: 'Family A', l: '2026-01-05', d: false, del: 0, fam: 'Family A', lb: 1, labs: ['Alice'],
 }
+const partialPage = {
+  id: 'publictestwiki/Recovered', s: 'Recovered~', w: 'publictestwiki', n: 'Recovered', r: 1,
+  f: '', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [], partial: true,
+}
 const labels = {
   n_anon: 4,
   l: [
@@ -28,11 +32,15 @@ const revisions = [
   { seq: 1, label: 'Alice', body: 'first body', t: '2026-01-03T10:00:00Z' },
   { seq: 2, label: 'Bob', body: 'prefix '.repeat(20) + 'Needle   appears here', t: '2026-01-04T10:00:00Z' },
 ]
+const partialRevisions = [
+  { seq: 0, label: null, added: ['recovered line'], removed: ['old line'], partial: true, time: '2026-05-11T10:00:00Z' },
+]
 const events = [
   { type: 'edit', act: '[Admin1]', wiki: 'wiki', t: '2026-01-03T10:00:00Z', page: 'Page One', action: 'update', ip16: 'aabb' },
   { type: 'delete', act: '[Admin2]', wiki: 'other', t: '2026-01-04T10:00:00Z', page: 'Deleted', action: 'remove', ip16: 'ccdd' },
   { type: 'edit', act: '[Admin1]', wiki: 'other', t: '2026-01-05T10:00:00Z', page: 'Notes', action: 'update', ip16: 'eeff' },
 ]
+const partialEvent = { type: 'save', wiki: 'publictestwiki', t: '2026-05-11T10:00:00Z', page: 'Recovered', ip16: '1122', partial: true }
 
 const fts = {
   tokens: { alpha: [0, 2], alphabet: [1], beta: [0], capped: [0] },
@@ -49,9 +57,10 @@ const conflicts = [
 
 const assets: Record<string, AssetValue> = {
   '/data/summary.json': { pages: 3, revisions: 12 },
-  '/data/pages.json': { p: [pageOne, pageTwo, pageThree] },
+  '/data/pages.json': { p: [pageOne, pageTwo, pageThree, partialPage] },
   '/data/labels.json': labels,
   '/data/revisions/Page_One~_h12345678.json': revisions,
+  '/data/revisions/Recovered~.json': partialRevisions,
   '/data/recent_events.json': events,
   '/data/fts_index.json': fts,
   '/data/payload_index.json': payload,
@@ -118,6 +127,7 @@ describe('Worker API default fetch handler', () => {
     const openapi = await request('/api/openapi')
     const body = await json(openapi.response)
     expect(body.openapi).toBe('3.0.0')
+    expect(body.routes).toContain('GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset= (src filtering is client-side only)')
     expect(body.routes).toContain('GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&from=YYYY-MM-DD&to=YYYY-MM-DD&q=&limit=&offset=')
     expect(body.dataAssets.map((asset: { path: string }) => asset.path)).toContain('/data/corpus/revisions.jsonl.gz')
     expect(openapi.setup.calls).toEqual([])
@@ -167,6 +177,31 @@ describe('Worker API default fetch handler', () => {
   it('returns page metadata by slug', async () => {
     const result = await request('/api/pages/Page_One~_h12345678')
     expect(await json(result.response)).toEqual(pageOne)
+  })
+
+  it('passes recovered provenance through pages, revisions, events, and search', async () => {
+    const pages = await request('/api/pages?wiki=publictestwiki')
+    expect((await json(pages.response)).pages).toEqual([partialPage])
+
+    const byId = await request('/api/pages/by-id?id=publictestwiki%2FRecovered')
+    expect(await json(byId.response)).toEqual(partialPage)
+
+    const withBody = await request('/api/pages/Recovered~/revisions?body=1')
+    expect((await json(withBody.response)).revisions).toEqual(partialRevisions)
+    const withoutBody = await request('/api/pages/Recovered~/revisions?body=0')
+    expect((await json(withoutBody.response)).revisions).toEqual([{
+      seq: 0, label: null, added: ['recovered line'], removed: ['old line'], partial: true, time: '2026-05-11T10:00:00Z',
+    }])
+
+    const eventResult = await request('/api/events?wiki=publictestwiki', {}, { '/data/recent_events.json': [partialEvent] })
+    expect((await json(eventResult.response)).events).toEqual([partialEvent])
+
+    const search = await request('/api/search?q=recovered')
+    expect((await json(search.response)).pages).toEqual([{
+      id: partialPage.id, s: partialPage.s, w: partialPage.w, n: partialPage.n, r: partialPage.r, partial: true,
+    }])
+    const canonicalSearch = await request('/api/search?q=page')
+    expect((await json(canonicalSearch.response)).pages[0].partial).toBeUndefined()
   })
 
   it('filters revisions, omits body, and paginates', async () => {
@@ -354,6 +389,7 @@ describe('Worker API default fetch handler', () => {
       '/data/activity_by_day.json',
       '/data/activity_by_hour.json',
       '/data/corpus/revisions.jsonl.gz',
+      '/data/other-wikis.json.gz',
     ])
 
     const buildSource = readFileSync(new URL('../../data/scripts/build.py', import.meta.url), 'utf8')

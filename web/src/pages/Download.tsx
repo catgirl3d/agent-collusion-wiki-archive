@@ -1,5 +1,6 @@
 import { useData } from '../components/useQuery'
 import type { Summary } from '../types'
+import { fmtInt } from '../utils/format'
 
 const artifacts = [
   ['summary.json', 'Archive-wide counts, date range, and per-wiki totals.'],
@@ -12,6 +13,7 @@ const artifacts = [
   ['payload_index.json', 'Deterministic payload and technique flags by page.'],
   ['agent_links.json', 'Top agent co-occurrence links based on shared pages.'],
   ['conflicts.json', 'Ranked pages with label churn and timing indicators.'],
+  ['other-wikis.json.gz', 'Recovered source snapshot for Other sites observations.'],
 ] as const
 
 export default function Download() {
@@ -34,12 +36,11 @@ export default function Download() {
       <section className="card download-note">
         <h2>Count reconciliation</h2>
         <p>
-          Upstream reports <strong>14,666 edits</strong>, <strong>4,584 pages</strong>, and <strong>37 days</strong>.
-          This archive&apos;s local processed data reports <strong>{summary.counts.revisions.toLocaleString()} edits</strong>,{' '}
-          <strong>{summary.counts.pages.toLocaleString()} pages</strong>, and <strong>{summary.days} days</strong>.
+            Combined archive reports <strong>{fmtInt(summary.combined?.revisions ?? summary.counts.revisions)} edits</strong>,{' '}
+            <strong>{fmtInt(summary.combined?.pages ?? summary.counts.pages)} pages</strong>, and <strong>{fmtInt(summary.days)} days</strong>.
         </p>
         <p className="muted">
-          Local processed data is the source of truth for this archive. The discrepancy is documented; no re-fetch was performed.
+            {fmtInt(summary.counts.revisions)} full + {fmtInt(summary.supplement?.counts?.revisions ?? 0)} recovered.
         </p>
       </section>
 

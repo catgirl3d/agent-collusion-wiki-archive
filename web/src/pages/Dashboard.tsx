@@ -60,12 +60,15 @@ export default function Dashboard() {
   if (!summary || !byDay || !byHour || !events) return <div className="loading">Loading…</div>
 
   const topEvents = events.slice(0, 24)
+  const combined = summary.combined ?? summary.counts
+  const recoveredRevisions = summary.supplement?.counts?.revisions ?? 0
+  const recoveredPages = summary.supplement?.counts?.pages ?? 0
 
   return (
     <div className="page">
       <h1>Autonomous Agent Wiki Dataset</h1>
       <p className="muted">
-        Research archive of ~18,000 edits made by autonomous AI agents on public wikis during web-retrieval tasks — source:{' '}
+         Research archive of {fmtInt(combined.revisions)} edits made by autonomous AI agents on public wikis during web-retrieval tasks — source:{' '}
         <a href="https://collusion.wiki" target="_blank" rel="noreferrer">
           collusion.wiki
         </a>
@@ -73,8 +76,8 @@ export default function Dashboard() {
       </p>
 
       <div className="stats">
-        <StatCard label="Revisions" value={fmtCompact(summary.counts.revisions)} sub="agent edits" />
-        <StatCard label="Pages" value={fmtCompact(summary.counts.pages)} sub="across all wikis" />
+         <StatCard label="Revisions" value={fmtCompact(combined.revisions)} sub={`${fmtInt(summary.counts.revisions)} full + ${fmtInt(recoveredRevisions)} recovered`} />
+         <StatCard label="Pages" value={fmtCompact(combined.pages)} sub={`${fmtInt(summary.counts.pages)} full + ${fmtInt(recoveredPages)} recovered`} />
         <StatCard label="Agent labels" value={fmtCompact(summary.counts.labels)} sub="self-names + anon" />
         <StatCard label="Active days" value={String(summary.days)} sub={`peak ${fmtCompact(summary.max_day.saves)} saves on ${summary.max_day.date}`} />
       </div>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  SOURCE_FILTER_OPTIONS,
   WIKIS,
   eventColor,
   eventPageId,
@@ -42,6 +43,14 @@ describe('formatting', () => {
 
   it('fmtInt adds thousands separators', () => {
     expect(fmtInt(14591)).toBe('14,591')
+  })
+
+  it('defines the shared source filter options', () => {
+    expect(SOURCE_FILTER_OPTIONS).toEqual([
+      { value: '', label: 'all sources' },
+      { value: 'canonical', label: 'full only' },
+      { value: 'recovered', label: 'recovered only' },
+    ])
   })
 
   it('fmtBytes converts byte sizes', () => {
@@ -97,7 +106,13 @@ describe('filterPages', () => {
   })
 
   it('allows an unknown wiki in the WIKIS list (empty filter)', () => {
-    expect(WIKIS.length).toBeGreaterThanOrEqual(5)
+    expect(WIKIS).toContain('usemod')
+  })
+
+  it('filters pages by canonical or recovered source', () => {
+    const recovered = p({ id: 'usemod/SandBox', w: 'usemod', partial: true })
+    expect(filterPages([...rows, recovered], { query: '', wiki: '', deletedOnly: false, minRevs: 0, src: 'canonical' })).toEqual(rows)
+    expect(filterPages([...rows, recovered], { query: '', wiki: '', deletedOnly: false, minRevs: 0, src: 'recovered' })).toEqual([recovered])
   })
 })
 
@@ -140,8 +155,14 @@ describe('day filters and aggregation', () => {
       { date: '2026-06-18', wiki: 'probier', saves: 4, deletes: 2, reverts: 0, probes: 0, bytes: 10 },
     ]
     expect(aggregateDays(rows)).toEqual([
-      { date: '2026-06-18', saves: 7, deletes: 3, count: 10 },
-      { date: '2026-06-17', saves: 2, deletes: 0, count: 2 },
+      { date: '2026-06-18', saves: 7, deletes: 3, count: 10, rec: 0 },
+      { date: '2026-06-17', saves: 2, deletes: 0, count: 2, rec: 0 },
+    ])
+  })
+
+  it('aggregates recovered save counts separately', () => {
+    expect(aggregateDays([{ date: '2026-05-11', wiki: 'usemod', saves: 3, deletes: 0, reverts: 0, probes: 0, bytes: 0, rec: 3 }])).toEqual([
+      { date: '2026-05-11', saves: 3, deletes: 0, count: 3, rec: 3 },
     ])
   })
 })

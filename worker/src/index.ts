@@ -32,6 +32,7 @@ type PageRecord = {
   fam: string
   lb: number
   labs: string[]
+  partial?: boolean
 }
 
 type LabelRecord = {
@@ -162,12 +163,13 @@ export default {
               { path: '/data/activity_by_day.json', purpose: 'Daily save/delete/revert/probe and byte totals.' },
               { path: '/data/activity_by_hour.json', purpose: 'UTC-hour save distribution (save events only).' },
               { path: '/data/corpus/revisions.jsonl.gz', purpose: 'Canonical raw revisions dump (gzip JSONL) for client-side corpus search.' },
+              { path: '/data/other-wikis.json.gz', purpose: 'Recovered "Other sites" source snapshot (partial revisions from publictestwiki, uncyclopedia, usemod).' },
             ],
             routes: [
               'GET /api/health',
               'GET /api/openapi',
               'GET /api/stats',
-              'GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset=',
+              'GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset= (src filtering is client-side only)',
               'GET /api/pages/by-id?id=<page_id>',
               'GET /api/pages/:slug',
               'GET /api/pages/:slug/revisions?label=&contains=&seq=&body=0|1&limit=&offset=',
@@ -192,7 +194,7 @@ export default {
         return json(summary)
       }
 
-      // GET /api/pages — same filter as the frontend (filterPages), plus total.
+      // GET /api/pages — server-side page filters; source filtering remains client-side, plus total.
       if (url.pathname === '/api/pages') {
         const index = await loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json')
         const q = (url.searchParams.get('q') || '').trim().toLowerCase()
@@ -508,7 +510,7 @@ export default {
               p.labs.some((l) => l.toLowerCase().includes(q)),
           )
           .slice(0, limit)
-          .map((p) => ({ id: p.id, s: p.s, w: p.w, n: p.n, r: p.r }))
+          .map((p) => ({ id: p.id, s: p.s, w: p.w, n: p.n, r: p.r, ...(p.partial ? { partial: true } : {}) }))
         const agentHits = agents.l
           .filter((a) => a.x.toLowerCase().includes(q))
           .slice(0, limit)

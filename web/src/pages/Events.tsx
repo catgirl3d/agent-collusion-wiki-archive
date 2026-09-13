@@ -102,8 +102,9 @@ export default function Events() {
                   )}
                   {e.type === 'save' && e.rev && <span className="mono" title={e.rev}>{e.rev}</span>}
                   {(e.type === 'revert' || e.type === 'delete') && e.act && <Badge color="#fbbf24">{e.act}</Badge>}
-                  {e.type === 'revert' && e.rel && <span className="mono" title={e.rel}> {e.rel}</span>}
-                  {!((e.type === 'probe' && e.pf) || (e.type === 'save' && e.rev) || ((e.type === 'revert' || e.type === 'delete') && e.act) || (e.type === 'revert' && e.rel)) && '—'}
+                   {e.type === 'revert' && e.rel && <span className="mono" title={e.rel}> {e.rel}</span>}
+                   {e.partial && <Badge>recovered</Badge>}
+                   {!e.partial && !((e.type === 'probe' && e.pf) || (e.type === 'save' && e.rev) || ((e.type === 'revert' || e.type === 'delete') && e.act) || (e.type === 'revert' && e.rel)) && '—'}
                 </td>
               </tr>
             ))}

@@ -79,6 +79,14 @@ const timeline = {
   ],
 }
 
+const combinedTimeline = {
+  meta: { schema_version: 1, export_generated_at: '2026-06-21T00:00:00Z', count: 4, order: 'time_desc' },
+  r: [
+    ...timeline.r,
+    { t: '2026-06-17T10:00:00Z', w: 'other', id: 'other/Page', s: 'other_Page~', seq: 1, x: null, a: null, ip: null, l: null, partial: true },
+  ],
+}
+
 const activityDays = [
   { date: '2026-06-18', wiki: 'dse', saves: 5, deletes: 0, reverts: 0, probes: 1, bytes: 100 },
   { date: '2026-06-19', wiki: 'dse', saves: 2, deletes: 1, reverts: 0, probes: 0, bytes: 50 },
@@ -92,10 +100,11 @@ type FakeState = {
   calls: string[]
   failCorpus: boolean
   pages: typeof pages
+  timeline: typeof timeline | typeof combinedTimeline
 }
 
 function fakeAssets(): { state: FakeState; assets: AssetReader } {
-  const state: FakeState = { summary: makeSummary(), calls: [], failCorpus: false, pages }
+  const state: FakeState = { summary: makeSummary(), calls: [], failCorpus: false, pages, timeline }
   const assets = {
     async getJson(path: string) {
       state.calls.push(path)
@@ -105,7 +114,7 @@ function fakeAssets(): { state: FakeState; assets: AssetReader } {
         case DATA_PATHS.pages:
           return state.pages
         case DATA_PATHS.timeline:
-          return timeline
+          return state.timeline
         case DATA_PATHS.activityByDay:
           return activityDays
         case DATA_PATHS.activityByHour:
@@ -287,6 +296,44 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
 
     await expect(research.getActivity({ by: 'hour', wiki: 'dse' })).rejects.toThrow(
       'hourly activity has no wiki/date dimensions',
+    )
+  })
+
+  it('accepts a combined timeline with recovered partial rows', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = {
+      ...state.summary,
+      supplement: { counts: { revisions: 1 } },
+      combined: { revisions: 4 },
+    }
+    state.timeline = combinedTimeline
+
+    const result = await new ArchiveResearch(assets).listRevisions({})
+
+    expect(result.total).toBe(4)
+    expect(result.revisions.at(-1)).toMatchObject({ id: 'other/Page', partial: true })
+  })
+
+  it('rejects a timeline whose row count disagrees with the combined summary', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = { ...state.summary, combined: { revisions: 4 } }
+    state.timeline = { ...timeline, meta: { ...timeline.meta, count: 3 } }
+
+    await expect(new ArchiveResearch(assets).listRevisions({})).rejects.toThrow(
+      'timeline.json does not match summary counts',
+    )
+  })
+
+  it('rejects a summary where canonical and supplement revisions do not sum to combined', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = {
+      ...state.summary,
+      counts: { revisions: 2 },
+      supplement: { counts: { revisions: 2 } },
+      combined: { revisions: 3 },
+    }
+    await expect(new ArchiveResearch(assets).listRevisions({})).rejects.toThrow(
+      'summary counts do not match combined revisions',
     )
   })
 

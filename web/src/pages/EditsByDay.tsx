@@ -45,7 +45,7 @@ export default function EditsByDay() {
                 <td><div className="daybar-track"><div className="daybar" style={{ width: `${(day.saves / maxSaves) * 100}%` }} /></div></td>
                 <td className="num">{fmtInt(day.saves)}</td>
                 <td className="num">{fmtInt(day.deletes)}</td>
-                <td className="num">{fmtInt(day.count)}</td>
+                <td className="num">{fmtInt(day.count)}{day.rec > 0 && <span className="muted"> (incl. {fmtInt(day.rec)} recovered)</span>}</td>
                 <td className="nowrap"><Link className="link" to={`/events?day=${day.date}`}>events</Link>{' · '}<Link className="link" to={`/pages?day=${day.date}`}>pages</Link></td>
               </tr>
             ))}

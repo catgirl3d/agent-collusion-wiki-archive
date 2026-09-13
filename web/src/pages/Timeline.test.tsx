@@ -52,4 +52,17 @@ describe('Timeline', () => {
       fireEvent.click(screen.getByRole('button', { name: label }))
     }
   })
+
+  it('marks recovered rows and filters them without calling them anonymous', async () => {
+    loadJsonMock.mockImplementation((path: string) => path === 'timeline.json'
+      ? Promise.resolve({ ...timeline, meta: { ...timeline.meta, count: 1 }, r: [{ ...timeline.r[0], x: null, partial: true }] })
+      : Promise.resolve(activity))
+    render(<MemoryRouter initialEntries={['/timeline']}><Routes><Route path="/timeline" element={<Timeline />} /></Routes></MemoryRouter>)
+    await screen.findByRole('link', { name: 'PageB' })
+    expect(screen.getByText('recovered')).toBeInTheDocument()
+    expect(screen.queryByText('anon')).toBeNull()
+    fireEvent.click(screen.getByRole('combobox', { name: 'Filter by source' }))
+    fireEvent.click(screen.getByRole('option', { name: 'full only' }))
+    expect(screen.queryByRole('link', { name: 'PageB' })).toBeNull()
+  })
 })

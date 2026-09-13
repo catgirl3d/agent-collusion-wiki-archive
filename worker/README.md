@@ -74,6 +74,7 @@ them byte-for-byte from `web/dist/data/`:
 | `GET /data/activity_by_day.json` | Daily save/delete/revert/probe and byte totals |
 | `GET /data/activity_by_hour.json` | UTC-hour save distribution (save events only) |
 | `GET /data/corpus/revisions.jsonl.gz` | Canonical raw revisions dump (gzip JSONL) for client-side corpus search |
+| `GET /data/other-wikis.json.gz` | Recovered "Other sites" source snapshot (gzip JSON) |
 
 ## Limitations
 
@@ -84,6 +85,8 @@ them byte-for-byte from `web/dist/data/`:
   against `summary.json::corpus`, and scan it locally.
 - `/api/events` serves the complete event history from `recent_events.json`
   (a legacy file name) and returns `scope: "full_history"`.
+- Recovered rows carry `partial: true`; partial revision rows may provide
+  `added`/`removed` instead of a retained `body`.
 - The Worker does not aggregate agent history across pages in one request.
   Clients load `/data/timeline.json` for that; page-level lookups still use
   `pgs` plus per-page revisions.

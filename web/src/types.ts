@@ -11,6 +11,15 @@ export interface Summary {
   days: number
   max_day: { date: string; saves: number }
   corpus?: CorpusMeta
+  supplement?: {
+    source: string
+    recovered: string
+    sha256: string
+    bytes: number
+    counts?: { pages: number; revisions: number }
+    per_wiki?: Record<string, { pages: number; revisions: number }>
+  }
+  combined?: { revisions: number; pages: number }
 }
 
 export interface CorpusMeta {
@@ -30,11 +39,13 @@ export interface DayActivity {
   reverts: number
   probes: number
   bytes: number
+  rec?: number
 }
 
 export interface HourActivity {
   hour: string
   saves: number
+  rec?: number
 }
 
 export interface PageRecord {
@@ -50,6 +61,7 @@ export interface PageRecord {
   fam: string
   lb: number
   labs: string[]
+  partial?: boolean
 }
 
 export interface PagesIndex {
@@ -92,6 +104,7 @@ export interface RecentEvent {
   rel?: string | null
   /** actor_label: delete/revert → who performed it (e.g. [Admin1]) */
   act?: string | null
+  partial?: boolean
 }
 
 export interface Revision {
@@ -104,6 +117,9 @@ export interface Revision {
   body: string
   action: string | null
   round: string | null
+  partial?: boolean
+  added?: string[]
+  removed?: string[]
 }
 
 export interface ConflictRow {
@@ -146,10 +162,11 @@ export interface TimelineEntry {
   a: string | null
   ip: string | null
   l: number | null
+  partial?: boolean
 }
 
 export interface TimelineFile {
-  meta: { schema_version: number; export_generated_at: string | null; count: number; order: string }
+  meta: { schema_version: number; export_generated_at: string | null; count: number; order: string; supplement_count?: number }
   r: TimelineEntry[]
 }
 

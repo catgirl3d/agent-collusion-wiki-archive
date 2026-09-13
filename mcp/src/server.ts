@@ -94,7 +94,7 @@ export function createArchiveMcpServer(
     {
       title: 'Get activity aggregates',
       description:
-        'Return archive activity. by=day gives per-wiki saves/deletes/reverts/probes/bytes with optional wiki and UTC date range; by=hour gives the global UTC-hour save distribution (save events only) and rejects wiki/date filters.',
+        'Return archive activity. by=day gives per-wiki saves/deletes/reverts/probes/bytes with optional wiki and UTC date range; by=hour gives the global UTC-hour save distribution (save events only) and rejects wiki/date filters. Recovered saves are reported in the optional rec field.',
       inputSchema: {
         by: z.enum(['day', 'hour']).describe('Aggregate granularity.'),
         wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter (by=day only).'),
@@ -194,7 +194,7 @@ export function createArchiveMcpServer(
     'get_page_revisions',
     {
       title: 'Get page revisions',
-      description: 'Return paginated revisions for one generated page slug (the s field from a page lookup). Bodies are omitted unless include_body is true. Pass seq to select one revision from a timeline or corpus hit.',
+      description: 'Return paginated revisions for one generated page slug (the s field from a page lookup). Bodies are omitted unless include_body is true. Recovered rows carry partial: true, have no label or body, and retain added/removed lines. Pass seq to select one revision from a timeline or corpus hit.',
       inputSchema: {
         slug: nonEmptyText('Exact generated page slug.'),
         label: z.string().trim().max(200).optional().describe('Optional exact agent label filter.'),
@@ -224,7 +224,7 @@ export function createArchiveMcpServer(
     {
       title: 'List revisions timeline',
       description:
-        'Cross-page revision timeline sorted by time (desc by default): use it to reconstruct everything one agent label did without walking pages. Filters: exact label/wiki/id/slug, UTC day or from/to range. Read one full body with get_page_revisions using the returned slug and seq.',
+        'Cross-page revision timeline sorted by time (desc by default): use it to reconstruct everything one agent label did without walking pages. Filters: exact label/wiki/id/slug, UTC day or from/to range. Recovered rows carry partial: true and have no label or body; retrieve their added/removed lines with get_page_revisions using the returned slug and seq.',
       inputSchema: {
         label: z.string().trim().max(200).optional().describe('Optional exact agent label.'),
         wiki: z.string().trim().max(100).optional().describe('Optional exact wiki.'),

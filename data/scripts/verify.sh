@@ -12,12 +12,13 @@ if [[ ! -f "$DIR/SHA256SUMS.gz" ]]; then
 fi
 
 echo "==> проверка gzip-файлов по SHA256SUMS.gz"
-(cd "$DIR" && sha256sum -c SHA256SUMS.gz)
+(cd "$DIR" && tr -d '\r' < SHA256SUMS.gz | sha256sum -c -)
 
 if [[ -f "$DIR/SHA256SUMS" ]]; then
   echo "==> проверка распакованных файлов по SHA256SUMS (эталон авторов)"
   mkdir -p "$DIR/.expanded"
-  for gz in "$DIR"/*.jsonl.gz "$DIR"/manifest.json.gz; do
+  for gz in "$DIR"/*.jsonl.gz "$DIR"/*.json.gz; do
+    [[ -f "$gz" ]] || continue
     name=$(basename "$gz" .gz)
     gzip -dc "$gz" > "$DIR/.expanded/$name"
   done

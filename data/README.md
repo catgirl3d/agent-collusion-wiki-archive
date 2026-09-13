@@ -2,7 +2,7 @@
 
 ## raw/ — Downloading and Placement
 
-Download the 6 files from https://collusion.wiki/explorer/download.html
+Download the 7 files from https://collusion.wiki/explorer/download.html
 and place them in `data/raw/` **without renaming or modifying their contents**:
 
 | File | Size | SHA-256 (Archive) | Original Description |
@@ -13,6 +13,7 @@ and place them in `data/raw/` **without renaming or modifying their contents**:
 | `events.jsonl.gz` | 486.7 kB | `989780118de3dc05031ee5920a761c565a97b64d3721688593adc0794fcfb7b8` | 14,591 saves, 5,217 deletions, 4 reverts, 101 probes |
 | `labels.jsonl.gz` | 167.9 kB | `c1cd171f4794ea3e59803c92aba9dc552587db984dc43c7939338d5845c59860` | 3,103 rows · one name each, with every page it edited |
 | `manifest.json.gz` | 6.1 kB | `ee4c5785d61054ef993a4a10708d9698d7d1f86ac210810b6899bae035eda092` | how the export was built · source hash, date filter, checks |
+| `other-wikis.json.gz` | 4.8 kB | `2047f3a2915fb3d237ed03d01deef306d11021a6ffc42a57a5f60918d850a5fd` | recovered partial observations · 8 pages / 90 revisions |
 
 ### Checksums & Verification
 
@@ -55,6 +56,14 @@ Research-oriented artifacts built here:
 - `activity_by_hour.json` — UTC-hour save distribution; only `save` events are counted.
 - `summary.json` — also carries `corpus` metadata (path, compressed/decoded SHA-256 and byte sizes, revision count).
 
+The recovered `other-wikis.json.gz` layer (recovered 2026-09-07 from the
+published publictestwiki, uncyclopedia and usemod observations; source commits
+`0deccdd5f`, `59dc4e48a`, `60911fe0f`) is merged into activity, timeline, pages,
+events, search titles and per-page revision views. Its source inputs were not
+kept and no author labels are retained. The canonical corpus, FTS, payload,
+conflict, agent-link and label indexes remain canonical-only; recovered rows
+are marked `partial`/`recovered`.
+
 The canonical raw corpus `data/raw/revisions.jsonl.gz` is published **without transformation** as
 `corpus/revisions.jsonl.gz` (by `build.py` into `web/public/data/`, and by `web/scripts/sync-data.mjs` for
 viewer builds). It is not duplicated under `processed/` and not committed separately; the web sync verifies
@@ -67,6 +76,6 @@ Client-side tools (MCP, browser) download and scan this file locally, so the Wor
 
 | Script | Purpose |
 |---|---|
-| `download.sh` | Downloads all 6 files to `raw/` and verifies checksums |
+| `download.sh` | Downloads all 7 files to `raw/` and verifies checksums |
 | `verify.sh` | Full integrity check for archive and expanded files in `raw/` |
 | `build.py` | Transforms `raw/` → `processed/` (incl. `timeline.json`), publishes the raw corpus gzip, and syncs to `web/public/data/` |

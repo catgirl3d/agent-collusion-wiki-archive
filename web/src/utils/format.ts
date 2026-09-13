@@ -57,12 +57,27 @@ const WIKI_COLORS: Record<string, string> = {
   fractal: '#16a34a',
   publictestwiki: '#a855f7',
   uncyclopedia: '#ef4444',
+  usemod: '#eab308',
   dorfwiki: '#14b8a6',
   other: '#64748b',
 }
 
 export function wikiColor(wiki: string): string {
   return WIKI_COLORS[wiki] ?? WIKI_COLORS.other
+}
+
+export type SourceFilter = '' | 'canonical' | 'recovered'
+
+export const SOURCE_FILTER_OPTIONS: Array<{ value: SourceFilter; label: string }> = [
+  { value: '', label: 'all sources' },
+  { value: 'canonical', label: 'full only' },
+  { value: 'recovered', label: 'recovered only' },
+]
+
+export function matchesSource(partial: boolean | undefined, src: SourceFilter | undefined): boolean {
+  if (src === 'canonical') return !partial
+  if (src === 'recovered') return Boolean(partial)
+  return true
 }
 
 export interface PagesFilter {
@@ -74,6 +89,7 @@ export interface PagesFilter {
   tokenSlugs?: string[] | null
   payloadFlag?: string
   payloadFlags?: Map<string, string[]>
+  src?: SourceFilter
 }
 
 export function filterPages(pages: PageRecord[], f: PagesFilter): PageRecord[] {
@@ -81,6 +97,7 @@ export function filterPages(pages: PageRecord[], f: PagesFilter): PageRecord[] {
   const slugSet = f.tokenSlugs ? new Set(f.tokenSlugs) : null
   const flagMap = f.payloadFlag ? f.payloadFlags : undefined
   return pages.filter((p) => {
+    if (!matchesSource(p.partial, f.src)) return false
     if (f.wiki && p.w !== f.wiki) return false
     if (f.fam && p.fam !== f.fam) return false
     if (f.deletedOnly && !p.d) return false
@@ -110,15 +127,17 @@ export interface AggregatedDay {
   saves: number
   deletes: number
   count: number
+  rec: number
 }
 
 export function aggregateDays(rows: DayActivity[]): AggregatedDay[] {
   const byDate = new Map<string, AggregatedDay>()
   for (const row of rows) {
-    const current = byDate.get(row.date) ?? { date: row.date, saves: 0, deletes: 0, count: 0 }
+    const current = byDate.get(row.date) ?? { date: row.date, saves: 0, deletes: 0, count: 0, rec: 0 }
     current.saves += row.saves
     current.deletes += row.deletes
     current.count += row.saves + row.deletes
+    current.rec += row.rec ?? 0
     byDate.set(row.date, current)
   }
   return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date))
@@ -152,7 +171,7 @@ export function toCsv(rows: Record<string, unknown>[], columns?: string[]): stri
   return [keys.map(escape).join(','), ...rows.map((row) => keys.map((key) => escape(row[key])).join(','))].join('\r\n')
 }
 
-export const WIKIS = ['dse', 'probier', 'fractal', 'publictestwiki', 'uncyclopedia', 'dorfwiki'] as const
+export const WIKIS = ['dse', 'probier', 'fractal', 'publictestwiki', 'uncyclopedia', 'usemod', 'dorfwiki'] as const
 
 export function eventColor(t: string): string {
   switch (t) {
