@@ -121,8 +121,8 @@ describe('Search', () => {
       expect(await screen.findByRole('dialog', { name: label })).toBeInTheDocument()
       expect(screen.getByText('June 2026')).toBeInTheDocument()
       expect(screen.getByRole('checkbox', { name: 'only days with data' })).toBeChecked()
-      expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'June 15, 2026' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'June 16, 2026' })).toBeEnabled()
       fireEvent.click(screen.getByRole('button', { name: label }))
     }
   })
@@ -145,7 +145,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '16' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 16, 2026' }))
 
     await waitFor(() => expect(worker.messages).toHaveLength(2))
     const request = requireSearchRequest(worker.messages[1])
@@ -172,7 +172,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter from date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter from date' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
     await waitFor(() => expect(worker.messages).toHaveLength(2))
     const request = requireSearchRequest(worker.messages[1])
@@ -198,7 +198,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
     await waitFor(() => expect(worker.messages).toHaveLength(2))
     expect(worker.messages[1]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })
@@ -450,6 +450,32 @@ describe('Search', () => {
     expect(worker.messages.at(-1)).toMatchObject({ sort: 'time', dir: 'desc', offset: 0 })
     await waitFor(() => expect(router.state.location.search).toBe('?q=STATE5-ID'))
   })
+
+  it('keeps the newest search result when an older response arrives later', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
+      initialEntries: ['/search?q=AAA'],
+    })
+    render(<RouterProvider router={router} />)
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await act(async () => { await router.navigate('/search?q=BBB') })
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    act(() => worker.respond(matchResult(worker.messages[1].requestId, 'B-result', 'BBB')))
+    expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
+    act(() => worker.respond(matchResult(worker.messages[0].requestId, 'A-result', 'AAA')))
+    expect(screen.getByText('B-result')).toBeInTheDocument()
+    expect(screen.queryByText('A-result')).toBeNull()
+  })
+
+  it('exposes durable labels for text filters', async () => {
+    stubSearchData()
+    render(<MemoryRouter initialEntries={['/search']}><Routes><Route path="/search" element={<Search />} /></Routes></MemoryRouter>)
+    expect(screen.getByLabelText('Search text')).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter by agent label')).toBeInTheDocument()
+  })
+
   it('triggers search with wholeWord and caseSensitive filters when toggled', async () => {
     stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)

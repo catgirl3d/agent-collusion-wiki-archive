@@ -5,16 +5,9 @@ import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
 import { Badge, PageLink } from '../components/ui'
 import type { EventType, RecentEvent } from '../types'
-import { eventColor, eventPageId, filterEventsByDay, fmtInt, fmtTime } from '../utils/format'
+import { EVENT_FILTER_OPTIONS, eventColor, eventPageId, filterEventsByDay, fmtInt, fmtTime } from '../utils/format'
 
 const PAGE_SIZE = 50
-
-const TYPE_COLORS: Record<EventType, string> = {
-  save: '#4f8cff',
-  delete: '#ef4444',
-  revert: '#ff9f43',
-  probe: '#16a34a',
-}
 
 export default function Events() {
   const { data, error } = useData<RecentEvent[]>('recent_events.json')
@@ -56,10 +49,10 @@ export default function Events() {
         <Dropdown
           value={type}
           ariaLabel="Filter by event type"
-          options={[{ value: '', label: 'all types' }, ...(Object.keys(TYPE_COLORS) as EventType[]).map((t) => ({ value: t, label: t }))]}
+          options={EVENT_FILTER_OPTIONS}
           onChange={(value) => { setType(value); setPage(0) }}
         />
-        <input className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
+        <input aria-label="Search page / ip16 / action" className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
         <span className="muted result-count">
           page {cur + 1}/{pages}
         </span>

@@ -1,4 +1,4 @@
-import type { DayActivity, LabelRecord, PageRecord, RecentEvent } from '../types'
+import type { DayActivity, EventType, LabelRecord, PageRecord, RecentEvent } from '../types'
 import { slugify } from './slug'
 
 export function fmtInt(n: number): string {
@@ -173,17 +173,18 @@ export function toCsv(rows: Record<string, unknown>[], columns?: string[]): stri
 
 export const WIKIS = ['dse', 'probier', 'fractal', 'publictestwiki', 'uncyclopedia', 'usemod', 'dorfwiki'] as const
 
+export const EVENT_METADATA: ReadonlyArray<{ type: EventType; label: string; color: string }> = [
+  { type: 'save', label: 'save', color: '#4f8cff' },
+  { type: 'delete', label: 'delete', color: '#ef4444' },
+  { type: 'revert', label: 'revert', color: '#ff9f43' },
+  { type: 'probe', label: 'probe', color: '#16a34a' },
+]
+
+export const EVENT_FILTER_OPTIONS = [
+  { value: '' as const, label: 'all types' },
+  ...EVENT_METADATA.map(({ type, label }) => ({ value: type, label })),
+]
+
 export function eventColor(t: string): string {
-  switch (t) {
-    case 'save':
-      return '#4f8cff'
-    case 'delete':
-      return '#ef4444'
-    case 'revert':
-      return '#ff9f43'
-    case 'probe':
-      return '#16a34a'
-    default:
-      return '#64748b'
-  }
+  return EVENT_METADATA.find(({ type }) => type === t)?.color ?? '#64748b'
 }

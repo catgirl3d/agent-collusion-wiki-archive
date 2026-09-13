@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   SOURCE_FILTER_OPTIONS,
+  EVENT_FILTER_OPTIONS,
+  EVENT_METADATA,
   WIKIS,
   eventColor,
   eventPageId,
@@ -72,6 +74,14 @@ describe('formatting', () => {
   it('eventColor maps event types', () => {
     expect(eventColor('save')).toBe('#4f8cff')
     expect(eventColor('delete')).toBe('#ef4444')
+  })
+
+  it('derives event filter options and colors from canonical metadata', () => {
+    expect(EVENT_FILTER_OPTIONS).toEqual([
+      { value: '', label: 'all types' },
+      ...EVENT_METADATA.map(({ type, label }) => ({ value: type, label })),
+    ])
+    for (const { type, color } of EVENT_METADATA) expect(eventColor(type)).toBe(color)
   })
 })
 

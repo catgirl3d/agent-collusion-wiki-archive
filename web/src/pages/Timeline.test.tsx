@@ -186,11 +186,11 @@ describe('Timeline', () => {
     await screen.findByRole('link', { name: 'PageB' })
 
     await openCalendar('Filter from date')
-    fireEvent.click(screen.getByRole('button', { name: '19' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 19, 2026' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-19'))
 
     await openCalendar('Filter by day')
-    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-19')
@@ -204,7 +204,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?day=2026-06-19')
 
     await openCalendar('Filter from date')
-    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
@@ -218,7 +218,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?day=2026-06-19')
 
     await openCalendar('Filter to date')
-    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter to date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
@@ -234,7 +234,7 @@ describe('Timeline', () => {
     await screen.findByRole('link', { name: 'PageB' })
 
     await openCalendar('Filter to date')
-    fireEvent.click(screen.getByRole('button', { name: '19' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 19, 2026' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter to date' })).toHaveTextContent('2026-06-19'))
     expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-20')
