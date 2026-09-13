@@ -52,6 +52,7 @@ export default function Conflicts() {
       <div className="filters">
         <input
           className="input"
+          aria-label="Search conflicts"
           placeholder="Search page / id…"
           value={query}
           onChange={(event) => resetPage(setQuery, event.target.value)}

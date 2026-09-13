@@ -32,7 +32,7 @@ export default function EditsByDay() {
           value={day}
           onChange={setDay}
         />
-        <input className="input" placeholder="Search YYYY-MM-DD…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input aria-label="Search dates" className="input" placeholder="Search YYYY-MM-DD…" value={query} onChange={(e) => setQuery(e.target.value)} />
         <span className="muted result-count">saves + deletes</span>
       </div>
       <div className="table-wrap">

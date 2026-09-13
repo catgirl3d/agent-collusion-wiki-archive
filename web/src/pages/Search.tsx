@@ -334,6 +334,7 @@ export default function Search() {
       <form className="filters" onSubmit={submit}>
         <input
           className="input"
+          aria-label="Search text"
           placeholder={`Literal text (${CORPUS_MIN_QUERY}-${CORPUS_MAX_QUERY} characters)…`}
           value={form.q}
           onChange={(event) => setForm({ ...form, q: event.target.value })}
@@ -346,6 +347,7 @@ export default function Search() {
         />
         <input
           className="input"
+          aria-label="Filter by agent label"
           placeholder="Agent label…"
           value={form.label}
           onChange={(event) => setForm({ ...form, label: event.target.value })}

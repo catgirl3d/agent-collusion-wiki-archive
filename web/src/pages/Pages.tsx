@@ -112,7 +112,7 @@ export default function Pages() {
           value={day}
           onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setLimit(PAGE_LIMIT) }}
         />
-        <input className="input" placeholder="Search name / id / agent label / full text…" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE_LIMIT) }} />
+        <input aria-label="Search pages" className="input" placeholder="Search name / id / agent label / full text…" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE_LIMIT) }} />
         <Dropdown
           value={src}
           ariaLabel="Filter by source"

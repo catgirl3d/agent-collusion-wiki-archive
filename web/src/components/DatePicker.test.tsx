@@ -38,11 +38,11 @@ describe('ArchiveCalendar', () => {
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
-    expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: '17' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: '20' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'June 16, 2026' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 17, 2026' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 20, 2026' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 15, 2026' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'June 18, 2026' })).toBeDisabled()
   })
 
   it('lifts the restriction via the toggle and enables every day', async () => {
@@ -57,12 +57,12 @@ describe('ArchiveCalendar', () => {
     expect(toggle).toBeChecked()
 
     fireEvent.click(toggle)
-    expect(screen.getByRole('button', { name: '15' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: '18' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 15, 2026' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 18, 2026' })).toBeEnabled()
 
     fireEvent.click(toggle)
-    expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'June 15, 2026' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'June 18, 2026' })).toBeDisabled()
   })
 
   it('keeps unavailable days disabled when restriction lifting is disallowed', async () => {
@@ -74,9 +74,9 @@ describe('ArchiveCalendar', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
 
     expect(screen.queryByRole('checkbox', { name: /only days with data/i })).toBeNull()
-    expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '18' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'June 16, 2026' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 15, 2026' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'June 18, 2026' })).toBeDisabled()
   })
 
   it('reports the picked day and closes the popup', async () => {
@@ -85,7 +85,7 @@ describe('ArchiveCalendar', () => {
     await screen.findByRole('button', { name: /pick a date/i })
     await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
-    fireEvent.click(await screen.findByRole('button', { name: '17' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'June 17, 2026' }))
 
     expect(onChange).toHaveBeenCalledWith('2026-06-17')
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -122,7 +122,7 @@ describe('ArchiveCalendar', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     expect(await screen.findByText('June 2026')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 16, 2026' })).toBeEnabled()
   })
 
   it('falls back to an unbounded date picker when the activity fetch fails', async () => {
@@ -137,7 +137,9 @@ describe('ArchiveCalendar', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '15' })).toBeEnabled()
+    const now = new Date()
+    const month = MONTHS[now.getUTCMonth()]
+    expect(screen.getByRole('button', { name: `${month} 15, ${now.getUTCFullYear()}` })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Previous month' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Next month' })).toBeEnabled()
   })
@@ -180,10 +182,24 @@ describe('DatePicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     expect(screen.getByText('June 2026')).toBeInTheDocument()
-    for (const day of ['1', '15', '30']) expect(screen.getByRole('button', { name: day })).toBeEnabled()
+    for (const day of ['1', '15', '30']) expect(screen.getByRole('button', { name: new RegExp(`June ${day}, 2026`) })).toBeEnabled()
 
-    fireEvent.click(screen.getByRole('button', { name: '15' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 15, 2026' }))
     expect(onChange).toHaveBeenCalledWith('2026-06-15')
+  })
+
+  it('gives calendar days full date names and announces the selected state', () => {
+    render(
+      <MemoryRouter>
+        <DatePicker value="2026-06-17" onChange={() => {}} fallbackMonth="2026-06-17" />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
+
+    expect(screen.getByRole('button', { name: 'June 16, 2026' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'June 17, 2026' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'June 16, 2026' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('defaults to the current UTC month when no value and no fallbackMonth', () => {

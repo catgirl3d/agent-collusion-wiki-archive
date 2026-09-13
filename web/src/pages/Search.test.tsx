@@ -121,8 +121,8 @@ describe('Search', () => {
       expect(await screen.findByRole('dialog', { name: label })).toBeInTheDocument()
       expect(screen.getByText('June 2026')).toBeInTheDocument()
       expect(screen.getByRole('checkbox', { name: 'only days with data' })).toBeChecked()
-      expect(screen.getByRole('button', { name: '15' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: '16' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'June 15, 2026' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'June 16, 2026' })).toBeEnabled()
       fireEvent.click(screen.getByRole('button', { name: label }))
     }
   })
@@ -145,7 +145,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '16' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 16, 2026' }))
 
     await waitFor(() => expect(worker.messages).toHaveLength(2))
     const request = requireSearchRequest(worker.messages[1])
@@ -172,7 +172,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter from date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter from date' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
     await waitFor(() => expect(worker.messages).toHaveLength(2))
     const request = requireSearchRequest(worker.messages[1])
@@ -198,7 +198,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '20' }))
+    fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
     await waitFor(() => expect(worker.messages).toHaveLength(2))
     expect(worker.messages[1]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })

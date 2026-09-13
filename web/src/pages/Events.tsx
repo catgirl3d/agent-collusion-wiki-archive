@@ -52,7 +52,7 @@ export default function Events() {
           options={EVENT_FILTER_OPTIONS}
           onChange={(value) => { setType(value); setPage(0) }}
         />
-        <input className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
+        <input aria-label="Search page / ip16 / action" className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
         <span className="muted result-count">
           page {cur + 1}/{pages}
         </span>

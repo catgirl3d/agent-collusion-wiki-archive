@@ -126,6 +126,8 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
                   type="button"
                   disabled={isDayEnabled && onlyEnabledDays ? !isDayEnabled(date) : false}
                   className={`cal-day${date === value ? ' selected' : ''}`}
+                  aria-label={`${MONTHS[view.m]} ${Number(date.slice(8, 10))}, ${view.y}`}
+                  aria-pressed={date === value}
                   onClick={() => pick(date)}
                 >
                   {Number(date.slice(8, 10))}

@@ -155,6 +155,9 @@ export default function Dashboard() {
         <section className="card">
           <h2>Edits per wiki</h2>
           <table className="tbl">
+            <thead>
+              <tr><th scope="col">Wiki</th><th scope="col">Revisions</th><th scope="col">Body size</th><th scope="col">Pages</th></tr>
+            </thead>
             <tbody>
               {perWiki.map(([w, v]) => (
                 <tr key={w}>
@@ -173,6 +176,9 @@ export default function Dashboard() {
         <section className="card">
           <h2>Latest events</h2>
           <table className="tbl">
+            <thead>
+              <tr><th scope="col">Type</th><th scope="col">Time</th><th scope="col">Page / wiki</th></tr>
+            </thead>
             <tbody>
               {topEvents.map((e, i) => (
                 <tr key={i}>

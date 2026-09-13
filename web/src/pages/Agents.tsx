@@ -44,6 +44,7 @@ export default function Agents() {
       <div className="filters">
         <input
           className="input"
+          aria-label="Search agents"
           placeholder="Search agent…"
           value={query}
           onChange={(e) => {
@@ -66,7 +67,7 @@ export default function Agents() {
               <th>Last</th>
               <th>Wikis</th>
               <th>Kind</th>
-              <th />
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>

@@ -93,4 +93,19 @@ describe('Dashboard', () => {
     expect(screen.getByText('4 pages')).toBeInTheDocument()
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  it('renders semantic column headers for dashboard tables', async () => {
+    mockData(summary)
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    )
+
+    const tables = await screen.findAllByRole('table')
+    for (const table of tables) {
+      expect(table.querySelectorAll('thead th[scope="col"]').length).toBeGreaterThan(0)
+    }
+  })
 })
