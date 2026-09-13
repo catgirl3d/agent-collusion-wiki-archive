@@ -49,6 +49,10 @@ async function openCalendar(label: string) {
   expect(await screen.findByRole('dialog', { name: label })).toBeInTheDocument()
 }
 
+function currentSearch(): URLSearchParams {
+  return new URLSearchParams(screen.getByTestId('location').textContent ?? '')
+}
+
 describe('Timeline', () => {
   afterEach(() => {
     loadJsonMock.mockReset()
@@ -100,7 +104,8 @@ describe('Timeline', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-19')
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?day=2026-06-20'))
+    await waitFor(() => expect(currentSearch().get('day')).toBe('2026-06-20'))
+    expect(currentSearch().has('from')).toBe(false)
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
   })
 
@@ -113,7 +118,8 @@ describe('Timeline', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?from=2026-06-20'))
+    await waitFor(() => expect(currentSearch().get('from')).toBe('2026-06-20'))
+    expect(currentSearch().has('day')).toBe(false)
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
   })
 
@@ -126,7 +132,8 @@ describe('Timeline', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter to date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?to=2026-06-20'))
+    await waitFor(() => expect(currentSearch().get('to')).toBe('2026-06-20'))
+    expect(currentSearch().has('day')).toBe(false)
     expect(await screen.findByText(/2 of 2 revisions/)).toBeInTheDocument()
   })
 
@@ -149,9 +156,9 @@ describe('Timeline', () => {
     renderTimeline('/timeline?day=2026-06-19&from=2026-06-20&page=3')
 
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?day=2026-06-19'))
-    expect(screen.getByTestId('location')).not.toHaveTextContent('from=')
-    expect(screen.getByTestId('location')).not.toHaveTextContent('page=')
+    await waitFor(() => expect(currentSearch().get('day')).toBe('2026-06-19'))
+    expect(currentSearch().has('from')).toBe(false)
+    expect(currentSearch().has('page')).toBe(false)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('2026-06-19'))
     expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-20')
   })
@@ -161,10 +168,58 @@ describe('Timeline', () => {
     renderTimeline('/timeline?from=2026-06-20&to=2026-06-19&page=2')
 
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?from=2026-06-20'))
-    expect(screen.getByTestId('location')).not.toHaveTextContent('to=')
-    expect(screen.getByTestId('location')).not.toHaveTextContent('page=')
+    await waitFor(() => expect(currentSearch().get('from')).toBe('2026-06-20'))
+    expect(currentSearch().has('to')).toBe(false)
+    expect(currentSearch().has('page')).toBe(false)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter to date' })).not.toHaveTextContent('2026-06-19')
+  })
+
+  it('clears only the exact day when the day picker is cleared', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?day=2026-06-19&label=AgentX')
+
+    expect(await screen.findByText(/0 of 2 revisions/)).toBeInTheDocument()
+
+    await openCalendar('Filter by day')
+    fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('day'))
+    expect(currentSearch().has('day')).toBe(false)
+    expect(currentSearch().get('label')).toBe('AgentX')
+    expect(await screen.findByRole('link', { name: 'PageB' })).toBeInTheDocument()
+    expect(screen.getByText(/1 of 2 revisions/)).toBeInTheDocument()
+  })
+
+  it('clears only the range start when the from picker is cleared', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?from=2026-06-20&to=2026-06-20')
+
+    expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
+
+    await openCalendar('Filter from date')
+    fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('from'))
+    expect(currentSearch().has('from')).toBe(false)
+    expect(currentSearch().get('to')).toBe('2026-06-20')
+    expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
+    expect(screen.getByText(/2 of 2 revisions/)).toBeInTheDocument()
+  })
+
+  it('clears only the range end when the to picker is cleared', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?from=2026-06-19&to=2026-06-19')
+
+    expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
+
+    await openCalendar('Filter to date')
+    fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Filter to date' })).toHaveTextContent('to'))
+    expect(currentSearch().has('to')).toBe(false)
+    expect(currentSearch().get('from')).toBe('2026-06-19')
+    expect(await screen.findByRole('link', { name: 'PageB' })).toBeInTheDocument()
+    expect(screen.getByText(/2 of 2 revisions/)).toBeInTheDocument()
   })
 })

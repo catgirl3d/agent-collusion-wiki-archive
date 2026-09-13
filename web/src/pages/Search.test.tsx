@@ -204,6 +204,34 @@ describe('Search', () => {
     expect(worker.messages[1]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })
   })
 
+  it('keeps the opposite bound when a date picker is cleared', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    render(
+      <MemoryRouter initialEntries={['/search?q=STATE5-ID&from=2026-06-16&to=2026-06-20']}>
+        <Routes>
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Filter from date' }))
+    expect(await screen.findByRole('dialog', { name: 'Filter from date' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    const request = requireSearchRequest(worker.messages[1])
+    expect(request.from).toBeUndefined()
+    expect(request.to).toBe('2026-06-20')
+    expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-16')
+  })
+
   it('renders matches as inert text after a submitted search', async () => {
     stubSearchData()
     vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
