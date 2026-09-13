@@ -28,7 +28,9 @@ context.md
 data/validation/proxy-audit-2026-09-06.md
 .playwright-mcp/*
 */plans/*
+*o.jsonc
 
 # Private full anna.fyi snapshot (all raw pastes incl. personal ones; never commit)
 data/external/anna-fyi-full-private/
+
 
