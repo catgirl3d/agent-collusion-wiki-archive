@@ -56,7 +56,7 @@ const BODY_STOP_WORDS = new Set([
   'our', 'over', 'sein', 'sich', 'that', 'the', 'their', 'there', 'these', 'they', 'this', 'those',
   'und', 'unter', 'von', 'war', 'were', 'what', 'when', 'where', 'which', 'with', 'would',
 ])
-export const PAYLOAD_FLAGS = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'high-entropy', 'tunnel', 'redirect']
+export const PAYLOAD_FLAGS = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'high-entropy', 'tunnel', 'redirect', 'proxy', 'callback', 'exec', 'data-uri', 'beacon', 'traversal']
 
 // Tokenizer semantics are pinned by data/validation/token_golden.json; keep this in sync with build.py::_body_tokens.
 export function tokenizeBody(text: string): string[] {
