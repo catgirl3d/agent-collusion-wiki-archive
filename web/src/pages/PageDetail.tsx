@@ -8,7 +8,7 @@ import { DiffView } from '../components/DiffView'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import { useData, useJson } from '../components/useQuery'
 import type { AgentLinks, LabelsIndex, PageRecord, PagesIndex, PayloadRecord, Revision } from '../types'
-import { fmtInt, fmtTime, fmtTimeSeconds, wikiColor } from '../utils/format'
+import { fmtInt, fmtTime, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS, detectPayloadFlags, highlightMatches } from '../utils/payload'
 import { clearPair, parsePair, setPair } from '../utils/pairSelection'
 
@@ -87,7 +87,7 @@ function AgentGraph({
       const events = timeline.events
       const count = events.length
       const latestEvent = count > 0 ? events[count - 1] : null
-      const latestTime = latestEvent?.time ? fmtTimeSeconds(latestEvent.time) : null
+      const latestTime = latestEvent?.time ? fmtTime(latestEvent.time) : null
       const signals = derivePatternSignals(events)
       const chips = formatPatternSignals(signals).map((chip) => `${chip.count} ${chip.label}`)
       map.set(agent.o, { count, latestTime, chips })
@@ -143,7 +143,7 @@ function AgentGraph({
           <li><strong>Linked labels</strong> — labels that co-edited at least 2 of the same pages, ranked by shared-page count; the top 10 are shown. The card badge is the exact intersection of both page sets.</li>
           <li><strong>Cross-label transitions</strong> — adjacent revisions on this page whose labels differ; a count of interleaved editing, not a handoff or a conflict.</li>
           <li><strong>Pair events and chips</strong> — revisions by either card label on this page. Chips compare a revision with the immediately preceding page revision: additive/relay-like = lines only added, destructive/overwrite-like = lines removed or replaced, alternating = the labels switch away and back, mixed operations = change not classified.</li>
-          <li><strong>Open pair evidence</strong> — revision timeline of the pair on this page; edits by other labels appear as intervening context.</li>
+          <li><strong>Pair evidence</strong> — revision timeline of the pair on this page; edits by other labels appear as intervening context.</li>
         </ul>
         <p className="muted">Co-editing, shared pages and timestamps are archive observations; they do not prove intent, direction or information transfer.</p>
       </details>
@@ -178,7 +178,7 @@ function AgentGraph({
                 // Full exact intersection incl. metadata-missing IDs; preview shows only named pages.
                 const exactShared = exactSharedByLabel.get(agent.o) ?? []
                 const sharedCount = exactShared.length
-                const namedShared = exactShared.filter((s) => s.page !== null).slice(0, 2)
+                const namedShared = exactShared.filter((s) => s.page !== null)
                 const isSelected = selectedPartner === agent.o
                 const evidence = cardEvidenceMap?.get(agent.o)
 
@@ -188,61 +188,68 @@ function AgentGraph({
                       <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="syndicate-agent-name mono">
                         {agent.o}
                       </Link>
-                      <Badge color="#38bdf8">
-                        {sharedCount} shared {sharedCount === 1 ? 'page' : 'pages'}
-                      </Badge>
+                      <span
+                        className="syndicate-shared-trigger"
+                        tabIndex={0}
+                        aria-label={`${sharedCount} shared ${sharedCount === 1 ? 'page' : 'pages'}`}
+                      >
+                        <Badge color="#38bdf8">
+                          {sharedCount} shared {sharedCount === 1 ? 'page' : 'pages'}
+                        </Badge>
+                        <span className="syndicate-shared-pop" role="tooltip">
+                          <span className="syndicate-shared-pop-title muted text-xs">
+                            shared pages
+                          </span>
+                          {namedShared.map((s) => (
+                            <PageLink key={s.id} id={s.id} name={s.page!.n || s.id} max={40} />
+                          ))}
+                          {sharedCount > namedShared.length && (
+                            <span className="muted text-xs">
+                              +{sharedCount - namedShared.length} without page metadata
+                            </span>
+                          )}
+                        </span>
+                      </span>
                     </header>
 
                     {evidence && (
-                      <div className="syndicate-evidence-preview">
-                        <div className="muted text-xs">
-                          <span>{evidence.count} pair event{evidence.count === 1 ? '' : 's'} on this page</span>
-                          {evidence.latestTime && <span> · last observed {evidence.latestTime}</span>}
-                        </div>
-                        {evidence.chips.length > 0 && (
-                          <div className="evidence-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                            {evidence.chips.map((chipText) => (
-                              <span key={chipText} className="chip-mini mono">
-                                {chipText}
-                              </span>
-                            ))}
-                          </div>
+                      <div className="syndicate-card-stats">
+                        <span className="syndicate-stat" title={`${evidence.count} pair event${evidence.count === 1 ? '' : 's'} on this page`}>
+                          <span className="syndicate-stat-val mono">{evidence.count}</span>
+                          <span className="metric-lbl">pair events</span>
+                        </span>
+                        {evidence.latestTime && (
+                          <span className="syndicate-stat syndicate-stat-end" title={`last observed ${evidence.latestTime}`}>
+                            <span className="syndicate-stat-val syndicate-stat-date mono">{evidence.latestTime}</span>
+                            <span className="metric-lbl">last observed</span>
+                          </span>
                         )}
                       </div>
                     )}
 
-                    {sharedCount > 0 && (
-                      <div className="syndicate-shared-pages">
-                        <span className="muted text-xs">shared pages:</span>
-                        <div className="shared-chips">
-                          {namedShared.map((s) => (
-                            <span key={s.id} className="chip-mini">
-                              <PageLink id={s.id} name={s.page!.n || s.id} max={22} />
-                            </span>
-                          ))}
-                          {sharedCount > namedShared.length && (
-                            <span className="muted text-xs">+{sharedCount - namedShared.length}</span>
-                          )}
-                        </div>
+                    {evidence && evidence.chips.length > 0 && (
+                      <div className="syndicate-card-chips">
+                        {evidence.chips.map((chipText) => (
+                          <span key={chipText} className="chip-mini mono">
+                            {chipText}
+                          </span>
+                        ))}
                       </div>
                     )}
 
                     <div className="syndicate-card-actions">
                       <button
                         type="button"
-                        className="btn sm primary"
+                        className={`btn sm${isSelected ? '' : ' ghost'}`}
                         aria-pressed={isSelected}
                         onClick={() => onSelectPair(agent.o)}
                       >
-                        Open pair evidence
+                        Pair evidence
                       </button>
-                    </div>
-
-                    <footer className="syndicate-card-foot">
-                      <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="link text-xs">
-                        Inspect agent dossier →
+                      <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="btn sm ghost">
+                        Agent dossier
                       </Link>
-                    </footer>
+                    </div>
                   </article>
                 )
               })}
