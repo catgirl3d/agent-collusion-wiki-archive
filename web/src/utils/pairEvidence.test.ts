@@ -5,10 +5,16 @@ import {
   buildPairTimeline,
   derivePatternSignals,
   derivePairEvidence,
+  collectPayloadEvidence,
   getPayloadEvidence,
   getSharedPages,
   type PairEvent,
 } from './pairEvidence'
+
+const revision = (overrides: Partial<Revision>): Revision => ({
+  seq: null, time: null, label: null, ip16: null, summary: null, len: null,
+  body: '', action: null, round: null, ...overrides,
+})
 
 describe('getSharedPages', () => {
   it('intersects complete page sets and preserves unmapped page IDs as null', () => {
@@ -124,6 +130,99 @@ describe('getSharedPages', () => {
     expect(getSharedPages('AgentA', 'UnknownAgent', labelsIndex, null)).toEqual([])
     expect(getSharedPages('AgentA', 'AgentB', null, null)).toEqual([])
     expect(getSharedPages('', 'AgentA', labelsIndex, null)).toEqual([])
+  })
+})
+
+describe('collectPayloadEvidence', () => {
+  it('attributes each match to the revision that contains it', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'older https://x.pinggy.io/a', time: '2026-05-01T00:00:00Z', label: 'old-agent' }),
+      revision({ body: 'newer https://counterapi.dev/x', time: '2026-05-02T00:00:00Z', label: 'new-agent' }),
+    ], ['tunnel', 'beacon'])
+
+    expect(result.entries).toEqual([
+      { flag: 'beacon', text: 'newer https://counterapi.dev/x', revIndex: 1, time: '2026-05-02T00:00:00Z', label: 'new-agent' },
+      { flag: 'tunnel', text: 'older https://x.pinggy.io/a', revIndex: 0, time: '2026-05-01T00:00:00Z', label: 'old-agent' },
+    ])
+  })
+
+  it('caps entries per flag', () => {
+    const result = collectPayloadEvidence(Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${i}` })), ['tunnel'], { perFlagCap: 2 })
+    expect(result.entries).toHaveLength(2)
+    expect(result.entries.every((entry) => entry.flag === 'tunnel')).toBe(true)
+  })
+
+  it('scans recovered partial revision lines', () => {
+    const result = collectPayloadEvidence([revision({ partial: true, added: ['GET https://api.counterapi.dev/v1/x/seen/up'] })], ['beacon'])
+    expect(result.entries).toEqual([expect.objectContaining({ flag: 'beacon', revIndex: 0 })])
+  })
+
+  it('omits flags without a body match', () => {
+    expect(collectPayloadEvidence([revision({ body: 'ordinary text' })], ['beacon']).entries).toEqual([])
+  })
+
+  it('collects distinct matches for the same flag in one revision', () => {
+    const result = collectPayloadEvidence([revision({ body: `${'a'.repeat(100)} https://a.pinggy.io/x ${'b'.repeat(100)} https://b.serveo.net/y` })], ['tunnel'])
+    expect(result.entries).toHaveLength(2)
+    expect(result.entries.map((entry) => entry.text).join('\n')).toContain('https://a.pinggy.io/x')
+    expect(result.entries.map((entry) => entry.text).join('\n')).toContain('https://b.serveo.net/y')
+  })
+
+  it('keeps long high-entropy matches intact in evidence snippets', () => {
+    const token = Array.from({ length: 250 }, (_, i) => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'[i % 58]).join('')
+    const result = collectPayloadEvidence([revision({ body: token })], ['high-entropy'])
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].text.length).toBeGreaterThan(120)
+    expect(result.entries[0].text).toContain(token.slice(0, 20))
+    expect(result.entries[0].text).toContain(token.slice(-20))
+  })
+
+  it('does not count a revision rejected by the character budget as scanned', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'x'.repeat(20) + ' https://x.pinggy.io/old' }),
+      revision({ body: 'https://x.pinggy.io/new' }),
+    ], ['tunnel'], { charBudget: 30 })
+    expect(result.scannedRevisions).toBe(1)
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].revIndex).toBe(1)
+  })
+
+  it('applies caps independently for each flag', () => {
+    const revisions = Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${i} https://counterapi.dev/${i}` }))
+    const result = collectPayloadEvidence(revisions, ['tunnel', 'beacon'], { perFlagCap: 2 })
+    expect(result.entries.filter((entry) => entry.flag === 'tunnel')).toHaveLength(2)
+    expect(result.entries.filter((entry) => entry.flag === 'beacon')).toHaveLength(2)
+  })
+
+  it('deduplicates identical matches without consuming a cap slot', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'https://x.pinggy.io/same' }),
+      revision({ body: 'https://x.pinggy.io/same' }),
+      revision({ body: 'https://x.pinggy.io/third' }),
+    ], ['tunnel'], { perFlagCap: 2 })
+    expect(result.entries).toHaveLength(2)
+    expect(result.entries.map((entry) => entry.text).join('\n')).toContain('same')
+    expect(result.entries.map((entry) => entry.text).join('\n')).toContain('third')
+  })
+
+  it('limits scanning to the newest maxScanRevisions', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'https://x.pinggy.io/old' }),
+      revision({ body: 'https://x.pinggy.io/middle' }),
+      revision({ body: 'https://x.pinggy.io/new' }),
+    ], ['tunnel'], { maxScanRevisions: 1 })
+    expect(result.scannedRevisions).toBe(1)
+    expect(result.entries).toEqual([expect.objectContaining({ revIndex: 2 })])
+  })
+
+  it('stops at the budget and does not continue to older revisions', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'https://x.pinggy.io/oldest-unique' }),
+      revision({ body: 'x'.repeat(40) + ' https://x.pinggy.io/over-budget' }),
+      revision({ body: 'https://x.pinggy.io/newest' }),
+    ], ['tunnel'], { charBudget: 30 })
+    expect(result.scannedRevisions).toBe(1)
+    expect(result.entries).toEqual([expect.objectContaining({ revIndex: 2 })])
   })
 })
 

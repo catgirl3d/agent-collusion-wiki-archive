@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { buildPairTimeline, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
+import { buildPairTimeline, collectPayloadEvidence, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
 import { loadJson, revisionFile } from '../api'
 import { Dropdown } from '../components/Dropdown'
 import { Badge, Chip, PageLink } from '../components/ui'
@@ -301,8 +301,10 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
 
   const [sel, setSel] = useState<{ from: number; to: number } | null>(null)
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
+  const [evidenceOpen, setEvidenceOpen] = useState(false)
 
   const payload = useMemo(() => (lookupId ? payloadIndex?.find((item) => item.s === meta?.s || item.id === lookupId) : undefined), [payloadIndex, meta?.s, lookupId])
+  const evidence = useMemo(() => evidenceOpen && payload && revs ? collectPayloadEvidence(revs, payload.f) : null, [evidenceOpen, payload, revs])
   const dominantLabel = useMemo(() => {
     if (!revs) return ''
     const counts = new Map<string, number>()
@@ -423,6 +425,40 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         </p>
       )}
       {payload && <div className="payload-strip"><span className="muted mono">payload:</span>{payload.f.map((flag) => <Badge key={flag} color={PAYLOAD_FLAG_COLORS[flag]}>{flag}</Badge>)}{payload.u.map((domain) => <span key={domain} className="payload-domain mono">{domain}</span>)}</div>}
+      {payload && payload.f.length > 0 && (
+        <details className="payload-evidence" onToggle={(event) => setEvidenceOpen(event.currentTarget.open)}>
+          <summary>What matched these flags?</summary>
+          {evidenceOpen && evidence && (evidence.entries.length ? (
+            payload.f.map((flag) => {
+              const entries = evidence.entries.filter((entry) => entry.flag === flag)
+              return (
+                <div className="payload-evidence-group" key={flag}>
+                  <Badge color={PAYLOAD_FLAG_COLORS[flag]}>{flag}</Badge>
+                  {entries.length ? (
+                    <div className="pair-snippets-list">
+                      {entries.map((entry, entryIndex) => (
+                        <div key={`${entry.flag}-${entry.revIndex}-${entryIndex}`}>
+                          <div className="payload-evidence-meta muted text-sm">
+                            <span>#{entry.revIndex + 1} {fmtTime(entry.time)}</span>{entry.label && <span> · {entry.label}</span>}
+                            <button type="button" className="btn ghost sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => {
+                              setExpanded((prev) => ({ ...prev, [entry.revIndex]: true }))
+                              const revisionElement = document.getElementById(`rev-${entry.revIndex}`)
+                              revisionElement?.focus({ preventScroll: true })
+                              const reduceMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                              revisionElement?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+                            }}>open revision</button>
+                          </div>
+                          <pre className="pair-snippet" data-flag={flag}>{highlightMatches(entry.text).map((segment, segmentIndex) => segment.flag ? <mark key={segmentIndex} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={segmentIndex}>{segment.text}</span>)}</pre>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className="muted text-sm">no retained match in loaded revisions</p>}
+                </div>
+              )
+            })
+          ) : <p className="muted text-sm">No retained revision body contains this pattern (recovered or truncated data).</p>)}
+        </details>
+      )}
       {agentLinks && dominantLabel && (
         <AgentGraph
           label={dominantLabel}
@@ -468,7 +504,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
           const i = revs.length - 1 - ri
           const open = isExpanded(i)
           return (
-            <article key={i} className="rev">
+            <article key={i} id={`rev-${i}`} tabIndex={-1} className="rev">
               <header className="rev-head">
                 <strong>#{i + 1}</strong>
                 <span className="muted nowrap">{fmtTime(r.time)}</span>
