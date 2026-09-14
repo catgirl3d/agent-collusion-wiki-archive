@@ -130,6 +130,14 @@ export interface PayloadSnippet {
   text: string
 }
 
+export interface PayloadEvidenceEntry {
+  flag: string
+  text: string
+  revIndex: number
+  time: string | null
+  label: string | null
+}
+
 // Payload flag rules, Base64 validation and match scanning live in payload.ts (SSOT,
 // kept in sync with data/scripts/build.py); this module only consumes them.
 
@@ -647,6 +655,45 @@ function extractSnippetAround(
     start: winStart,
     end: winEnd,
   }
+}
+
+export function collectPayloadEvidence(
+  revisions: Revision[],
+  flags: string[],
+  options?: { perFlagCap?: number; maxScanRevisions?: number; charBudget?: number },
+): { entries: PayloadEvidenceEntry[]; scannedRevisions: number } {
+  const perFlagCap = options?.perFlagCap ?? 3
+  const maxScanRevisions = options?.maxScanRevisions ?? 200
+  const charBudget = options?.charBudget ?? 4_000_000
+  const counts = new Map(flags.map((flag) => [flag, 0]))
+  const seen = new Set<string>()
+  const entries: PayloadEvidenceEntry[] = []
+  let scannedRevisions = 0
+  let scannedChars = 0
+
+  for (let i = revisions.length - 1; i >= 0 && scannedRevisions < maxScanRevisions; i--) {
+    const needed = new Set(flags.filter((flag) => (counts.get(flag) ?? 0) < perFlagCap))
+    if (needed.size === 0) break
+    const revision = revisions[i]
+    const text = revision.body || (revision.partial ? [...(revision.added ?? []), ...(revision.removed ?? [])].join('\n') : '')
+    if (!text) continue
+    if (scannedChars + text.length > charBudget) break
+    scannedRevisions++
+    scannedChars += text.length
+    const matches = scanPayloadMatches(text, needed).sort((a, b) => a.start - b.start)
+    for (const match of matches) {
+      if ((counts.get(match.flag) ?? 0) >= perFlagCap) continue
+      const maxLen = Math.max(120, Math.min(match.end - match.start + 40, 500))
+      const snippet = extractSnippetAround(text, match.start, match.end, maxLen).text.trim()
+      const key = `${match.flag}\0${snippet}`
+      if (!snippet || seen.has(key)) continue
+      seen.add(key)
+      counts.set(match.flag, (counts.get(match.flag) ?? 0) + 1)
+      entries.push({ flag: match.flag, text: snippet, revIndex: i, time: revision.time ?? null, label: revision.label ?? null })
+    }
+  }
+
+  return { entries, scannedRevisions }
 }
 
 /**
