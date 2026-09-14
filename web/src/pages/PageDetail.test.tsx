@@ -9,6 +9,28 @@ vi.mock('../api', async () => {
   return { ...actual, loadJson: loadJsonMock }
 })
 
+function mockSingleRevisionPage() {
+  const responses: Record<string, unknown> = {
+    'pages.json': { p: [{ id: 'usemod/SandBox', w: 'usemod', n: 'SandBox', r: 1, f: '2026-05-11', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [], partial: true }], order: 'last' },
+    'payload_index.json': [], 'agent_links.json': {}, 'labels.json': { l: [], n_anon: 0 },
+    'revisions/usemod_SandBox~.json': [
+      { seq: 1, time: '2026-05-11T00:00:00Z', label: null, ip16: null, summary: null, len: null, body: '', action: null, round: null, partial: true, added: ['new line'], removed: ['old line'] },
+    ],
+  }
+  loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+}
+
+function renderPageDetail(initialEntries: string[]) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <Routes>
+        <Route path="/page/*" element={<PageDetail />} />
+        <Route path="/pages" element={<div>Pages index</div>} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
 describe('PageDetail', () => {
   it('shows a not-found boundary after the page index has loaded', async () => {
     loadJsonMock.mockImplementation((path: string) => {
@@ -94,5 +116,21 @@ describe('PageDetail', () => {
     render(<MemoryRouter initialEntries={['/page/main%2FEmpty']}><Routes><Route path="/page/*" element={<PageDetail />} /></Routes></MemoryRouter>)
     fireEvent.click(await screen.findByText('What matched these flags?'))
     expect(await screen.findByText('No retained revision body contains this pattern (recovered or truncated data).')).toBeVisible()
+  })
+
+  it('goes back to the previous in-app route when the page was reached from another route', async () => {
+    mockSingleRevisionPage()
+    renderPageDetail(['/pages', '/page/usemod%2FSandBox'])
+
+    fireEvent.click(await screen.findByRole('button', { name: '← back' }))
+    expect(screen.getByText('Pages index')).toBeInTheDocument()
+  })
+
+  it('falls back to the pages index when the page was opened without in-app history', async () => {
+    mockSingleRevisionPage()
+    renderPageDetail(['/page/usemod%2FSandBox'])
+
+    fireEvent.click(await screen.findByRole('button', { name: '← back' }))
+    expect(screen.getByText('Pages index')).toBeInTheDocument()
   })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { buildPairTimeline, collectPayloadEvidence, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
 import { loadJson, revisionFile } from '../api'
 import { Dropdown } from '../components/Dropdown'
@@ -254,7 +254,13 @@ export default function PageDetail() {
 
 function PageDetailView({ pageId: decoded }: { pageId: string }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  // "default" is React Router's key for the entry the document was opened with: a direct
+  // link, new tab, or external referrer has no in-app history, so navigate(-1) would leave
+  // the SPA (or do nothing) — fall back to the pages index instead.
+  const canGoBack = location.key !== 'default'
 
   const { data: index } = useData<PagesIndex>('pages.json')
   const { data: payloadIndex } = useData<PayloadRecord[]>('payload_index.json')
@@ -413,7 +419,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
 
   return (
     <div className="page">
-      <button type="button" className="btn ghost" onClick={() => navigate(-1)}>← back</button>
+      <button type="button" className="btn ghost" onClick={() => (canGoBack ? navigate(-1) : navigate('/pages'))}>← back</button>
       <h1 className="mono">{decoded}</h1>
       {meta && (
         <p className="muted">
