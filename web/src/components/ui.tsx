@@ -14,9 +14,19 @@ export function Chip({ children, tone = 'plain' }: { children: React.ReactNode; 
   return <span className={`chip chip-${tone}`}>{children}</span>
 }
 
-export function Badge({ color, children }: { color?: string; children: React.ReactNode }) {
+export function Badge({
+  color,
+  className,
+  title,
+  children,
+}: {
+  color?: string
+  className?: string
+  title?: string
+  children: React.ReactNode
+}) {
   return (
-    <span className="badge" style={color ? { background: `${color}22`, color } : undefined}>
+    <span className={`badge${className ? ` ${className}` : ''}`} title={title} style={color ? { background: `${color}22`, color } : undefined}>
       {children}
     </span>
   )

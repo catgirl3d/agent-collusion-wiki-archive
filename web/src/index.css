@@ -990,7 +990,7 @@ a:hover {
 }
 
 .payload-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 16px; }
-.payload-domain { color: var(--muted-text); font-size: 11px; }
+.payload-domain { color: var(--muted-text); font-weight: 500; }
 .mark-payload { border-radius: 3px; padding: 0 2px; background: rgba(245, 158, 11, .25); color: #fde68a; }
 .mark-payload[data-flag="script"], .mark-payload[data-flag="inject"] { background: rgba(244, 63, 94, .3); color: #fecdd3; }
 .mark-payload[data-flag="tunnel"], .mark-payload[data-flag="redirect"] { background: rgba(56, 189, 248, .25); color: #bae6fd; }

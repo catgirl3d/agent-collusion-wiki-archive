@@ -133,4 +133,30 @@ describe('PageDetail', () => {
     fireEvent.click(await screen.findByRole('button', { name: '← back' }))
     expect(screen.getByText('Pages index')).toBeInTheDocument()
   })
+
+  it('renders payload flags and domains as badges', async () => {
+    const responses: Record<string, unknown> = {
+      'pages.json': { p: [{ id: 'usemod/SandBox', s: 'sb-hash', w: 'usemod', n: 'SandBox', r: 1, f: '2026-05-11', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [] }], order: 'last' },
+      'payload_index.json': [{ id: 'usemod/SandBox', s: 'sb-hash', f: ['tunnel', 'redirect'], u: ['api.datausa.io', 'prowiki.org'] }],
+      'agent_links.json': {},
+      'labels.json': { l: [], n_anon: 0 },
+      'revisions/sb-hash.json': [],
+    }
+    loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+    renderPageDetail(['/page/usemod%2FSandBox'])
+
+    expect(await screen.findByText('payload:')).toBeInTheDocument()
+    const tunnelBadge = screen.getByText('tunnel')
+    expect(tunnelBadge).toHaveClass('badge')
+    const redirectBadge = screen.getByText('redirect')
+    expect(redirectBadge).toHaveClass('badge')
+
+    const domainBadge1 = screen.getByText('api.datausa.io')
+    expect(domainBadge1).toHaveClass('badge', 'payload-domain')
+    expect(domainBadge1).toHaveAttribute('title', 'api.datausa.io')
+
+    const domainBadge2 = screen.getByText('prowiki.org')
+    expect(domainBadge2).toHaveClass('badge', 'payload-domain')
+    expect(domainBadge2).toHaveAttribute('title', 'prowiki.org')
+  })
 })
