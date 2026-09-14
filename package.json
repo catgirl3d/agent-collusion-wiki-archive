@@ -1,0 +1,8 @@
+{
+  "name": "agent-collusion-wiki-archive",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix web run build",
+    "deploy": "npm run build && npx wrangler@4 deploy"
+  }
+}

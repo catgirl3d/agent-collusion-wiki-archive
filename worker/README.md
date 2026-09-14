@@ -117,16 +117,19 @@ proxied to `http://127.0.0.1:8787`.
 
 ## Deployment
 
-Deployment is a single Worker + static-assets release. Build the viewer, then
-deploy from the repository root:
+Deployment is a single Worker + static-assets release. From the repository
+root, `npm run deploy` rebuilds the viewer and then uploads it, so a stale
+`web/dist` is never deployed:
 
 ```bash
-cd web
-npm install
-npm run build
-cd ..
-npx wrangler@4 deploy
+npm --prefix web ci   # first time only
+npm run deploy
 ```
+
+`npm run deploy` expands to the web build (including the `prebuild` data sync
+from `data/processed/` into `web/public/data/`) followed by
+`npx wrangler@4 deploy`; the manual equivalents are
+`npm --prefix web run build` and `npx wrangler@4 deploy`.
 
 Authenticate first with `npx wrangler@4 login` when required. The
 `wrangler.jsonc` configuration uploads `web/dist` as Workers Assets and uses
@@ -135,4 +138,5 @@ add the old Pages-style `web/public/_redirects` file; it is not used by this
 deployment.
 
 There is no separate API deployment and no database migration step. A new
-data release requires rebuilding the viewer assets before deploying again.
+data release still requires `python data/scripts/build.py` first;
+`npm run deploy` then re-syncs and rebuilds the viewer assets.
