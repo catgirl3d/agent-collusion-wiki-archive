@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, PageLink } from '../components/ui'
+import { Badge, Button, PageLink } from '../components/ui'
 import type { EventType, RecentEvent } from '../types'
 import { EVENT_FILTER_OPTIONS, eventColor, eventPageId, filterEventsByDay, fmtInt, fmtTime } from '../utils/format'
 
@@ -106,8 +106,8 @@ export default function Events() {
       </div>
 
       <div className="pager">
-        <button type="button" className="btn ghost" disabled={cur === 0} onClick={() => setPage((p) => p - 1)}>← prev</button>
-        <button type="button" className="btn ghost" disabled={cur >= pages - 1} onClick={() => setPage((p) => p + 1)}>next →</button>
+        <Button variant="ghost" disabled={cur === 0} onClick={() => setPage((p) => p - 1)}>← prev</Button>
+        <Button variant="ghost" disabled={cur >= pages - 1} onClick={() => setPage((p) => p + 1)}>next →</Button>
       </div>
     </div>
   )

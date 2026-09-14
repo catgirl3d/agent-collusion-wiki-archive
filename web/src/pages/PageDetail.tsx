@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { buildPairTimeline, collectPayloadEvidence, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
 import { loadJson, revisionFile } from '../api'
 import { Dropdown } from '../components/Dropdown'
-import { Badge, Chip, PageLink } from '../components/ui'
+import { Badge, Button, Chip, PageLink } from '../components/ui'
 import { DiffView } from '../components/DiffView'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import { useData, useJson } from '../components/useQuery'
@@ -129,9 +129,9 @@ function AgentGraph({
             <span className="metric-val">{allLabelPages.length}</span>
             <span className="metric-lbl">target pages</span>
           </div>
-          <Link to={`/network?agent=${encodeURIComponent(label)}`} className="btn sm">
+          <Button to={`/network?agent=${encodeURIComponent(label)}`} size="sm">
             Explore in Network Graph →
-          </Link>
+          </Button>
         </div>
       </div>
 
@@ -238,17 +238,17 @@ function AgentGraph({
                     )}
 
                     <div className="syndicate-card-actions">
-                      <button
-                        type="button"
-                        className={`btn sm${isSelected ? '' : ' ghost'}`}
+                      <Button
+                        size="sm"
+                        variant={isSelected ? 'primary' : 'ghost'}
                         aria-pressed={isSelected}
                         onClick={() => onSelectPair(agent.o)}
                       >
                         Pair evidence
-                      </button>
-                      <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="btn sm ghost">
+                      </Button>
+                      <Button to={`/agents?q=${encodeURIComponent(agent.o)}`} variant="ghost" size="sm">
                         Agent dossier
-                      </Link>
+                      </Button>
                     </div>
                   </article>
                 )
@@ -439,7 +439,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
 
   return (
     <div className="page">
-      <button type="button" className="btn ghost" onClick={() => (canGoBack ? navigate(-1) : navigate('/pages'))}>← back</button>
+      <Button variant="ghost" onClick={() => (canGoBack ? navigate(-1) : navigate('/pages'))}>← back</Button>
       <h1 className="mono">{decoded}</h1>
       {meta && (
         <p className="muted">
@@ -476,13 +476,13 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                         <div key={`${entry.flag}-${entry.revIndex}-${entryIndex}`}>
                           <div className="payload-evidence-meta muted text-sm">
                             <span>#{entry.revIndex + 1} {fmtTime(entry.time)}</span>{entry.label && <span> · {entry.label}</span>}
-                            <button type="button" className="btn ghost sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => {
+                            <Button variant="ghost" size="sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => {
                               setExpanded((prev) => ({ ...prev, [entry.revIndex]: true }))
                               const revisionElement = document.getElementById(`rev-${entry.revIndex}`)
                               revisionElement?.focus({ preventScroll: true })
                               const reduceMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
                               revisionElement?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-                            }}>open revision</button>
+                            }}>open revision</Button>
                           </div>
                           <pre className="pair-snippet" data-flag={flag}>{highlightMatches(entry.text).map((segment, segmentIndex) => segment.flag ? <mark key={segmentIndex} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={segmentIndex}>{segment.text}</span>)}</pre>
                         </div>
@@ -548,14 +548,14 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                 {r.ip16 && <span className="muted nowrap">ip16:{r.ip16}</span>}
                 {r.summary && <span className="sum">{r.summary}</span>}
                 <span className="muted nowrap">{r.partial ? '—' : r.len != null ? `${fmtInt(r.len)} chars` : ''}</span>
-                <button
-                  type="button"
-                  className="btn ghost sm"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   style={{ marginLeft: 'auto' }}
                   onClick={() => toggleExpand(i)}
                 >
                   {r.partial ? (open ? 'hide diff' : 'view diff') : (open ? 'hide body' : 'view body')}
-                </button>
+                </Button>
               </header>
               {open && (
                 r.partial ? (

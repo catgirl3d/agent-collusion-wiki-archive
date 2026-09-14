@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, Chip, PageLink } from '../components/ui'
+import { Badge, Button, Chip, PageLink } from '../components/ui'
 import type { DayActivity, PagesIndex, PayloadRecord, SearchIndex } from '../types'
 import {
   WIKIS,
@@ -164,9 +164,9 @@ export default function Pages() {
       )}
 
       <div className="filters">
-        <button type="button" className="btn" onClick={() => exportFile('json')}>Export JSON</button>
-        <button type="button" className="btn" onClick={() => exportFile('csv')}>Export CSV</button>
-        <button type="button" className="btn" onClick={copyPython}>{copied ? 'Copied!' : 'Copy as Python'}</button>
+        <Button onClick={() => exportFile('json')}>Export JSON</Button>
+        <Button onClick={() => exportFile('csv')}>Export CSV</Button>
+        <Button onClick={copyPython}>{copied ? 'Copied!' : 'Copy as Python'}</Button>
       </div>
 
       <div className="table-wrap">
@@ -223,9 +223,9 @@ export default function Pages() {
       </div>
 
       {filtered.length > shown.length && (
-        <button type="button" className="btn" onClick={() => setLimit((n) => n + PAGE_LIMIT)}>
+        <Button onClick={() => setLimit((n) => n + PAGE_LIMIT)}>
           Load more ({fmtInt(filtered.length - shown.length)} left)
-        </button>
+        </Button>
       )}
     </div>
   )

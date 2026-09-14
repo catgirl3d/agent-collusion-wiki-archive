@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, type LinkProps } from 'react-router-dom'
 import type { SortState } from '../utils/sort'
 
 export function PageLink({ id, name, max }: { id: string; name: string; max?: number }) {
@@ -57,4 +57,27 @@ export function SortHeader<K extends string>({
       </button>
     </th>
   )
+}
+
+type ButtonCommonProps = {
+  variant?: 'primary' | 'ghost'
+  size?: 'md' | 'sm'
+  className?: string
+  children: React.ReactNode
+}
+
+type ButtonNativeProps = ButtonCommonProps &
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'>
+
+type ButtonLinkProps = ButtonCommonProps & { to: string } & Omit<LinkProps, 'to' | 'className' | 'children'>
+
+export function Button(props: ButtonLinkProps): React.ReactElement
+export function Button(props: ButtonNativeProps): React.ReactElement
+export function Button({ variant = 'primary', size = 'md', className, children, ...rest }: ButtonLinkProps | ButtonNativeProps) {
+  const classes = ['btn', variant === 'ghost' && 'ghost', size === 'sm' && 'sm', className].filter(Boolean).join(' ')
+  if ('to' in rest) {
+    const { to, ...linkProps } = rest
+    return <Link to={to} className={classes} {...linkProps}>{children}</Link>
+  }
+  return <button type="button" className={classes} {...rest}>{children}</button>
 }

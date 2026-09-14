@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { loadJson, revisionFile } from '../api'
 import { Dropdown } from '../components/Dropdown'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import NetworkCanvas, { type NetworkCanvasHandle } from '../components/NetworkCanvas'
-import { Badge, Chip } from '../components/ui'
+import { Badge, Button, Chip } from '../components/ui'
 import { useData } from '../components/useQuery'
 import type { AgentLinks, LabelsIndex, PagesIndex, Revision } from '../types'
 import { fmtInt, wikiColor } from '../utils/format'
@@ -224,9 +224,9 @@ export default function Network() {
           Agent "{agentParam}" not found in the network index.
           {presets.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <button type="button" className="btn primary sm" onClick={() => setFocalAgent(presets[0])}>
+              <Button size="sm" onClick={() => setFocalAgent(presets[0])}>
                 Show top syndicate
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -421,34 +421,34 @@ export default function Network() {
 
         {/* View Controls */}
         <div className="network-btn-group">
-          <button
-            type="button"
-            className="btn ghost sm"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               canvasRef.current?.zoomIn()
             }}
             title="Zoom In"
           >
             +
-          </button>
-          <button
-            type="button"
-            className="btn ghost sm"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               canvasRef.current?.zoomOut()
             }}
             title="Zoom Out"
           >
             −
-          </button>
-          <button
-            type="button"
-            className="btn ghost sm"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => canvasRef.current?.fit()}
             title="Fit to view"
           >
             Fit
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -556,17 +556,16 @@ export default function Network() {
 
               <div className="inspected-actions">
                 {inspectedAgent !== activeAgent && (
-                  <button
-                    type="button"
-                    className="btn sm primary"
+                  <Button
+                    size="sm"
                     onClick={() => setFocalAgent(inspectedAgent)}
                   >
                     Focus graph on this agent →
-                  </button>
+                  </Button>
                 )}
-                <Link to={`/agents?q=${encodeURIComponent(inspectedAgent)}`} className="btn ghost sm">
+                <Button to={`/agents?q=${encodeURIComponent(inspectedAgent)}`} variant="ghost" size="sm">
                   View in Agent Catalog ↗
-                </Link>
+                </Button>
               </div>
 
               <section className="inspected-links-section">

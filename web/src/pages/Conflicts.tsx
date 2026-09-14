@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useData } from '../components/useQuery'
-import { Badge, PageLink } from '../components/ui'
+import { Badge, Button, PageLink } from '../components/ui'
 import type { ConflictRow, PageRecord, PagesIndex } from '../types'
 import { fmtDuration } from '../utils/format'
 
@@ -98,8 +98,8 @@ export default function Conflicts() {
       </div>
 
       <div className="pager">
-        <button type="button" className="btn ghost" disabled={currentPage === 0} onClick={() => setPage((value) => value - 1)}>← prev</button>
-        <button type="button" className="btn ghost" disabled={currentPage >= pagesCount - 1} onClick={() => setPage((value) => value + 1)}>next →</button>
+        <Button variant="ghost" disabled={currentPage === 0} onClick={() => setPage((value) => value - 1)}>← prev</Button>
+        <Button variant="ghost" disabled={currentPage >= pagesCount - 1} onClick={() => setPage((value) => value + 1)}>next →</Button>
       </div>
     </div>
   )

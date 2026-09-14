@@ -1,7 +1,7 @@
 import { Fragment, useDeferredValue, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
-import { Badge, PageLink } from '../components/ui'
+import { Badge, Button, PageLink } from '../components/ui'
 import type { LabelsIndex } from '../types'
 import { filterLabels, fmtInt, toCsv } from '../utils/format'
 import { downloadBlob } from '../utils/download'
@@ -53,7 +53,7 @@ export default function Agents() {
           }}
         />
         <span className="muted result-count">{fmtInt(filtered.length)}</span>
-        <button type="button" className="btn" onClick={exportCsv}>Export CSV</button>
+        <Button onClick={exportCsv}>Export CSV</Button>
       </div>
 
       <div className="table-wrap">
@@ -84,20 +84,21 @@ export default function Agents() {
                   <td className="nowrap">
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {l.pgs.length > 0 && (
-                        <button type="button" className="btn ghost sm" onClick={() => setOpen(open === l.x ? null : l.x)}>
+                        <Button variant="ghost" size="sm" onClick={() => setOpen(open === l.x ? null : l.x)}>
                           {open === l.x ? 'hide' : 'pages'}
-                        </button>
+                        </Button>
                       )}
-                      <Link
+                      <Button
                         to={`/timeline?label=${encodeURIComponent(l.x)}`}
-                        className="btn ghost sm"
+                        variant="ghost"
+                        size="sm"
                         title="Reconstruct this agent's revision timeline"
                       >
                         timeline
-                      </Link>
-                      <Link to={`/network?agent=${encodeURIComponent(l.x)}`} className="btn ghost sm" title="Explore syndicate network">
+                      </Button>
+                      <Button to={`/network?agent=${encodeURIComponent(l.x)}`} variant="ghost" size="sm" title="Explore syndicate network">
                         network
-                      </Link>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -121,9 +122,9 @@ export default function Agents() {
 
       {filtered.length > shown.length && (
         <div style={{ marginTop: 16 }}>
-          <button type="button" className="btn" onClick={() => setLimit((n) => n + RESULT_LIMIT)}>
+          <Button onClick={() => setLimit((n) => n + RESULT_LIMIT)}>
             Load more ({fmtInt(filtered.length - shown.length)} remaining)
-          </button>
+          </Button>
         </div>
       )}
     </div>

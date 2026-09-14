@@ -798,6 +798,7 @@ a:hover {
 .btn {
   background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
   color: #fff;
+  text-decoration: none;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
   padding: 9px 18px;
@@ -813,6 +814,7 @@ a:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
   filter: brightness(1.1);
+  text-decoration: none;
 }
 
 .btn:active:not(:disabled) {

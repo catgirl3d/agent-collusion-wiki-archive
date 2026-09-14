@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, PageLink, SortHeader } from '../components/ui'
+import { Badge, Button, PageLink, SortHeader } from '../components/ui'
 import type { CorpusMatch, CorpusRevisionKey, CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
 import {
@@ -370,7 +370,7 @@ export default function Search() {
           />{' '}
           whole word
         </label>
-        <button type="submit" className="btn">Search</button>
+        <Button type="submit">Search</Button>
       </form>
 
       {visibleState.status === 'loading' && <div className="loading">{visibleState.message}</div>}
@@ -420,9 +420,9 @@ export default function Search() {
                           <span className="snippet-meta">
                             {fmtBytes(match.bytes)} · {match.lines === 1 ? '1 line' : `${fmtInt(match.lines)} lines`}
                           </span>
-                          <button
-                            type="button"
-                            className="btn ghost sm"
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             disabled={bodyRow?.status === 'loading'}
                             aria-expanded={bodyRow?.open ?? false}
                             onClick={() => {
@@ -430,7 +430,7 @@ export default function Search() {
                             }}
                           >
                             {bodyRow?.status === 'loading' ? 'loading…' : bodyRow?.open ? 'hide full text ▴' : 'full text ▾'}
-                          </button>
+                          </Button>
                         </div>
                         {bodyRow?.open && bodyRow.status === 'ready' && (
                           <pre className="revision-body">
@@ -455,15 +455,14 @@ export default function Search() {
           </div>
           {visibleState.result.matches.length === 0 && <div className="muted">No matches in the selected scope.</div>}
           <div className="pager">
-            <button type="button" className="btn ghost" disabled={visibleState.result.offset === 0} onClick={() => goToPage(page - 1)}>← prev</button>
-            <button
-              type="button"
-              className="btn ghost"
+            <Button variant="ghost" disabled={visibleState.result.offset === 0} onClick={() => goToPage(page - 1)}>← prev</Button>
+            <Button
+              variant="ghost"
               disabled={visibleState.result.offset + PAGE_SIZE >= visibleState.result.total}
               onClick={() => goToPage(page + 1)}
             >
               next →
-            </button>
+            </Button>
           </div>
         </>
       )}

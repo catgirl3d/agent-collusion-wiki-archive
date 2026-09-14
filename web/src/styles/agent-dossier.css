@@ -380,9 +380,5 @@
   text-decoration: none;
 }
 
-.syndicate-card-actions a:hover {
-  text-decoration: none;
-}
-
 .payload-cell { display: flex; flex-wrap: wrap; gap: 4px; max-width: 240px; }
 .payload-cell .badge { font-size: 10px; padding: 1px 6px; }

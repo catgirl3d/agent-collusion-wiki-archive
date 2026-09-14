@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, PageLink, SortHeader } from '../components/ui'
+import { Badge, Button, PageLink, SortHeader } from '../components/ui'
 import type { TimelineFile } from '../types'
 import { fmtInt, fmtTime, SOURCE_FILTER_OPTIONS } from '../utils/format'
 import type { SourceFilter } from '../utils/format'
@@ -182,22 +182,20 @@ export default function Timeline() {
       </div>
 
       <div className="pager">
-        <button
-          type="button"
-          className="btn ghost"
+        <Button
+          variant="ghost"
           disabled={paged.page === 0}
           onClick={() => update({ page: String(Math.max(0, paged.page - 1)) }, false)}
         >
           ← prev
-        </button>
-        <button
-          type="button"
-          className="btn ghost"
+        </Button>
+        <Button
+          variant="ghost"
           disabled={paged.page >= paged.pages - 1}
           onClick={() => update({ page: String(paged.page + 1) }, false)}
         >
           next →
-        </button>
+        </Button>
       </div>
     </div>
   )

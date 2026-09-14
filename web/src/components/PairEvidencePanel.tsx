@@ -4,6 +4,7 @@ import { derivePairEvidence, derivePatternSignals, formatPatternSignals, getPayl
 import { fmtDuration, fmtTimeSeconds, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS } from '../utils/payload'
 import { DiffView } from './DiffView'
+import { Button } from './ui'
 
 
 /** Timeline rows shown per render window; "Load older" extends by the same amount. */
@@ -278,26 +279,28 @@ export function PairEvidencePanel({
             {selectedPageId && sourceMode === 'network' && (
               <>
                 <span>·</span>
-                <button
-                  type="button"
-                  className="btn sm ghost pair-open-page-btn"
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="pair-open-page-btn"
                   onClick={() => onOpenPageInPageDetail(selectedPageId)}
                   title="Open page in PageDetail"
                 >
                   Open in PageDetail
-                </button>
+                </Button>
               </>
             )}
           </div>
         </div>
-        <button
-          type="button"
-          className="btn sm ghost pair-close-btn"
+        <Button
+          size="sm"
+          variant="ghost"
+          className="pair-close-btn"
           onClick={onClose}
           aria-label="Close pair evidence panel"
         >
           Close
-        </button>
+        </Button>
       </div>
 
       {/* 2. Shared technical signatures */}
@@ -486,13 +489,14 @@ export function PairEvidencePanel({
 
               {limit < reversedEvents.length && (
                 <div className="pair-timeline-footer">
-                  <button
-                    type="button"
-                    className="btn sm ghost pair-load-older-btn"
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="pair-load-older-btn"
                     onClick={() => setLimit((prev) => prev + TIMELINE_PAGE_SIZE)}
                   >
                     Load older ({reversedEvents.length - limit} remaining)
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

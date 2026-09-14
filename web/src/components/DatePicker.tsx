@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MONTHS, monthCells, parseYearMonth, stepMonth } from '../utils/date'
+import { Button } from './ui'
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 
@@ -83,25 +84,27 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
       {open && (
         <div className="cal-popup" role="dialog" aria-label={ariaLabel}>
           <div className="cal-head">
-            <button
-              type="button"
-              className="btn ghost sm cal-nav"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="cal-nav"
               aria-label="Previous month"
               disabled={!canPrev}
               onClick={() => setView(({ y, m }) => stepMonth(y, m, -1))}
             >
               ←
-            </button>
+            </Button>
             <span className="cal-title">{MONTHS[view.m]} {view.y}</span>
-            <button
-              type="button"
-              className="btn ghost sm cal-nav"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="cal-nav"
               aria-label="Next month"
               disabled={!canNext}
               onClick={() => setView(({ y, m }) => stepMonth(y, m, 1))}
             >
               →
-            </button>
+            </Button>
           </div>
           {allowLiftRestriction && isDayEnabled && (
             <label className="check cal-restriction">
@@ -137,16 +140,16 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
           </div>
           {value && (
             <div className="cal-foot">
-              <button
-                type="button"
-                className="btn ghost sm"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   onChange('')
                   setOpen(false)
                 }}
               >
                 clear
-              </button>
+              </Button>
             </div>
           )}
         </div>
