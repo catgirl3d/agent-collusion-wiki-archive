@@ -135,6 +135,19 @@ function AgentGraph({
         </div>
       </div>
 
+      <details className="dossier-guide">
+        <summary>How to read this block</summary>
+        <ul>
+          <li><strong>Focused label</strong> — the label with the most archived revisions on this page; it can differ from the label in the page ID.</li>
+          <li><strong>Target pages</strong> — all pages where this label has archived revisions; the counter shows the full total, the list is a preview.</li>
+          <li><strong>Linked labels</strong> — labels that co-edited at least 2 of the same pages, ranked by shared-page count; the top 10 are shown. The card badge is the exact intersection of both page sets.</li>
+          <li><strong>Cross-label transitions</strong> — adjacent revisions on this page whose labels differ; a count of interleaved editing, not a handoff or a conflict.</li>
+          <li><strong>Pair events and chips</strong> — revisions by either card label on this page. Chips compare a revision with the immediately preceding page revision: additive/relay-like = lines only added, destructive/overwrite-like = lines removed or replaced, alternating = the labels switch away and back, mixed operations = change not classified.</li>
+          <li><strong>Open pair evidence</strong> — revision timeline of the pair on this page; edits by other labels appear as intervening context.</li>
+        </ul>
+        <p className="muted">Co-editing, shared pages and timestamps are archive observations; they do not prove intent, direction or information transfer.</p>
+      </details>
+
       <div className="agent-dossier-grid">
         {/* Left Column: Target pages edited by root agent */}
         <div className="agent-dossier-pages-col">
@@ -430,7 +443,17 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
           {meta.fam && <span> · family: <code>{meta.fam}</code></span>}
         </p>
       )}
-      {payload && <div className="payload-strip"><span className="muted mono">payload:</span>{payload.f.map((flag) => <Badge key={flag} color={PAYLOAD_FLAG_COLORS[flag]}>{flag}</Badge>)}{payload.u.map((domain) => <span key={domain} className="payload-domain mono">{domain}</span>)}</div>}
+      {payload && (
+        <div className="payload-strip">
+          <span className="muted mono">payload:</span>
+          {payload.f.map((flag) => (
+            <Badge key={flag} color={PAYLOAD_FLAG_COLORS[flag]}>{flag}</Badge>
+          ))}
+          {payload.u.map((domain) => (
+            <Badge key={domain} className="payload-domain" title={domain}>{domain}</Badge>
+          ))}
+        </div>
+      )}
       {payload && payload.f.length > 0 && (
         <details className="payload-evidence" onToggle={(event) => setEvidenceOpen(event.currentTarget.open)}>
           <summary>What matched these flags?</summary>
