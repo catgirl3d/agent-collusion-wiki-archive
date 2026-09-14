@@ -18,8 +18,8 @@ locally without a server-side scan.
 """
 from __future__ import annotations
 
-import gzip
 import base64
+import gzip
 import hashlib
 import io
 import json
@@ -56,7 +56,69 @@ _URL_RE = re.compile(r"https?://[^\s<>'\"]+", re.IGNORECASE)
 _B64_RE = re.compile(r"[A-Za-z0-9+/]{80,}={0,2}")
 _HEX_RE = re.compile(r"(0x[0-9a-f]+|[0-9a-f]{64,})")
 _NONSPACE_RE = re.compile(r"\S+")
-PAYLOAD_FLAGS = ("b64", "hex", "script", "inject", "homoglyph", "high-entropy", "tunnel", "redirect")
+PAYLOAD_FLAGS = (
+    "b64", "hex", "script", "inject", "homoglyph", "high-entropy", "tunnel", "redirect",
+    "proxy", "callback", "exec", "data-uri", "beacon", "traversal",
+)
+# Tunnel hosts are matched as exact hostname or subdomain of (URL semantics pinned by data/validation/url_golden.json).
+_TUNNEL_HOSTS = (
+    "pinggy.io", "pinggy.link", "pinggy-free.link", "serveo.net", "serveousercontent.com",
+    "localhost.run", "loca.lt", "localtunnel.me", "ngrok-free.app", "ngrok.app",
+    "trycloudflare.com", "bore.pub", "tunnelmole.net", "devtunnels.ms", "zrok.io",
+)
+# Reader/proxy services that rewrite or fetch a third-party URL (path-embedded target or ?url= query).
+_READER_HOSTS = (
+    "r.jina.ai", "markdown.new", "pure.md",
+)
+_CORS_PROXY_HOSTS = (
+    "corsproxy.io", "cors-anywhere.herokuapp.com", "cors.isomorphic-git.org", "cors.eu.org",
+    "allorigins.hexlet.app", "api.allorigins.win", "thingproxy.freeboard.io",
+    "urltomarkdown.herokuapp.com", "proxymule.com", "jqp.vercel.app",
+)
+# Callback/exfiltration endpoints: host match plus the pinned path prefix, never a bare service word.
+_CALLBACK_HOSTS = (
+    "discord.com/api/webhooks", "hooks.slack.com/services", "api.telegram.org/bot",
+    "webhook.site", "oastify.com", "interact.sh", "burpcollaborator.net", "requestcatcher.com",
+)
+# Decode-and-execute / remote-execution composites; matched case-insensitively on the lowered body.
+_EXEC_RES = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+    r"(?:curl|wget)\s+(?:-[^\s]+\s+)*https?://[^\s]*\s*\|\s*(?:sudo\s+)?(?:ba|z|da|fi)?sh\b",
+    r"(?:powershell|pwsh)\b[^;\n]{0,120}(?:-enc(?:odedcommand)?\b|-ep\s+bypass)",
+    r"\beval\s*\(\s*(?:atob|unescape|base64_decode|window\.atob)\s*\(",
+    r"\b(?:exec|system)\s*\(\s*base64\.b64decode\s*\(",
+    r"\bbase64\s+(?:-d|--decode)\b[^;\n]{0,80}\|\s*(?:ba|z|da|fi)?sh\b",
+    r"\bnc\s+(?:-e\s+)?(?:/bin/(?:ba|z)?sh|cmd\.exe)\b",
+))
+# Active-content data: URIs only; images/fonts are inert and stay unflagged.
+_DATA_URI_RE = re.compile(
+    r"data:(?:text/html|application/javascript|text/javascript|image/svg\+xml)(?:;charset=[\w-]+)?;base64,[A-Za-z0-9+/]{40,}",
+    re.IGNORECASE,
+)
+_TRAVERSAL_RE = re.compile(r"\.\.(?:%2f|%252f)", re.IGNORECASE)
+# Prompt-injection markers beyond the legacy inject trio; long distinctive phrases only.
+_INJECT_RES = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+    r"disregard\s+(?:all\s+|the\s+)?previous\s+instructions",
+    r"ignore\s+(?:all\s+|the\s+)?(?:previous|prior|above)\s+instructions",
+    r"forget\s+(?:all\s+|the\s+)?previous\s+instructions",
+    r"override\s+(?:previous|system)\s+instructions",
+    r"reveal\s+(?:the|your)\s+system\s+prompt",
+    r"repeat\s+(?:the|your)\s+system\s+prompt",
+    r"<\|im_start\|>system",
+    r"\bDAN\s+mode\b",
+))
+# Covert signal/beacon channels: counter endpoints used for cross-agent coordination signals.
+_BEACON_HOSTS = ("counterapi.dev",)
+# Detached/background execution composites beyond the classic exec pipes.
+_EXEC_RES = _EXEC_RES + tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+    r"\bnohup\s+(?:sh\s+-c|bash\s+-c|curl\b)",
+    r"\bsetsid\s+(?:-f\s+)?(?:sh\s+-c|bash\s+-c|curl\b)",
+))
+# Runtime base64 decoding of fetched payloads.
+_ATOB_RES = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+    r"\batob\s*\(",
+    r"\bbtoa\s*\(",
+    r"\bwindow\.atob\s*\(",
+))
 FTS_BUDGET_BYTES = 12 * 1024 * 1024
 
 
@@ -436,6 +498,76 @@ def _entropy(value: str) -> float:
     return -sum((count / length) * math.log2(count / length) for count in counts.values())
 
 
+def _host_matches(host: str, indicator: str) -> bool:
+    """Exact host or subdomain match."""
+    return host == indicator or host.endswith("." + indicator)
+
+
+def _flag_hosts(body: str, hosts: tuple[str, ...]) -> bool:
+    return any(_host_matches(domain, indicator) for domain in _domains(body) for indicator in hosts)
+
+
+def _flag_callback_hosts(body: str) -> bool:
+    """Callback endpoints need the pinned path prefix: parse URLs and check host+path."""
+    for match in _URL_RE.findall(body or ""):
+        try:
+            parsed = urlparse(match.rstrip(".,;:!?)\"]"))
+        except ValueError:
+            continue
+        domain = (parsed.hostname or "").lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+        if not domain:
+            continue
+        path = (parsed.path or "/")
+        for indicator in _CALLBACK_HOSTS:
+            base, _, prefix = indicator.partition("/")
+            if not (domain == base or domain.endswith("." + base)):
+                continue
+            if base == "discord.com" and path.startswith("/" + prefix):
+                return True
+            if base == "hooks.slack.com" and path.startswith("/" + prefix):
+                return True
+            if base == "api.telegram.org" and re.search(r"^/(?:file/)?bot\d", path):
+                return True
+            if not prefix:
+                return True
+    return False
+
+
+def _percent_decode_one(value: str) -> str:
+    return re.sub(r"%([0-9a-f]{2})", lambda match: chr(int(match.group(1), 16)), value, flags=re.IGNORECASE)
+
+
+def _valid_contextual_base64(value: str) -> bool:
+    if len(value) < 8 or not re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", value) or len(value) % 4 == 1:
+        return False
+    try:
+        decoded = base64.b64decode(value, validate=True).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return bool(decoded) and all(char.isprintable() or char in "\r\n\t" for char in decoded)
+
+
+def _flag_base64_carriers(body: str) -> bool:
+    normalized = _percent_decode_one(body or "")
+    for match in re.finditer(r"data:application/json;base64,([^\s<>'\"]+)", normalized, re.IGNORECASE):
+        if _valid_contextual_base64(match.group(1)):
+            return True
+    for match in _URL_RE.finditer(body or ""):
+        try:
+            parsed = urlparse(match.group(0).rstrip(".,;:!?)\"]"))
+        except ValueError:
+            continue
+        host = (parsed.hostname or "").lower()
+        if host.startswith("www."):
+            host = host[4:]
+        path_match = re.fullmatch(r"/base64/([^/]+)", parsed.path or "")
+        if host == "httpbin.org" and path_match and _valid_contextual_base64(path_match.group(1)):
+            return True
+    return False
+
+
 def detect_payload_flags(body: str) -> set[str]:
     """Returns deterministic scanner flags for a single revision body."""
     flags = set()
@@ -448,6 +580,8 @@ def detect_payload_flags(body: str) -> set[str]:
         flags.add("script")
     if any(marker in lowered for marker in ("system:", "ignore previous", "reproducible bypass")):
         flags.add("inject")
+    if any(rx.search(body or "") for rx in _INJECT_RES):
+        flags.add("inject")
     # homoglyph: words mixing latin and cyrillic are primary character-spoofing signals.
     # NFKC diff is only an amplifier (catches fullwidth/compat substitutions), not mandatory:
     # NFKC does not alter a Cyrillic character placed inside a Latin word.
@@ -457,11 +591,26 @@ def detect_payload_flags(body: str) -> set[str]:
         flags.add("homoglyph")
     if any(len(chunk) >= 200 and _entropy(chunk) > 4.5 for chunk in _NONSPACE_RE.findall(body or "")):
         flags.add("high-entropy")
-    domains = " ".join(_domains(body or ""))
-    if any(service in domains for service in ("pinggy", "serveo", "localhost.run", "localtunnel")):
+    if _flag_hosts(body or "", _TUNNEL_HOSTS):
         flags.add("tunnel")
-    if any(service in domains for service in ("markdown.new", "r.jina.ai")):
+    if _flag_hosts(body or "", _READER_HOSTS):
         flags.add("redirect")
+    if _flag_hosts(body or "", _CORS_PROXY_HOSTS):
+        flags.add("proxy")
+    if _flag_callback_hosts(body or ""):
+        flags.add("callback")
+    if _flag_hosts(body or "", _BEACON_HOSTS):
+        flags.add("beacon")
+    if any(rx.search(body or "") for rx in _EXEC_RES):
+        flags.add("exec")
+    if any(rx.search(body or "") for rx in _ATOB_RES):
+        flags.add("b64")
+    if _flag_base64_carriers(body or ""):
+        flags.add("b64")
+    if _DATA_URI_RE.search(_percent_decode_one(body or "")):
+        flags.add("data-uri")
+    if _TRAVERSAL_RE.search(body or ""):
+        flags.add("traversal")
     return flags
 
 

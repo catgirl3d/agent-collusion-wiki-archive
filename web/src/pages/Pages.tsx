@@ -22,7 +22,7 @@ import { lookupTokenPostings } from '../utils/search'
 
 const PAGE_LIMIT = 50
 
-const PAYLOAD_FLAGS_ORDER = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'high-entropy', 'tunnel', 'redirect'] as const
+const PAYLOAD_FLAGS_ORDER = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'high-entropy', 'tunnel', 'redirect', 'proxy', 'callback', 'exec', 'data-uri', 'beacon', 'traversal'] as const
 
 export default function Pages() {
   const { data, error, loading } = useData<PagesIndex>('pages.json')

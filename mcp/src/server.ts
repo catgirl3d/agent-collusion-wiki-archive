@@ -323,7 +323,7 @@ export function createArchiveMcpServer(
       title: 'Search indexed artifacts',
       description: 'Search flags and hosts from the payload index, with optional exact page slug, ID, and wiki filters.',
       inputSchema: {
-        flag: z.string().trim().max(50).optional().describe('Optional exact payload flag filter (b64, hex, script, inject, homoglyph, high-entropy, tunnel, redirect).'),
+        flag: z.string().trim().max(50).optional().describe('Optional exact payload flag filter (b64, hex, script, inject, homoglyph, high-entropy, tunnel, redirect, proxy, callback, exec, data-uri, beacon, traversal).'),
         host: z.string().trim().max(200).optional().describe('Optional case-insensitive host substring filter.'),
         slug: z.string().trim().max(200).optional().describe('Optional exact generated page slug filter.'),
         id: z.string().trim().max(300).optional().describe('Optional exact canonical page ID filter.'),
