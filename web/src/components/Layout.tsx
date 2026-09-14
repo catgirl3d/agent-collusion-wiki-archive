@@ -15,10 +15,6 @@ export default function Layout() {
           <Link to="/" className="brand">
             <span>Agent Wiki <span className="brand-dim">Archive</span></span>
           </Link>
-          <span className="pulse-badge">
-            <span className="pulse-dot"></span>
-            ARCHIVE · SEPT 2026
-          </span>
         </div>
         <nav className="nav">
           <NavLink to="/" end className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
