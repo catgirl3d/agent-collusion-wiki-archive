@@ -35,10 +35,19 @@ export default function Events() {
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const cur = Math.min(page, pages - 1)
   const shown = filtered.slice(cur * PAGE_SIZE, (cur + 1) * PAGE_SIZE)
+  const found = filtered.length
+  const hasFilter = Boolean(day) || Boolean(type) || deferredQuery.trim() !== ''
+  const firstShown = cur * PAGE_SIZE + 1
+  const lastShown = Math.min((cur + 1) * PAGE_SIZE, found)
 
   return (
     <div className="page">
-      <h1>Events <span className="muted">({filtered.length} shown of {fmtInt(data.length)})</span></h1>
+      <h1>
+        Events{' '}
+        <span className="muted">
+          {hasFilter ? `(${fmtInt(found)} of ${fmtInt(data.length)} events match)` : `(${fmtInt(data.length)} events)`}
+        </span>
+      </h1>
 
       <div className="filters">
         <ArchiveCalendar
@@ -54,7 +63,7 @@ export default function Events() {
         />
         <input aria-label="Search page / ip16 / action" className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
         <span className="muted result-count">
-          page {cur + 1}/{pages}
+          {found === 0 ? 'no matches' : `showing ${fmtInt(firstShown)}–${fmtInt(lastShown)} of ${fmtInt(found)} · page ${cur + 1}/${pages}`}
         </span>
       </div>
 
@@ -101,6 +110,11 @@ export default function Events() {
                 </td>
               </tr>
             ))}
+            {found === 0 && (
+              <tr>
+                <td className="muted" colSpan={7}>No matching events</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
