@@ -354,11 +354,11 @@ export function createArchiveMcpServer(
   server.registerTool(
     'list_conflict_pages',
     {
-      title: 'List conflict pages',
-      description: 'Filter the full conflict list; results are not limited to the old top-500 cutoff.',
+      title: 'List pages by label churn',
+      description: 'Rank all pages by distinct-label churn and filter by flags; minChurn is 0 by default, use minChurn >= 2 for shared pages only. Results are not limited to the old top-500 cutoff.',
       inputSchema: {
         minChurn: z.number().int().min(0).max(100_000).optional().describe('Minimum distinct-label churn (default 0).'),
-        zzz: z.boolean().optional().describe('Only return pages whose name starts with ZZZ when true.'),
+        zzz: z.boolean().optional().describe('Only return pages whose name contains ZZZ (case-insensitive) when true.'),
         front: z.boolean().optional().describe('Only return wiki front pages (StartSeite/Willkommen) when true.'),
         limit: z.number().int().min(1).max(200).optional().describe('Number of conflict rows to return (1-200).'),
         offset: pageOffset,

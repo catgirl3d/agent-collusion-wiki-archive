@@ -76,7 +76,7 @@ describe('archive MCP server', () => {
     expect(tools.tools.find((tool) => tool.name === 'search_content')?.description).toContain('truncated')
     expect(tools.tools.find((tool) => tool.name === 'search_corpus')?.description).toContain('case-insensitive')
     expect(tools.tools.find((tool) => tool.name === 'list_revisions')?.description).toContain('Cross-page revision timeline')
-    expect(tools.tools.find((tool) => tool.name === 'list_conflict_pages')?.description).toContain('full conflict list')
+    expect(tools.tools.find((tool) => tool.name === 'list_conflict_pages')?.description).toContain('shared pages only')
 
     const listEventsSchema = tools.tools.find((tool) => tool.name === 'list_events')?.inputSchema
     expect((listEventsSchema as { properties?: { type?: { enum?: string[] } } })?.properties?.type?.enum).toEqual([

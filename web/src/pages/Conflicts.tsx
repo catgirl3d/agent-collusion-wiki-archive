@@ -14,6 +14,7 @@ export default function Conflicts() {
   const [query, setQuery] = useState('')
   const [frontOnly, setFrontOnly] = useState(false)
   const [zzzOnly, setZzzOnly] = useState(false)
+  const [sharedOnly, setSharedOnly] = useState(true)
   const [page, setPage] = useState(0)
   const deferredQuery = useDeferredValue(query)
 
@@ -26,12 +27,13 @@ export default function Conflicts() {
     if (!conflicts) return []
     const q = deferredQuery.trim().toLowerCase()
     return conflicts.filter((row) => {
+      if (sharedOnly && row.churn < 2) return false
       if (q && !(`${names.get(row.id) ?? ''} ${row.id}`.toLowerCase().includes(q))) return false
       if (frontOnly && !row.front) return false
       if (zzzOnly && !row.zzz) return false
       return true
     })
-  }, [conflicts, deferredQuery, frontOnly, names, zzzOnly])
+  }, [conflicts, deferredQuery, frontOnly, names, sharedOnly, zzzOnly])
 
   const error = conflictsError ?? pagesError
   if (error) return <div className="error">Error: {error}</div>
@@ -48,15 +50,19 @@ export default function Conflicts() {
 
   return (
     <div className="page">
-      <h1>Conflicts <span className="muted">({conflicts.length})</span></h1>
+      <h1>Shared pages <span className="muted">({filtered.length})</span></h1>
       <div className="filters">
         <input
           className="input"
-          aria-label="Search conflicts"
+          aria-label="Search shared pages"
           placeholder="Search page / id…"
           value={query}
           onChange={(event) => resetPage(setQuery, event.target.value)}
         />
+        <label className="check">
+          <input type="checkbox" checked={sharedOnly} onChange={(event) => resetPage(setSharedOnly, event.target.checked)} />
+          shared only
+        </label>
         <label className="check">
           <input type="checkbox" checked={frontOnly} onChange={(event) => resetPage(setFrontOnly, event.target.checked)} />
           front only
@@ -74,7 +80,7 @@ export default function Conflicts() {
             <tr>
               <th>Page</th>
               <th className="num">Churn</th>
-              <th>Median TTD</th>
+              <th>Median gap</th>
               <th className="num">Del</th>
               <th>Flags</th>
             </tr>

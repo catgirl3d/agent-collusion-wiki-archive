@@ -48,6 +48,23 @@ def test_search_index_filters_numeric_and_stop_words_only_from_body():
     assert index["tokens"]["zzz"] == ["w/p2"]
 
 
+def test_search_index_zzz_token_matches_name_anywhere_case_insensitively():
+    pages = [
+        _page("w/prefix", "ZZZRoot"),
+        _page("w/suffix", "AgentSecLinksZZZ"),
+        _page("w/mixed", "AgentZzzHighMapJun21"),
+        _page("w/double", "AgentBridgeZZ"),
+    ]
+    index = build_search_index(pages, [], {p["page_id"]: p["page_id"] for p in pages})
+    assert index["tokens"]["zzz"] == ["w/mixed", "w/prefix", "w/suffix"]
+
+
+def test_search_index_zzz_falls_back_to_page_id_when_name_missing():
+    pages = [{"page_id": "w/AgentZzzFallback"}, {"page_id": "w/AgentPlain"}]
+    index = build_search_index(pages, [], {p["page_id"]: p["page_id"] for p in pages})
+    assert index["tokens"]["zzz"] == ["w/AgentZzzFallback"]
+
+
 def test_payload_detectors_cover_base64_hex_script_inject_and_case_rules():
     valid = "SGVsbG8g" * 12
     assert "b64" in detect_payload_flags(valid)
