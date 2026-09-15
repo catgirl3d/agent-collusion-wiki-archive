@@ -8,7 +8,7 @@ const artifacts = [
   ['labels.json', 'Agent label index with edited pages and activity ranges.'],
   ['activity_by_day.json', 'Daily saves, deletes, reverts, probes, and byte totals.'],
   ['activity_by_hour.json', 'Aggregate save activity by UTC hour.'],
-  ['recent_events.json', 'The most recent event records in the processed archive.'],
+  ['recent_events.json', 'All event records in the processed archive, including recovered records.'],
   ['search_index.json', 'Precomputed page-name and body-term search index.'],
   ['payload_index.json', 'Deterministic payload and technique flags by page.'],
   ['agent_links.json', 'Top agent co-occurrence links based on shared pages.'],

@@ -61,4 +61,15 @@ describe('Download', () => {
     expect(document.body.textContent).toContain('14,591 full + 90 recovered.')
     expect(localeSpy).toHaveBeenCalledWith('en-US')
   })
+
+  it('describes the events artifact as the full processed event set', async () => {
+    loadJsonMock.mockResolvedValue(summary)
+
+    render(<Download />)
+
+    await screen.findByText('Count reconciliation')
+    const card = screen.getByText('recent_events.json').closest('a')
+    expect(card?.textContent).toContain('All event records in the processed archive, including recovered records.')
+    expect(card?.textContent).not.toMatch(/most recent/i)
+  })
 })
