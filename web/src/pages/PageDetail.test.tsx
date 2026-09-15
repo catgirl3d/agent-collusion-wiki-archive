@@ -20,8 +20,29 @@ function mockSingleRevisionPage() {
   loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
 }
 
-function renderPageDetail(initialEntries: string[]) {
-  return render(
+function mockBigPage(count: number, oldestBody = 'oldest body', payloadIndex: unknown[] = []) {
+  const revisions = Array.from({ length: count }, (_, index) => ({
+    seq: index + 1,
+    time: new Date(Date.UTC(2026, 3, 1, 0, 0, index)).toISOString(),
+    label: null,
+    ip16: null,
+    summary: null,
+    len: (index === 0 ? oldestBody : `r${index + 1}`).length,
+    body: index === 0 ? oldestBody : `r${index + 1}`,
+    action: null,
+    round: null,
+  }))
+  const responses: Record<string, unknown> = {
+    'pages.json': { p: [{ id: 'main/Big', s: 'main_Big~', w: 'main', n: 'Big', r: count, f: '2026-04-01', l: '2026-04-02', d: false, del: 0, fam: '', lb: 0, labs: [] }], order: 'last' },
+    'payload_index.json': payloadIndex,
+    'agent_links.json': {},
+    'labels.json': { l: [], n_anon: 0 },
+    'revisions/main_Big~.json': revisions,
+  }
+  loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+}
+
+function renderPageDetail(initialEntries: string[]) {  return render(
     <MemoryRouter initialEntries={initialEntries}>
       <Routes>
         <Route path="/page/*" element={<PageDetail />} />
@@ -158,5 +179,58 @@ describe('PageDetail', () => {
     const domainBadge2 = screen.getByText('prowiki.org')
     expect(domainBadge2).toHaveClass('badge', 'payload-domain')
     expect(domainBadge2).toHaveAttribute('title', 'prowiki.org')
+  })
+
+  it('renders the revision history one page at a time', async () => {
+    mockBigPage(120)
+    renderPageDetail(['/page/main%2FBig'])
+
+    expect(await screen.findByText(/showing 1–50 · page 1\/3/)).toBeInTheDocument()
+    expect(document.querySelectorAll('article.rev')).toHaveLength(50)
+    expect(screen.getByText('#120')).toBeInTheDocument()
+    expect(screen.getByText('#71')).toBeInTheDocument()
+    expect(screen.queryByText('#70')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'older →' }))
+
+    expect(screen.getByText(/showing 51–100 · page 2\/3/)).toBeInTheDocument()
+    expect(document.querySelectorAll('article.rev')).toHaveLength(50)
+    expect(screen.getByText('#70')).toBeInTheDocument()
+    expect(screen.queryByText('#120')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'older →' }))
+
+    expect(screen.getByText(/showing 101–120 · page 3\/3/)).toBeInTheDocument()
+    expect(document.querySelectorAll('article.rev')).toHaveLength(20)
+    expect(screen.getByText('#1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'older →' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: '← newer' }))
+    expect(screen.getByText(/showing 51–100 · page 2\/3/)).toBeInTheDocument()
+  })
+
+  it('keeps every revision available in the compare selectors', async () => {
+    mockBigPage(120)
+    renderPageDetail(['/page/main%2FBig'])
+
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Compare from revision' }))
+
+    expect(screen.getAllByRole('option')).toHaveLength(120)
+  })
+
+  it('opens the history page holding a revision picked from payload evidence', async () => {
+    mockBigPage(60, 'UNIQUE_OLDEST_MARKER https://api.counterapi.dev/v1/x/seen/up', [{ id: 'main/Big', s: 'main_Big~', f: ['beacon'], u: [] }])
+    renderPageDetail(['/page/main%2FBig'])
+
+    expect(await screen.findByText(/showing 1–50 · page 1\/2/)).toBeInTheDocument()
+    expect(document.querySelectorAll('article.rev')).toHaveLength(50)
+
+    fireEvent.click(await screen.findByText('What matched these flags?'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open revision #1' }))
+
+    expect(await screen.findByText(/showing 51–60 · page 2\/2/)).toBeInTheDocument()
+    const article = document.getElementById('rev-0')
+    expect(article).not.toBeNull()
+    expect(within(article as HTMLElement).getByText(/UNIQUE_OLDEST_MARKER/)).toBeVisible()
   })
 })

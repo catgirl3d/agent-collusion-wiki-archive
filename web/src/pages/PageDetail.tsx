@@ -12,6 +12,10 @@ import { fmtInt, fmtTime, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS, detectPayloadFlags, highlightMatches } from '../utils/payload'
 import { clearPair, parsePair, setPair } from '../utils/pairSelection'
 
+// The history list is newest-first and rendered one page at a time: the largest archived pages
+// hold thousands of revisions (each article adds ~10 DOM nodes even when collapsed).
+const REVISIONS_PER_PAGE = 50
+
 
 function Body({ body, enabled }: { body: string; enabled: boolean }) {
   if (!enabled || body.length > 200_000) return <>{body}</>
@@ -328,6 +332,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   const [sel, setSel] = useState<{ from: number; to: number } | null>(null)
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
   const [evidenceOpen, setEvidenceOpen] = useState(false)
+  const [revPage, setRevPage] = useState(0)
 
   const payload = useMemo(() => (lookupId ? payloadIndex?.find((item) => item.s === meta?.s || item.id === lookupId) : undefined), [payloadIndex, meta?.s, lookupId])
   const evidence = useMemo(() => evidenceOpen && payload && revs ? collectPayloadEvidence(revs, payload.f) : null, [evidenceOpen, payload, revs])
@@ -437,6 +442,28 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     label: `#${index + 1} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
   }))
 
+  const revTotalPages = Math.max(1, Math.ceil(revs.length / REVISIONS_PER_PAGE))
+  const revCur = Math.min(revPage, revTotalPages - 1)
+  const revOffset = revCur * REVISIONS_PER_PAGE
+  const revFirst = revs.length === 0 ? 0 : revOffset + 1
+  const revLast = Math.min(revOffset + REVISIONS_PER_PAGE, revs.length)
+  const visibleRevisions: number[] = []
+  for (let i = revs.length - 1 - revOffset; i >= 0 && visibleRevisions.length < REVISIONS_PER_PAGE; i--) visibleRevisions.push(i)
+
+  // Payload evidence can point at a revision on another history page: switch to that page first,
+  // then focus and scroll to the article once React has committed the new page to the DOM.
+  const openRevision = (index: number) => {
+    setExpanded((prev) => ({ ...prev, [index]: true }))
+    setRevPage(Math.floor((revs.length - 1 - index) / REVISIONS_PER_PAGE))
+    requestAnimationFrame(() => {
+      const element = document.getElementById(`rev-${index}`)
+      if (!element) return
+      element.focus({ preventScroll: true })
+      const reduceMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      element.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    })
+  }
+
   return (
     <div className="page">
       <Button variant="ghost" onClick={() => (canGoBack ? navigate(-1) : navigate('/pages'))}>← back</Button>
@@ -476,13 +503,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                         <div key={`${entry.flag}-${entry.revIndex}-${entryIndex}`}>
                           <div className="payload-evidence-meta muted text-sm">
                             <span>#{entry.revIndex + 1} {fmtTime(entry.time)}</span>{entry.label && <span> · {entry.label}</span>}
-                            <Button variant="ghost" size="sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => {
-                              setExpanded((prev) => ({ ...prev, [entry.revIndex]: true }))
-                              const revisionElement = document.getElementById(`rev-${entry.revIndex}`)
-                              revisionElement?.focus({ preventScroll: true })
-                              const reduceMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-                              revisionElement?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-                            }}>open revision</Button>
+                            <Button variant="ghost" size="sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => openRevision(entry.revIndex)}>open revision</Button>
                           </div>
                           <pre className="pair-snippet" data-flag={flag}>{highlightMatches(entry.text).map((segment, segmentIndex) => segment.flag ? <mark key={segmentIndex} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={segmentIndex}>{segment.text}</span>)}</pre>
                         </div>
@@ -535,9 +556,14 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
       </section>
 
       <section className="card">
-        <h2>Revision history ({revs.length})</h2>
-        {[...revs].reverse().map((r, ri) => {
-          const i = revs.length - 1 - ri
+        <h2>
+          Revision history ({fmtInt(revs.length)}){' '}
+          {revs.length > 0 && (
+            <span className="muted">showing {fmtInt(revFirst)}–{fmtInt(revLast)} · page {revCur + 1}/{revTotalPages}</span>
+          )}
+        </h2>
+        {visibleRevisions.map((i) => {
+          const r = revs[i]
           const open = isExpanded(i)
           return (
             <article key={i} id={`rev-${i}`} tabIndex={-1} className="rev">
@@ -571,6 +597,12 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
             </article>
           )
         })}
+        {revTotalPages > 1 && (
+          <div className="pager">
+            <Button variant="ghost" disabled={revCur === 0} onClick={() => setRevPage(Math.max(0, revCur - 1))}>← newer</Button>
+            <Button variant="ghost" disabled={revCur >= revTotalPages - 1} onClick={() => setRevPage(Math.min(revTotalPages - 1, revCur + 1))}>older →</Button>
+          </div>
+        )}
       </section>
     </div>
   )
