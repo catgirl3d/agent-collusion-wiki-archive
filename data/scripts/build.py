@@ -445,7 +445,7 @@ def build_search_index(pages: list[dict], revisions: list[dict], slug_map: dict[
         name = page.get("name", "") or page_id
         for token in _tokens(name):
             name_pages[token].add(page_id)
-        if name.startswith("ZZZ"):
+        if "zzz" in name.lower():
             name_pages["zzz"].add(page_id)
     for revision in revisions:
         page_id = revision["page_id"]
@@ -712,7 +712,7 @@ def build_conflicts(
         page_id = page["page_id"]
         page_revisions = revisions_by_page.get(page_id, [])
         labels = {revision.get("label") for revision in page_revisions if revision.get("label")}
-        name = page.get("name", "")
+        name = page.get("name", "") or page_id
         front = bool(re.search(r"StartSeite|Willkommen", name)) if use_front_name_fallback else page_id in configured_front_ids
         conflicts.append({
             "id": page_id,
@@ -720,7 +720,7 @@ def build_conflicts(
             "churn": len(labels),
             "ttd_med_s": _median_cross_label_ttd(page_revisions),
             "del": page.get("n_deletions", 0),
-            "zzz": name.startswith("ZZZ"),
+            "zzz": "zzz" in name.lower(),
             "front": front,
         })
     conflicts.sort(key=lambda item: (-item["churn"], -item["del"]))

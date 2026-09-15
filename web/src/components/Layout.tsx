@@ -42,7 +42,7 @@ export default function Layout() {
             Text search
           </NavLink>
           <NavLink to="/conflicts" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
-            Conflicts
+            Shared pages
           </NavLink>
           <NavLink to="/download" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Download

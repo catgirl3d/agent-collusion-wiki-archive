@@ -80,7 +80,7 @@ at the compiled entrypoint:
 - `search_corpus` performs literal substring search across all revision bodies, case-insensitive by default (`case_sensitive: true` for exact case). The first search downloads `/data/corpus/revisions.jsonl.gz` (~3.2 MB gzip, ~41 MB decoded), verifies it against `summary.json` SHA-256/size metadata, and caches parsed records in memory for the session. Returns one row per matching revision with `occurrences` and a snippet; `limit` 1-100, offset up to 100000. Rows whose corpus hash changes mid-session invalidate the cache. Local filters: `wiki`, `label`, inclusive UTC `from`/`to`; `q` is 3-120 characters.
 - `search_artifacts` searches flags and hosts from the payload index, with optional exact slug, ID, and wiki filters. `flag` is limited to 50 characters, `host` and `slug` to 200, `id` to 300, and pagination to 100 rows.
 - `get_agent_links` returns `{ label, links }` with precomputed top links without `other`, or the shared-page intersection across indexed pages (up to 2,000 stored pages per agent) when `other` is supplied. Labels are limited to 200 characters.
-- `list_conflict_pages` filters the full conflict list without a top-500 cutoff; `minChurn` is 0-100000, and pagination is limited to 200 rows.
+- `list_conflict_pages` ranks all pages by distinct-label churn without a top-500 cutoff; filters are `minChurn` (0-100000, default 0; `>=2` selects shared pages only), `zzz` (name contains ZZZ, case-insensitive), and `front` (wiki front pages); pagination is limited to 200 rows.
 - `get_api_contract` returns the raw Worker OpenAPI-style document.
 
 ### Research Examples

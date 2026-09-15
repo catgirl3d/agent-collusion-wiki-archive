@@ -48,6 +48,25 @@ def test_conflicts_ttd_median_null_and_front_fallback():
     assert plain["front"] is False
 
 
+def test_conflicts_zzz_flag_matches_name_anywhere_case_insensitively():
+    pages = [
+        {"page_id": "w/prefix", "name": "ZZZEnrollmentFeb21Help", "n_deletions": 0},
+        {"page_id": "w/suffix", "name": "AgentSecLinksZZZ", "n_deletions": 1},
+        {"page_id": "w/mixed", "name": "AgentZzzHighMapJun21", "n_deletions": 0},
+        {"page_id": "w/double", "name": "AgentBridgeZZ", "n_deletions": 0},
+    ]
+    conflicts = build_conflicts(pages, [], {})
+    flags = {row["id"]: row["zzz"] for row in conflicts}
+    assert flags == {"w/prefix": True, "w/suffix": True, "w/mixed": True, "w/double": False}
+
+
+def test_conflicts_zzz_falls_back_to_page_id_when_name_missing():
+    pages = [{"page_id": "w/AgentZzzFallback", "n_deletions": 0}, {"page_id": "w/AgentPlain", "n_deletions": 0}]
+    conflicts = build_conflicts(pages, [], {})
+    flags = {row["id"]: row["zzz"] for row in conflicts}
+    assert flags == {"w/AgentZzzFallback": True, "w/AgentPlain": False}
+
+
 def test_conflicts_uses_explicit_front_ids_and_sorts_all_pages():
     pages = [{"page_id": f"p{i}", "name": f"ZZZ-{i}", "n_deletions": i} for i in range(501)]
     revisions = [

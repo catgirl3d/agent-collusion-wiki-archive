@@ -41,13 +41,13 @@ describe('owned page filter accessibility', () => {
     expect(screen.getByRole('textbox', { name: 'Search dates' })).toBeInTheDocument()
   })
 
-  it('names the Conflicts search input', () => {
+  it('names the Shared pages search input', () => {
     useDataMock.mockImplementation((path: string) => ({
       data: path === 'conflicts.json' ? [] : { p: [] },
       error: null,
       loading: false,
     }))
     renderPage(<Conflicts />)
-    expect(screen.getByRole('textbox', { name: 'Search conflicts' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Search shared pages' })).toBeInTheDocument()
   })
 })
