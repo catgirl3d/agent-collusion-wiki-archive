@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from './Dashboard'
@@ -28,7 +28,7 @@ function mockData(value: unknown) {
     if (path === 'summary.json') return Promise.resolve(value)
     if (path === 'activity_by_day.json') return Promise.resolve(byDay)
     if (path === 'activity_by_hour.json') return Promise.resolve(byHour)
-    if (path === 'recent_events.json') return Promise.resolve([])
+    if (path === 'events_head.json') return Promise.resolve([])
     return Promise.resolve({})
   })
 }
@@ -40,6 +40,7 @@ describe('Dashboard', () => {
 
   afterEach(() => {
     loadJsonMock.mockReset()
+    loadJsonMock.mockImplementation(() => Promise.resolve({}))
   })
 
   it('renders when the supplement block has no counts', async () => {
@@ -107,5 +108,48 @@ describe('Dashboard', () => {
     for (const table of tables) {
       expect(table.querySelectorAll('thead th[scope="col"]').length).toBeGreaterThan(0)
     }
+  })
+
+  it('loads the events head instead of the full event set', async () => {
+    mockData(summary)
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('14,591 full + 0 recovered')
+    expect(loadJsonMock).toHaveBeenCalledWith('events_head.json')
+    expect(loadJsonMock).not.toHaveBeenCalledWith('recent_events.json')
+  })
+
+  it('keeps the dashboard usable when the events head fails and recovers on retry', async () => {
+    let headAttempts = 0
+    loadJsonMock.mockImplementation((path: string) => {
+      if (path === 'summary.json') return Promise.resolve(summary)
+      if (path === 'activity_by_day.json') return Promise.resolve(byDay)
+      if (path === 'activity_by_hour.json') return Promise.resolve(byHour)
+      if (path === 'events_head.json') {
+        headAttempts += 1
+        if (headAttempts === 1) return Promise.reject(new Error('head unavailable'))
+        return Promise.resolve([{ t: '2026-07-14T13:56:54Z', type: 'delete', wiki: 'dse', page: 'AgentZzzHighMapJun21', action: 'delete', ip16: '2.202' }])
+      }
+      return Promise.resolve({})
+    })
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Error loading latest events: head unavailable/)).toBeInTheDocument()
+    expect(screen.getByText('14,591 full + 0 recovered')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+
+    expect(await screen.findByText('AgentZzzHighMapJun21')).toBeInTheDocument()
+    expect(headAttempts).toBe(2)
   })
 })

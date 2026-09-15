@@ -43,6 +43,21 @@ function readVerifiedSource(sourcePath, expectedSha256, expectedBytes, label) {
   return bytes
 }
 
+function verifyEventsHead() {
+  let full
+  let head
+  try {
+    full = JSON.parse(readFileSync(join(processed, 'recent_events.json'), 'utf8'))
+    head = JSON.parse(readFileSync(join(processed, 'events_head.json'), 'utf8'))
+  } catch {
+    throw new Error('missing recent_events.json or events_head.json in data/processed; run `python data/scripts/build.py`')
+  }
+  if (!Array.isArray(full) || !Array.isArray(head) || JSON.stringify(head) !== JSON.stringify(full.slice(0, head.length))) {
+    throw new Error('events_head.json is not a prefix of recent_events.json; run `python data/scripts/build.py`')
+  }
+  return head.length
+}
+
 function publishCorpus() {
   const summary = readSummary()
   const corpus = summary?.corpus
@@ -75,6 +90,9 @@ function publishSupplement() {
 }
 
 function main() {
+  // Checked before the target is wiped: a broken artifact must fail the sync without emptying public/data.
+  const headEntries = verifyEventsHead()
+
   try {
     rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   } catch (e) {
@@ -88,6 +106,7 @@ function main() {
   const corpusBytes = publishCorpus()
   const supplementBytes = publishSupplement()
   console.log(`synced ${processed} -> ${target} (+ corpus/revisions.jsonl.gz, ${corpusBytes} bytes${supplementBytes ? `, other-wikis.json.gz, ${supplementBytes} bytes` : ''})`)
+  console.log(`verified events_head.json == recent_events.json[:${headEntries}]`)
 
   if (!process.env.CI) {
     try {

@@ -157,6 +157,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         "pages.json",
         "labels.json",
         "recent_events.json",
+        "events_head.json",
         "timeline.json",
         "agent_links.json",
         "conflicts.json",
@@ -213,6 +214,11 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     }
     assert _read_json(out / "recent_events.json")[-1]["type"] == "save"
     assert all(event["type"] != "other" for event in _read_json(out / "recent_events.json"))
+
+    events_full = _read_json(out / "recent_events.json")
+    events_head = _read_json(out / "events_head.json")
+    assert events_head == events_full[: build.EVENTS_HEAD_LIMIT]
+    assert len(events_head) == min(build.EVENTS_HEAD_LIMIT, len(events_full))
 
     page_index = _read_json(out / "pages.json")["p"]
     assert page_index[0]["labs"] == [f"label-{index}" for index in range(8)]
@@ -274,6 +280,7 @@ def test_main_merges_recovered_layer_and_is_idempotent(tmp_path, monkeypatch):
     assert [row["t"] for row in timeline["r"]] == ["2026-05-11T01:00:00Z", "2026-05-11T00:00:00Z"]
     assert _read_json(out / "activity_by_day.json")[0]["rec"] == 1
     assert _read_json(out / "recent_events.json")[0]["partial"] is True
+    assert _read_json(out / "events_head.json")[0]["partial"] is True
     recovered = _read_json(out / "revisions" / "other_Recovered~.json")[0]
     assert recovered["body"] == "" and recovered["added"] == ["added"] and recovered["removed"] == ["removed"]
     summary = _read_json(out / "summary.json")
@@ -285,6 +292,38 @@ def test_main_merges_recovered_layer_and_is_idempotent(tmp_path, monkeypatch):
     assert (public / "other-wikis.json.gz").read_bytes() == (raw / "other-wikis.json.gz").read_bytes()
     public_paths = {path.relative_to(public).as_posix() for path in public.rglob("*") if path.is_file()}
     assert "other-wikis.json.gz" in public_paths
+
+
+def test_events_head_is_a_truncated_prefix_of_the_full_event_set(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    out = tmp_path / "processed"
+    public = tmp_path / "public" / "data"
+    raw.mkdir()
+    for name in ("revisions.jsonl.gz", "pages.jsonl.gz", "labels.jsonl.gz"):
+        _write_gzip_jsonl(raw / name, [])
+    events = [
+        {
+            "event_type": "save",
+            "time": f"2026-05-11T00:{index // 60:02d}:{index % 60:02d}Z",
+            "wiki": "wiki",
+            "page": f"Page{index}",
+        }
+        for index in range(build.EVENTS_HEAD_LIMIT + 5)
+    ]
+    _write_gzip_jsonl(raw / "events.jsonl.gz", events)
+    _write_gzip_json(raw / "manifest.json.gz", {"generated_at": "2026-05-12T00:00:00Z", "per_wiki": {}})
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", out)
+    monkeypatch.setattr(build, "PUBLIC", public)
+
+    assert build.main() == 0
+
+    full = _read_json(out / "recent_events.json")
+    head = _read_json(out / "events_head.json")
+    assert len(full) == build.EVENTS_HEAD_LIMIT + 5
+    assert len(head) == build.EVENTS_HEAD_LIMIT
+    assert head == full[: build.EVENTS_HEAD_LIMIT]
+    assert (public / "events_head.json").read_bytes() == (out / "events_head.json").read_bytes()
 
 
 def test_main_rejects_recovered_page_overlap(tmp_path, monkeypatch):

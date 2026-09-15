@@ -9,6 +9,7 @@ Output: data/processed/
   pages.json              - page index (lightweight, without revision bodies)
   labels.json             - agent label index
   recent_events.json      - all events (unlimited)
+  events_head.json        - first EVENTS_HEAD_LIMIT events of recent_events.json (prefix, same order)
   timeline.json           - global revision timeline for cross-page agent history
   revisions/<slug>.json   - per-page revisions with full text
 
@@ -40,6 +41,10 @@ OUT = ROOT / "processed"
 PUBLIC = ROOT.parent / "web" / "public" / "data"
 
 EVENT_TYPES = {"save", "delete", "revert", "probe"}
+
+# The dashboard only renders the newest events, so it loads this prefix instead of the
+# full recent_events.json. Built from the same final array, so it always matches full[:N].
+EVENTS_HEAD_LIMIT = 200
 
 _SLUG_SAFE = re.compile(r"[^A-Za-z0-9_.\-]")
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -928,6 +933,7 @@ def main() -> int:
         ("pages.json", pages_index),
         ("labels.json", labels_index),
         ("recent_events.json", recent_events),
+        ("events_head.json", recent_events[:EVENTS_HEAD_LIMIT]),
         ("timeline.json", timeline),
         ("agent_links.json", agent_links),
         ("conflicts.json", conflicts),

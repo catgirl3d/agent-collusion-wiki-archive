@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -12,11 +12,56 @@ import {
 } from 'recharts'
 import { Link } from 'react-router-dom'
 import { loadJson } from '../api'
-import { useData } from '../components/useQuery'
+import { useData, useJson } from '../components/useQuery'
 import { StatCard } from '../components/StatCard'
-import { Badge } from '../components/ui'
+import { Badge, Button } from '../components/ui'
 import type { DayActivity, HourActivity, RecentEvent, Summary } from '../types'
 import { eventColor, eventPageId, fmtBytes, fmtCompact, fmtInt, fmtTime, wikiColor } from '../utils/format'
+
+const EVENTS_HEAD_PATH = 'events_head.json'
+const LATEST_EVENTS_SHOWN = 24
+
+function LatestEvents() {
+  const [attempt, setAttempt] = useState(0)
+  const { data: events, error } = useJson(() => loadJson<RecentEvent[]>(EVENTS_HEAD_PATH), [attempt])
+
+  if (error) {
+    return (
+      <div className="error">
+        Error loading latest events: {error}{' '}
+        <Button variant="ghost" size="sm" onClick={() => setAttempt((n) => n + 1)}>retry</Button>
+      </div>
+    )
+  }
+  if (!events) return <div className="loading">Loading…</div>
+
+  return (
+    <table className="tbl">
+      <thead>
+        <tr><th scope="col">Type</th><th scope="col">Time</th><th scope="col">Page / wiki</th></tr>
+      </thead>
+      <tbody>
+        {events.slice(0, LATEST_EVENTS_SHOWN).map((e, i) => (
+          <tr key={i}>
+            <td className="nowrap">
+              <Badge color={eventColor(e.type)}>{e.type}</Badge>
+            </td>
+            <td className="muted nowrap">{fmtTime(e.t)}</td>
+            <td>
+              {e.page ? (
+                <Link className="link" to={`/page/${encodeURIComponent(eventPageId(e))}`}>
+                  {e.page}
+                </Link>
+              ) : (
+                <span className="muted">{e.wiki}</span>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
 
 export default function Dashboard() {
   // Prefetch large indices in background so navigating to /pages and /agents is instant
@@ -29,7 +74,6 @@ export default function Dashboard() {
   const { data: summary, error: errSummary } = useData<Summary>('summary.json')
   const { data: byDay, error: errDay } = useData<DayActivity[]>('activity_by_day.json')
   const { data: byHour, error: errHour } = useData<HourActivity[]>('activity_by_hour.json')
-  const { data: events, error: errEvents } = useData<RecentEvent[]>('recent_events.json')
 
   const daily = useMemo(() => {
     if (!byDay) return []
@@ -75,11 +119,10 @@ export default function Dashboard() {
     return [...stats.entries()].sort((a, b) => b[1].revisions - a[1].revisions)
   }, [summary])
 
-  const err = errSummary ?? errDay ?? errHour ?? errEvents
+  const err = errSummary ?? errDay ?? errHour
   if (err) return <div className="error">Error loading data: {err}</div>
-  if (!summary || !byDay || !byHour || !events) return <div className="loading">Loading…</div>
+  if (!summary || !byDay || !byHour) return <div className="loading">Loading…</div>
 
-  const topEvents = events.slice(0, 24)
   const combined = summary.combined ?? summary.counts
   const recoveredRevisions = summary.supplement?.counts?.revisions ?? 0
   const recoveredPages = summary.supplement?.counts?.pages ?? 0
@@ -174,31 +217,8 @@ export default function Dashboard() {
         </section>
 
         <section className="card">
-          <h2>Latest events</h2>
-          <table className="tbl">
-            <thead>
-              <tr><th scope="col">Type</th><th scope="col">Time</th><th scope="col">Page / wiki</th></tr>
-            </thead>
-            <tbody>
-              {topEvents.map((e, i) => (
-                <tr key={i}>
-                  <td className="nowrap">
-                    <Badge color={eventColor(e.type)}>{e.type}</Badge>
-                  </td>
-                  <td className="muted nowrap">{fmtTime(e.t)}</td>
-                  <td>
-                    {e.page ? (
-                      <Link className="link" to={`/page/${encodeURIComponent(eventPageId(e))}`}>
-                        {e.page}
-                      </Link>
-                    ) : (
-                      <span className="muted">{e.wiki}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h2>Latest events in the archive</h2>
+          <LatestEvents />
         </section>
       </div>
     </div>
