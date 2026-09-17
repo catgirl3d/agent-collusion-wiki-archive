@@ -71,6 +71,7 @@
       "label": "Collusion Archive: Deploy",
       "type": "shell",
       "command": "npm run deploy",
+      "dependsOn": ["Collusion Archive: Build"],
       "options": {
         "cwd": "${workspaceFolder}/worker"
       },
