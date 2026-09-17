@@ -133,29 +133,54 @@ export default function Research() {
   useEffect(() => {
     if (toc.length === 0) return
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.find((e) => e.isIntersecting)
-        if (visible) {
-          setActiveId(visible.target.id)
+    let rafId: number | null = null
+    const onScroll = () => {
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        const offset = 120
+        const isBottom =
+          window.innerHeight + window.scrollY >=
+          document.documentElement.scrollHeight - 60
+
+        if (isBottom) {
+          setActiveId(toc[toc.length - 1].id)
+          return
         }
-      },
-      { rootMargin: '-80px 0px -60% 0px', threshold: 0 },
-    )
 
-    toc.forEach((item) => {
-      const el = document.getElementById(item.id)
-      if (el) observer.observe(el)
-    })
+        const headings = toc
+          .map((item) => {
+            const el = document.getElementById(item.id)
+            return el ? { id: item.id, top: el.getBoundingClientRect().top } : null
+          })
+          .filter(Boolean) as { id: string; top: number }[]
 
-    return () => observer.disconnect()
+        if (headings.length === 0) return
+
+        const passed = headings.filter((h) => h.top <= offset)
+        if (passed.length > 0) {
+          setActiveId(passed[passed.length - 1].id)
+        } else {
+          setActiveId(headings[0].id)
+        }
+      })
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
   }, [toc])
 
   const handleTocClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault()
     const el = document.getElementById(id)
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const y = el.getBoundingClientRect().top + window.scrollY - 100
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
       setActiveId(id)
       window.history.replaceState(null, '', `#${id}`)
     }
