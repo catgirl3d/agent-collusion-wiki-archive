@@ -48,8 +48,9 @@ export default function Research() {
     const words = rawText.trim().split(/\s+/).filter(Boolean).length
     const readingTime = Math.max(1, Math.round(words / 200))
 
-    // Parse status and date metadata if embedded in the document
+    // Parse status, author, and date metadata if embedded in the document
     const dateMatch = rawText.match(/Date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/)
+    const authorMatch = rawText.match(/Author:\s*([^.\n]+)/i)
     const statusMatch = rawText.match(/Status:\s*([A-Z]+)[^.\n]*/)
 
     // Extract headings for Table of Contents & attach anchor links
@@ -176,6 +177,7 @@ export default function Research() {
       stats: { words, readingTime },
       metaInfo: {
         date: dateMatch ? dateMatch[1] : null,
+        author: authorMatch ? authorMatch[1].trim() : 'Alina Lisova',
         status: statusMatch ? statusMatch[1].trim() : null,
       },
     }
@@ -315,6 +317,12 @@ export default function Research() {
                   <>
                     <span className="meta-sep" aria-hidden="true">·</span>
                     <span className="meta-item">{metaInfo.date}</span>
+                  </>
+                )}
+                {metaInfo?.author && (
+                  <>
+                    <span className="meta-sep" aria-hidden="true">·</span>
+                    <span className="meta-item">{metaInfo.author}</span>
                   </>
                 )}
                 {stats && (
