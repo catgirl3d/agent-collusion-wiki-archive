@@ -209,3 +209,28 @@ export interface CorpusSearchResult {
   matches: CorpusMatch[]
 }
 
+export interface ResearchDoc {
+  slug: string
+  title: string
+  source: string
+  html: string
+  raw: string
+}
+
+export interface ResearchFile {
+  name: string
+  raw: string
+}
+
+export interface ResearchGroup {
+  id: string
+  label: string
+  docs: ResearchDoc[]
+  files: ResearchFile[]
+}
+
+export interface ResearchIndex {
+  source: string
+  groups: ResearchGroup[]
+}
+

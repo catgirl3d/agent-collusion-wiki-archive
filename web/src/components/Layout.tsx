@@ -44,6 +44,9 @@ export default function Layout() {
           <NavLink to="/conflicts" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Shared pages
           </NavLink>
+          <NavLink to="/research" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Research
+          </NavLink>
           <NavLink to="/download" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Download
           </NavLink>

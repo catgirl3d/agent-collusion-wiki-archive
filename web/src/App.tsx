@@ -11,6 +11,7 @@ import Conflicts from './pages/Conflicts'
 const Network = React.lazy(() => import('./pages/Network'))
 import PageDetail from './pages/PageDetail'
 import Pages from './pages/Pages'
+import Research from './pages/Research'
 import Search from './pages/Search'
 import Timeline from './pages/Timeline'
 
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
       { path: '/search', element: <Search /> },
       { path: '/conflicts', element: <Conflicts /> },
       { path: '/edits', element: <EditsByDay /> },
+      { path: '/research', element: <Research /> },
       { path: '/download', element: <Download /> },
     ],
   },
