@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { syncResearch } from './research.mjs'
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const processed = resolve(webRoot, '..', 'data', 'processed')
@@ -105,7 +106,11 @@ function main() {
   copyRecursive(processed, target)
   const corpusBytes = publishCorpus()
   const supplementBytes = publishSupplement()
+  const research = syncResearch({ webRoot, target })
+  const researchDocs = research.groups.reduce((total, group) => total + group.docs.length, 0)
+  const researchFiles = research.groups.reduce((total, group) => total + group.files.length, 0)
   console.log(`synced ${processed} -> ${target} (+ corpus/revisions.jsonl.gz, ${corpusBytes} bytes${supplementBytes ? `, other-wikis.json.gz, ${supplementBytes} bytes` : ''})`)
+  console.log(`published research: ${researchDocs} documents and ${researchFiles} data files from data/validation`)
   console.log(`verified events_head.json == recent_events.json[:${headEntries}]`)
 
   if (!process.env.CI) {
