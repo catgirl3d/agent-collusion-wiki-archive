@@ -1359,6 +1359,28 @@ a:hover {
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
 }
 
+.archive-query-link,
+.archive-agent-link {
+  text-decoration: none;
+  color: inherit;
+  display: inline-block;
+}
+
+.archive-query-link code,
+.archive-agent-link code {
+  color: var(--accent);
+  border-bottom: 1px dashed rgba(56, 189, 248, 0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.archive-query-link:hover code,
+.archive-agent-link:hover code {
+  color: #fff;
+  background: rgba(56, 189, 248, 0.2);
+  border-bottom-color: var(--accent);
+}
+
 /* Executive summary / Key finding callout */
 .research-callout-summary {
   margin: 22px 0;

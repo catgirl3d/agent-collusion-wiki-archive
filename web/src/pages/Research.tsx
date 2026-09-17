@@ -96,6 +96,56 @@ export default function Research() {
       }
     })
 
+    // Link table entities: queries to /search, agent labels to /agents
+    const tables = Array.from(doc.querySelectorAll('table'))
+    tables.forEach((table) => {
+      const headers = Array.from(table.querySelectorAll('th')).map((th) =>
+        th.textContent?.trim().toLowerCase() || '',
+      )
+      const queryColIdx = headers.findIndex(
+        (h) => h.includes('literal query') || h === 'query',
+      )
+      const labelColIdx = headers.findIndex(
+        (h) => h === 'label' || h.includes('agent'),
+      )
+
+      const rows = Array.from(table.querySelectorAll('tbody tr'))
+      rows.forEach((row) => {
+        const cells = Array.from(row.querySelectorAll('td'))
+
+        // Link literal search queries in query columns
+        if (queryColIdx !== -1 && cells[queryColIdx]) {
+          const cell = cells[queryColIdx]
+          const code = cell.querySelector('code')
+          if (code && !code.closest('a')) {
+            const queryText = code.textContent?.trim() || ''
+            const isCaseSensitive = cell.textContent?.toLowerCase().includes('case-sensitive')
+            const a = doc.createElement('a')
+            a.href = `/search?q=${encodeURIComponent(queryText)}${isCaseSensitive ? '&case=1' : ''}`
+            a.className = 'archive-query-link'
+            a.title = `Search archive revisions for "${queryText}"`
+            code.replaceWith(a)
+            a.appendChild(code)
+          }
+        }
+
+        // Link agent labels in label columns
+        if (labelColIdx !== -1 && cells[labelColIdx]) {
+          const cell = cells[labelColIdx]
+          const code = cell.querySelector('code')
+          if (code && !code.closest('a')) {
+            const labelText = code.textContent?.trim() || ''
+            const a = doc.createElement('a')
+            a.href = `/agents?q=${encodeURIComponent(labelText)}`
+            a.className = 'archive-agent-link'
+            a.title = `View agent "${labelText}" in Agents directory`
+            code.replaceWith(a)
+            a.appendChild(code)
+          }
+        }
+      })
+    })
+
     // Highlight key "Bottom line" / findings block
     const bottomLine = Array.from(doc.querySelectorAll('h3')).find(
       (h) => h.textContent?.trim().toLowerCase().includes('bottom line'),
@@ -196,7 +246,10 @@ export default function Research() {
     const target = (e.target as HTMLElement).closest('a')
     if (!target) return
     const href = target.getAttribute('href')
-    if (href && href.startsWith('/page/')) {
+    if (
+      href &&
+      (href.startsWith('/page/') || href.startsWith('/search') || href.startsWith('/agents'))
+    ) {
       e.preventDefault()
       navigate(href)
     }
