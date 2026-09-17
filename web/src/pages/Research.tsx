@@ -265,11 +265,6 @@ export default function Research() {
     <div className="page">
       <div className="research-page-header">
         <h1>Research</h1>
-        <p className="muted research-caveat">
-          Machine-assisted research documents produced from this archive, published progressively.
-          Each document keeps its own status line and caveats: the reports are preliminary and do not
-          establish intent, identity, exploit execution, or collusion.
-        </p>
       </div>
 
       <div className={`research-layout${toc.length > 0 ? ' has-toc' : ''}`}>
@@ -368,7 +363,6 @@ export default function Research() {
           <aside className="card research-toc" aria-label="Table of contents">
             <div className="research-toc-header">
               <span className="research-toc-title">On this page</span>
-              {stats && <span className="research-toc-time">{stats.readingTime}m read</span>}
             </div>
             <ul className="research-toc-list">
               {toc.map((item) => (
