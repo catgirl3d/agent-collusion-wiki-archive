@@ -17,16 +17,16 @@ const index = {
         {
           slug: 'coordination-topology',
           title: 'Coordination topology',
-          source: 'coordination-topology-assessment-2026-09-12.md',
+          source: 'coordination-topology-assessment.md',
           html: 'research/docs/coordination-topology.html',
-          raw: 'research/files/coordination-topology-assessment-2026-09-12.md',
+          raw: 'research/files/coordination-topology-assessment.md',
         },
         {
           slug: 'relay-scenarios',
           title: 'Relay scenarios',
-          source: 'relay-scenarios-2026-09-12.md',
+          source: 'relay-scenarios.md',
           html: 'research/docs/relay-scenarios.html',
-          raw: 'research/files/relay-scenarios-2026-09-12.md',
+          raw: 'research/files/relay-scenarios.md',
         },
         {
           slug: 'broken-doc',
@@ -45,12 +45,12 @@ const index = {
         {
           slug: 'domain-overview',
           title: 'Domain overview',
-          source: 'domain-infrastructure-2026-09-12/README.md',
+          source: 'domain-infrastructure/README.md',
           html: 'research/docs/domain-overview.html',
-          raw: 'research/files/domain-infrastructure-2026-09-12/README.md',
+          raw: 'research/files/domain-infrastructure/README.md',
         },
       ],
-      files: [{ name: 'domains.csv', raw: 'research/files/domain-infrastructure-2026-09-12/domains.csv' }],
+      files: [{ name: 'domains.csv', raw: 'research/files/domain-infrastructure/domains.csv' }],
     },
   ],
 }
@@ -113,11 +113,11 @@ describe('Research', () => {
     await screen.findByText('First body')
 
     const raw = screen.getByRole('link', { name: 'Download raw Markdown' })
-    expect(raw).toHaveAttribute('href', '/data/research/files/coordination-topology-assessment-2026-09-12.md')
-    expect(raw).toHaveAttribute('download', 'coordination-topology-assessment-2026-09-12.md')
+    expect(raw).toHaveAttribute('href', '/data/research/files/coordination-topology-assessment.md')
+    expect(raw).toHaveAttribute('download', 'coordination-topology-assessment.md')
 
     const csv = screen.getByRole('link', { name: 'domains.csv' })
-    expect(csv).toHaveAttribute('href', '/data/research/files/domain-infrastructure-2026-09-12/domains.csv')
+    expect(csv).toHaveAttribute('href', '/data/research/files/domain-infrastructure/domains.csv')
   })
 
   it('reports a document loading failure', async () => {

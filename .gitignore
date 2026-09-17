@@ -25,7 +25,7 @@ staged_diff_output.txt
 docs/internal/*
 signature_sample*
 context.md
-data/validation/proxy-audit-2026-09-06.md
+data/validation/proxy-audit.md
 .playwright-mcp/*
 */plans/*
 *o.jsonc

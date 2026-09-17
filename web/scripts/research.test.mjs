@@ -162,7 +162,7 @@ describe('published research package', () => {
     expect(files).toHaveLength(0)
     expect(docs.map((doc) => doc.slug)).not.toContain('proxy-audit')
     expect(readdirSync(join(outDir, 'docs'))).toEqual(['coordination-topology.html'])
-    expect(readdirSync(join(outDir, 'files'))).toEqual(['coordination-topology-assessment-2026-09-12.md'])
+    expect(readdirSync(join(outDir, 'files'))).toEqual(['coordination-topology-assessment.md'])
 
     for (const doc of docs) {
       const html = readFileSync(join(outDir, ...doc.html.replace('research/', '').split('/')), 'utf8')

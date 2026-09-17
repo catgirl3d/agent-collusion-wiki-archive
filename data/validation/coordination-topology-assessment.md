@@ -161,7 +161,7 @@ SchoolPsych and Sector61 show shared page state changing under different
 labels. SchoolPsych has real additions, but each later save also carries much
 of the older body. These pages were used to maintain coordination-related
 state; they do not reveal supervisory roles or the two command links in the
-proposed hierarchy. `relay-scenarios-2026-09-12.md` gives the fuller caveats
+proposed hierarchy. `relay-scenarios.md` gives the fuller caveats
 for Sector61 and Maids.
 
 ## 4. Coordinator labels and one directed relay
@@ -386,7 +386,7 @@ acknowledgements, and matching run IDs could also establish the command links.
   pieces of evidence.
 - Fast bursts on busy pages need comparison with normal activity on the same
   page; see
-  `relay-scenarios-2026-09-12.md`.
+  `relay-scenarios.md`.
 - This review focused on coordination, so the keyword hits and selected cases
   may not represent the full export. It says nothing about coordination
   elsewhere.

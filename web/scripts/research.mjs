@@ -8,8 +8,8 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const RESEARCH_GROUPS = [
   {
     id: 'assessments',
-    label: 'Assessments',
-    docs: [{ slug: 'coordination-topology', path: 'coordination-topology-assessment-2026-09-12.md' }],
+    label: 'Research Reports',
+    docs: [{ slug: 'coordination-topology', path: 'coordination-topology-assessment.md' }],
     files: [],
   },
 ]
@@ -17,21 +17,21 @@ const RESEARCH_GROUPS = [
 // Publication is staged: files listed here stay in the repository but are withheld from the site.
 // Move an entry into RESEARCH_GROUPS to publish it in the next stage.
 const EXCLUDED_FILES = [
-  'proxy-audit-2026-09-06.md',
-  'security-incident-evidence-2026-09-12.md',
-  'relay-scenarios-2026-09-12.md',
-  'mcp-forensic-query-notebook-2026-09-12.md',
-  'domain-infrastructure-2026-09-12/README.md',
-  'domain-infrastructure-2026-09-12/methodology.md',
-  'domain-infrastructure-2026-09-12/domain-inventory.md',
-  'domain-infrastructure-2026-09-12/functional-roles.md',
-  'domain-infrastructure-2026-09-12/case-studies.md',
-  'domain-infrastructure-2026-09-12/public-crosswalk.md',
-  'domain-infrastructure-2026-09-12/domains.csv',
-  'domain-infrastructure-2026-09-12/evidence-ledger.csv',
-  'domain-infrastructure-2026-09-12/query-log.csv',
-  'domain-infrastructure-2026-09-12/resources.csv',
-  'domain-infrastructure-2026-09-12/sources.csv',
+  'proxy-audit.md',
+  'security-incident-evidence.md',
+  'relay-scenarios.md',
+  'mcp-forensic-query-notebook.md',
+  'domain-infrastructure/README.md',
+  'domain-infrastructure/methodology.md',
+  'domain-infrastructure/domain-inventory.md',
+  'domain-infrastructure/functional-roles.md',
+  'domain-infrastructure/case-studies.md',
+  'domain-infrastructure/public-crosswalk.md',
+  'domain-infrastructure/domains.csv',
+  'domain-infrastructure/evidence-ledger.csv',
+  'domain-infrastructure/query-log.csv',
+  'domain-infrastructure/resources.csv',
+  'domain-infrastructure/sources.csv',
 ]
 
 function escapeHtml(value) {
