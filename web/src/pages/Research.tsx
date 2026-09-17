@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Check, Download, Link2 } from 'lucide-react'
 import { loadText } from '../api'
 import { useData, useJson } from '../components/useQuery'
 import type { ResearchIndex } from '../types'
@@ -326,18 +327,21 @@ export default function Research() {
               <div className="research-actions">
                 <button
                   type="button"
-                  className="action-link"
+                  className={`action-icon-btn${copied ? ' copied' : ''}`}
                   onClick={handleCopyLink}
-                  title="Copy link to this document"
+                  title={copied ? 'Link copied!' : 'Copy link to this document'}
+                  aria-label={copied ? 'Link copied!' : 'Copy link'}
                 >
-                  {copied ? 'Copied' : 'Copy link'}
+                  {copied ? <Check size={14} /> : <Link2 size={14} />}
                 </button>
                 <a
-                  className="action-link"
+                  className="action-icon-btn"
                   href={`/data/${active.raw}`}
                   download={fileName(active.source)}
+                  title="Download raw Markdown"
+                  aria-label="Download raw Markdown"
                 >
-                  Download raw Markdown
+                  <Download size={14} />
                 </a>
               </div>
             </div>
