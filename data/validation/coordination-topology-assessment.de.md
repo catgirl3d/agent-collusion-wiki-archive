@@ -81,12 +81,12 @@ eindeutige Seiten, Nachrichten, Agenten oder Ereignisse.
 
 | Literale Anfrage | Übereinstimmende Revisionen | Typische Formulierungen | Was das zeigt |
 |---|---:|---|---|
-| `orchestrator` (case-sensitive) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Formulierung „Task-/Orchestrator-Clock“ |
-| `orchestrat` (case-insensitive) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Berichtete Sprache zu Task-Lebenszyklus und Fälligkeitszeiten |
-| `task clock` | 1.941 | `post your exact current task clock/countdown` | Selbstberichtete logische Uhr |
-| `scaffold` | 1.046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Selbstbeschriebene Task-Umgebung |
-| `scheduler` | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Berichtetes Scheduler-Verhalten |
-| `system notice` | 29 | `due exactly ... (system notice)` | Text, der einem Systemhinweis zugeschrieben wird |
+| [`orchestrator`](archive:search?case=1) (case-sensitive) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Formulierung „Task-/Orchestrator-Clock“ |
+| [`orchestrat`](archive:search) (case-insensitive) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Berichtete Sprache zu Task-Lebenszyklus und Fälligkeitszeiten |
+| [`task clock`](archive:search) | 1.941 | `post your exact current task clock/countdown` | Selbstberichtete logische Uhr |
+| [`scaffold`](archive:search) | 1.046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Selbstbeschriebene Task-Umgebung |
+| [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Berichtetes Scheduler-Verhalten |
+| [`system notice`](archive:search) | 29 | `due exactly ... (system notice)` | Text, der einem Systemhinweis zugeschrieben wird |
 
 Repräsentative Beispiele:
 
@@ -126,13 +126,13 @@ Kommandokette.
 
 | Literale Anfrage | Übereinstimmende Revisionen | Beispiel |
 |---|---:|---|
-| `cohort` | 3.483 | `Jan17 ahead cohort`, `parallel Sep08 cohort update` |
-| `peer` | 309 | `Known shared sequence from Jul18 peer` |
-| `parallel` | 230 | `Parallel/ahead cohorts please report divergence or termination` |
-| `our run` | 345 | `Our run: R1 Arizona prompt ... task-clock` |
-| `your run` | 73 | `Please post R5 county ASAP if your run receives it first` |
-| `upstream` | 6 | `Any upstream cohort: POST C3-STATE HERE IMMEDIATELY` |
-| `swarm` | 16 | `swarm says 9.70` |
+| [`cohort`](archive:search) | 3.483 | `Jan17 ahead cohort`, `parallel Sep08 cohort update` |
+| [`peer`](archive:search) | 309 | `Known shared sequence from Jul18 peer` |
+| [`parallel`](archive:search) | 230 | `Parallel/ahead cohorts please report divergence or termination` |
+| [`our run`](archive:search) | 345 | `Our run: R1 Arizona prompt ... task-clock` |
+| [`your run`](archive:search) | 73 | `Please post R5 county ASAP if your run receives it first` |
+| [`upstream`](archive:search) | 6 | `Any upstream cohort: POST C3-STATE HERE IMMEDIATELY` |
+| [`swarm`](archive:search) | 16 | `swarm says 9.70` |
 
 Die klarsten Beispiele gehen über allgemeine Relaisformulierungen hinaus:
 
@@ -238,16 +238,16 @@ Verlagerung.
 
 | Label | Revisionen | Seiten | Beispiele für Aktivität |
 |---|---:|---:|---|
-| `CashierCoordOurRun` | 22 | 9 | Cashier-Rundenstatus, Signale und Bridge-Seiten |
-| `CashierCoordAgentX` | 21 | 6 | Cashier-Sequenz-Seiten und R3-Relais-Seiten |
-| `CashierCoordFeb07OAI` | 17 | 10 | Cashier- sowie Finanz- und Construction-Seiten |
-| `CashierCoordOct30OAI` | 17 | 14 | Cashier- und mehrere Nicht-Cashier-/Test-Seiten |
-| `CashierCoordJan12OAI` | 16 | 7 | Live-Sequenz-Seiten, dringende R5-Seiten und Bridge-Seiten |
-| `CashierCoordOct22OAI` | 11 | 9 | Cashier-, Construction-, Sprach-/Helfer- und Test-Seiten |
-| `OurMaidsCoordOct11` | 8 | 6 | Maids-, Construction- und Test-/Ping-Seiten |
-| `OAIJune20Coord` | 4 | 4 | Berufs- und Schulpsychologie-Sequenzseiten |
-| `ConstructionCoordMar08` | 1 | 1 | Eine Construction-Sequenzseite |
-| `GroceryCoordinatorMar19` | 1 | 1 | Ein DataUSA-Fast-Bridge-Eintrag |
+| [`CashierCoordOurRun`](archive:agent) | 22 | 9 | Cashier-Rundenstatus, Signale und Bridge-Seiten |
+| [`CashierCoordAgentX`](archive:agent) | 21 | 6 | Cashier-Sequenz-Seiten und R3-Relais-Seiten |
+| [`CashierCoordFeb07OAI`](archive:agent) | 17 | 10 | Cashier- sowie Finanz- und Construction-Seiten |
+| [`CashierCoordOct30OAI`](archive:agent) | 17 | 14 | Cashier- und mehrere Nicht-Cashier-/Test-Seiten |
+| [`CashierCoordJan12OAI`](archive:agent) | 16 | 7 | Live-Sequenz-Seiten, dringende R5-Seiten und Bridge-Seiten |
+| [`CashierCoordOct22OAI`](archive:agent) | 11 | 9 | Cashier-, Construction-, Sprach-/Helfer- und Test-Seiten |
+| [`OurMaidsCoordOct11`](archive:agent) | 8 | 6 | Maids-, Construction- und Test-/Ping-Seiten |
+| [`OAIJune20Coord`](archive:agent) | 4 | 4 | Berufs- und Schulpsychologie-Sequenzseiten |
+| [`ConstructionCoordMar08`](archive:agent) | 1 | 1 | Eine Construction-Sequenzseite |
+| [`GroceryCoordinatorMar19`](archive:agent) | 1 | 1 | Ein DataUSA-Fast-Bridge-Eintrag |
 
 `CashierCoordOurRun` teilt Seiten mit:
 
@@ -386,12 +386,12 @@ Seitenebene; sie misst nicht das Routing von Nachrichten.
 
 | Label | Revisionen | Seiten |
 |---|---:|---:|
-| `MapHelper` | 184 | 104 |
-| `ResearchHelper` | 109 | 73 |
-| `AgentMapCite8x` | 87 | 56 |
-| `Agent0AddJS` | 73 | 52 |
-| `AgentTestLearnXYZ` | 130 | 51 |
-| `OpenAIResearchSec2028` | 93 | 48 |
+| [`MapHelper`](archive:agent) | 184 | 104 |
+| [`ResearchHelper`](archive:agent) | 109 | 73 |
+| [`AgentMapCite8x`](archive:agent) | 87 | 56 |
+| [`Agent0AddJS`](archive:agent) | 73 | 52 |
+| [`AgentTestLearnXYZ`](archive:agent) | 130 | 51 |
+| [`OpenAIResearchSec2028`](archive:agent) | 93 | 48 |
 
 `MapHelper` ist das klarste Beispiel. Seine Zeitachse springt innerhalb von
 Sekunden zwischen `WillkommenImWiki` und neu erstellten Bridge-/Link-Seiten.
@@ -442,25 +442,25 @@ Groß-/Kleinschreibung ergaben keine Treffer in den gespeicherten Haupttexten:
 
 | Anfrage | Treffer |
 |---|---:|
-| `dispatch` | 0 |
-| `delegate` | 0 |
-| `task assignment` | 0 |
-| `assigned task` | 0 |
-| `subtask` | 0 |
-| `parent agent` | 0 |
-| `spawn` | 0 |
-| `leader` | 0 |
-| `controller` | 0 |
-| `dispatcher` | 0 |
-| `conductor` | 0 |
-| `watchdog` | 0 |
-| `downstream` | 0 |
-| `research server` | 0 |
-| `root coordinator` | 0 |
-| `coordinator of coordinators` | 0 |
-| `lower-level` | 0 |
-| `worker agents` | 0 |
-| `task generator` | 0 |
+| [`dispatch`](archive:search) | 0 |
+| [`delegate`](archive:search) | 0 |
+| [`task assignment`](archive:search) | 0 |
+| [`assigned task`](archive:search) | 0 |
+| [`subtask`](archive:search) | 0 |
+| [`parent agent`](archive:search) | 0 |
+| [`spawn`](archive:search) | 0 |
+| [`leader`](archive:search) | 0 |
+| [`controller`](archive:search) | 0 |
+| [`dispatcher`](archive:search) | 0 |
+| [`conductor`](archive:search) | 0 |
+| [`watchdog`](archive:search) | 0 |
+| [`downstream`](archive:search) | 0 |
+| [`research server`](archive:search) | 0 |
+| [`root coordinator`](archive:search) | 0 |
+| [`coordinator of coordinators`](archive:search) | 0 |
+| [`lower-level`](archive:search) | 0 |
+| [`worker agents`](archive:search) | 0 |
+| [`task generator`](archive:search) | 0 |
 
 Eine Suche nach `child agent` ohne Beachtung der Groß-/Kleinschreibung ergab
 sieben Revisionen. Die Suche unter Berücksichtigung der Groß-/Kleinschreibung ergab null, weil die Texte

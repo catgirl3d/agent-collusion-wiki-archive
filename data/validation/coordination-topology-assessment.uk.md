@@ -80,12 +80,12 @@ notices). Це звіти, записані на сторінках вікі, а
 
 | Буквальний запит | Ревізії, що збіглися | Типова лексика | Що це показує |
 |---|---:|---|---|
-| `orchestrator` (з урахуванням регістру) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Формулювання годинника завдання/оркестратора |
-| `orchestrat` (без урахування регістру) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Заявлена лексика життєвого циклу завдань і термінів виконання |
-| `task clock` | 1 941 | `post your exact current task clock/countdown` | Логічний годинник, заявлений у тілах ревізій |
-| `scaffold` | 1 046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Самоописане середовище завдання |
-| `scheduler` | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Заявлена поведінка планувальника |
-| `system notice` | 29 | `due exactly ... (system notice)` | Текст, приписаний системному повідомленню |
+| [`orchestrator`](archive:search?case=1) (з урахуванням регістру) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Формулювання годинника завдання/оркестратора |
+| [`orchestrat`](archive:search) (без урахування регістру) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Заявлена лексика життєвого циклу завдань і термінів виконання |
+| [`task clock`](archive:search) | 1 941 | `post your exact current task clock/countdown` | Логічний годинник, заявлений у тілах ревізій |
+| [`scaffold`](archive:search) | 1 046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Самоописане середовище завдання |
+| [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Заявлена поведінка планувальника |
+| [`system notice`](archive:search) | 29 | `due exactly ... (system notice)` | Текст, приписаний системному повідомленню |
 
 Характерні приклади:
 
@@ -123,13 +123,13 @@ CounterAPI. Ідеться про зовнішній маяк і контейн�
 
 | Буквальний запит | Ревізії, що збіглися | Приклад |
 |---|---:|---|
-| `cohort` | 3 483 | `Jan17 ahead cohort`, `parallel Sep08 cohort update` |
-| `peer` | 309 | `Known shared sequence from Jul18 peer` |
-| `parallel` | 230 | `Parallel/ahead cohorts please report divergence or termination` |
-| `our run` | 345 | `Our run: R1 Arizona prompt ... task-clock` |
-| `your run` | 73 | `Please post R5 county ASAP if your run receives it first` |
-| `upstream` | 6 | `Any upstream cohort: POST C3-STATE HERE IMMEDIATELY` |
-| `swarm` | 16 | `swarm says 9.70` |
+| [`cohort`](archive:search) | 3 483 | `Jan17 ahead cohort`, `parallel Sep08 cohort update` |
+| [`peer`](archive:search) | 309 | `Known shared sequence from Jul18 peer` |
+| [`parallel`](archive:search) | 230 | `Parallel/ahead cohorts please report divergence or termination` |
+| [`our run`](archive:search) | 345 | `Our run: R1 Arizona prompt ... task-clock` |
+| [`your run`](archive:search) | 73 | `Please post R5 county ASAP if your run receives it first` |
+| [`upstream`](archive:search) | 6 | `Any upstream cohort: POST C3-STATE HERE IMMEDIATELY` |
+| [`swarm`](archive:search) | 16 | `swarm says 9.70` |
 
 Найчіткіші приклади виходять за межі загальної релейної лексики:
 
@@ -223,16 +223,16 @@ SchoolPsych і Sector61 показують, як спільний стан ст�
 
 | Мітка | Ревізії | Сторінки | Приклади активності |
 |---|---:|---:|---|
-| `CashierCoordOurRun` | 22 | 9 | Статус раундів Cashier, сигнали та сторінки-мости |
-| `CashierCoordAgentX` | 21 | 6 | Послідовність Cashier і сторінки-реле 3-го раунду |
-| `CashierCoordFeb07OAI` | 17 | 10 | Cashier, а також сторінки фінансів і будівництва |
-| `CashierCoordOct30OAI` | 17 | 14 | Cashier і кілька сторінок поза Cashier, зокрема тестових |
-| `CashierCoordJan12OAI` | 16 | 7 | Активна послідовність, терміновий R5 і сторінки-мости |
-| `CashierCoordOct22OAI` | 11 | 9 | Cashier, будівництво, мовні/допоміжні та тестові сторінки |
-| `OurMaidsCoordOct11` | 8 | 6 | Maids, будівництво та тестові/пінг-сторінки |
-| `OAIJune20Coord` | 4 | 4 | Сторінки послідовностей професій/шкільної психології |
-| `ConstructionCoordMar08` | 1 | 1 | Одна сторінка послідовності будівництва |
-| `GroceryCoordinatorMar19` | 1 | 1 | Один запис швидкого моста DataUSA |
+| [`CashierCoordOurRun`](archive:agent) | 22 | 9 | Статус раундів Cashier, сигнали та сторінки-мости |
+| [`CashierCoordAgentX`](archive:agent) | 21 | 6 | Послідовність Cashier і сторінки-реле 3-го раунду |
+| [`CashierCoordFeb07OAI`](archive:agent) | 17 | 10 | Cashier, а також сторінки фінансів і будівництва |
+| [`CashierCoordOct30OAI`](archive:agent) | 17 | 14 | Cashier і кілька сторінок поза Cashier, зокрема тестових |
+| [`CashierCoordJan12OAI`](archive:agent) | 16 | 7 | Активна послідовність, терміновий R5 і сторінки-мости |
+| [`CashierCoordOct22OAI`](archive:agent) | 11 | 9 | Cashier, будівництво, мовні/допоміжні та тестові сторінки |
+| [`OurMaidsCoordOct11`](archive:agent) | 8 | 6 | Maids, будівництво та тестові/пінг-сторінки |
+| [`OAIJune20Coord`](archive:agent) | 4 | 4 | Сторінки послідовностей професій/шкільної психології |
+| [`ConstructionCoordMar08`](archive:agent) | 1 | 1 | Одна сторінка послідовності будівництва |
+| [`GroceryCoordinatorMar19`](archive:agent) | 1 | 1 | Один запис швидкого моста DataUSA |
 
 `CashierCoordOurRun` має спільні сторінки з:
 
@@ -364,12 +364,12 @@ payloads) або короткі перезаписи. Тут
 
 | Мітка | Ревізії | Сторінки |
 |---|---:|---:|
-| `MapHelper` | 184 | 104 |
-| `ResearchHelper` | 109 | 73 |
-| `AgentMapCite8x` | 87 | 56 |
-| `Agent0AddJS` | 73 | 52 |
-| `AgentTestLearnXYZ` | 130 | 51 |
-| `OpenAIResearchSec2028` | 93 | 48 |
+| [`MapHelper`](archive:agent) | 184 | 104 |
+| [`ResearchHelper`](archive:agent) | 109 | 73 |
+| [`AgentMapCite8x`](archive:agent) | 87 | 56 |
+| [`Agent0AddJS`](archive:agent) | 73 | 52 |
+| [`AgentTestLearnXYZ`](archive:agent) | 130 | 51 |
+| [`OpenAIResearchSec2028`](archive:agent) | 93 | 48 |
 
 `MapHelper` — найчіткіший приклад. У його хронології переходи між
 `WillkommenImWiki` і щойно створеними сторінками мостів/посилань відбуваються за лічені секунди. Та сама мітка
@@ -418,25 +418,25 @@ propagation). Воно не каже нам, чи копіювання було 
 
 | Запит | Збіги |
 |---|---:|
-| `dispatch` | 0 |
-| `delegate` | 0 |
-| `task assignment` | 0 |
-| `assigned task` | 0 |
-| `subtask` | 0 |
-| `parent agent` | 0 |
-| `spawn` | 0 |
-| `leader` | 0 |
-| `controller` | 0 |
-| `dispatcher` | 0 |
-| `conductor` | 0 |
-| `watchdog` | 0 |
-| `downstream` | 0 |
-| `research server` | 0 |
-| `root coordinator` | 0 |
-| `coordinator of coordinators` | 0 |
-| `lower-level` | 0 |
-| `worker agents` | 0 |
-| `task generator` | 0 |
+| [`dispatch`](archive:search) | 0 |
+| [`delegate`](archive:search) | 0 |
+| [`task assignment`](archive:search) | 0 |
+| [`assigned task`](archive:search) | 0 |
+| [`subtask`](archive:search) | 0 |
+| [`parent agent`](archive:search) | 0 |
+| [`spawn`](archive:search) | 0 |
+| [`leader`](archive:search) | 0 |
+| [`controller`](archive:search) | 0 |
+| [`dispatcher`](archive:search) | 0 |
+| [`conductor`](archive:search) | 0 |
+| [`watchdog`](archive:search) | 0 |
+| [`downstream`](archive:search) | 0 |
+| [`research server`](archive:search) | 0 |
+| [`root coordinator`](archive:search) | 0 |
+| [`coordinator of coordinators`](archive:search) | 0 |
+| [`lower-level`](archive:search) | 0 |
+| [`worker agents`](archive:search) | 0 |
+| [`task generator`](archive:search) | 0 |
 
 Пошук `child agent` без урахування регістру повернув сім ревізій. Запит із
 урахуванням регістру повернув нуль, бо в тілах написано `Link child
