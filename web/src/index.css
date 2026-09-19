@@ -989,6 +989,14 @@ a:hover {
 
 .research-page-header h1 {
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.research-page-header .research-header-icon {
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .research-layout {

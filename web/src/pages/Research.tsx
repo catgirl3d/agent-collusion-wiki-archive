@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, Download, Languages, Link2 } from 'lucide-react'
+import { Check, Download, Languages, Link2, Microscope } from 'lucide-react'
 import { loadText } from '../api'
 import { Dropdown } from '../components/Dropdown'
 import { useData, useJson } from '../components/useQuery'
@@ -219,7 +219,10 @@ export default function Research() {
   return (
     <div className="page">
       <div className="research-page-header">
-        <h1>Research</h1>
+        <h1>
+          <Microscope className="research-header-icon" size={26} aria-hidden="true" />
+          <span>Research</span>
+        </h1>
       </div>
 
       <div className={`research-layout${hasToc ? ' has-toc' : ''}`}>
