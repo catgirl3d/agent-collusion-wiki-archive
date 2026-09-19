@@ -1674,6 +1674,67 @@ a:hover {
   margin: 6px 0;
 }
 
+/* Markdown Callout Alerts (GitHub style: [!NOTE], [!WARNING], etc.) */
+.markdown-alert {
+  margin: 20px 0;
+  padding: 12px 18px;
+  border-radius: 0;
+  border-left: 3.5px solid var(--alert-border);
+  background: var(--alert-bg);
+  color: var(--text-dim);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.markdown-alert p:first-of-type {
+  margin-top: 0;
+}
+
+.markdown-alert p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  color: var(--alert-border);
+}
+
+.markdown-alert-title .alert-icon {
+  flex-shrink: 0;
+}
+
+.markdown-alert-note {
+  --alert-border: #38bdf8;
+  --alert-bg: rgba(56, 189, 248, 0.07);
+}
+
+.markdown-alert-tip {
+  --alert-border: #10b981;
+  --alert-bg: rgba(16, 185, 129, 0.07);
+}
+
+.markdown-alert-important {
+  --alert-border: #a855f7;
+  --alert-bg: rgba(168, 85, 247, 0.07);
+}
+
+.markdown-alert-warning {
+  --alert-border: #f59e0b;
+  --alert-bg: rgba(245, 158, 11, 0.07);
+}
+
+.markdown-alert-caution {
+  --alert-border: #f43f5e;
+  --alert-bg: rgba(244, 63, 94, 0.07);
+}
+
 .markdown-body hr {
   border: none;
   border-top: 1px solid var(--border);
