@@ -24,9 +24,9 @@ const RESEARCH_GROUPS = [
 // Single source of truth for language variants: slug suffix, dropdown label, and display order.
 const RESEARCH_LANGUAGES = [
   { code: 'en', label: 'EN', suffix: '', aliases: [] },
-  { code: 'ru', label: 'RU', suffix: '-ru', aliases: [] },
-  { code: 'uk', label: 'UA', suffix: '-uk', aliases: ['-ua'] },
   { code: 'de', label: 'DE', suffix: '-de', aliases: [] },
+  { code: 'uk', label: 'UA', suffix: '-uk', aliases: ['-ua'] },
+  { code: 'ru', label: 'RU', suffix: '-ru', aliases: [] },
 ]
 
 export function resolveDocLanguage(slug) {

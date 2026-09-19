@@ -306,9 +306,9 @@ describe('convertResearch', () => {
 
     expect(index.languages).toEqual([
       { code: 'en', label: 'EN' },
-      { code: 'ru', label: 'RU' },
-      { code: 'uk', label: 'UA' },
       { code: 'de', label: 'DE' },
+      { code: 'uk', label: 'UA' },
+      { code: 'ru', label: 'RU' },
     ])
     expect(index.groups[0].docs[0]).toMatchObject({ lang: 'en', base: 'first-report' })
     expect(index.groups[0].docs[0].translations).toEqual([
@@ -435,7 +435,7 @@ describe('published research package', () => {
     const docs = index.groups.flatMap((group) => group.docs)
     const files = index.groups.flatMap((group) => group.files)
 
-    expect(index.languages.map((language) => language.code)).toEqual(['en', 'ru', 'uk', 'de'])
+    expect(index.languages.map((language) => language.code)).toEqual(['en', 'de', 'uk', 'ru'])
     expect(docs.map((doc) => doc.slug)).toEqual([
       'coordination-topology',
       'coordination-topology-ru',
@@ -446,9 +446,9 @@ describe('published research package', () => {
     expect(docs[0].base).toBe('coordination-topology')
     expect(docs[0].translations).toEqual([
       { lang: 'en', slug: 'coordination-topology' },
-      { lang: 'ru', slug: 'coordination-topology-ru' },
-      { lang: 'uk', slug: 'coordination-topology-uk' },
       { lang: 'de', slug: 'coordination-topology-de' },
+      { lang: 'uk', slug: 'coordination-topology-uk' },
+      { lang: 'ru', slug: 'coordination-topology-ru' },
     ])
     expect(docs[1]).toMatchObject({ lang: 'ru', base: 'coordination-topology' })
     expect(docs[0].title).toBe('Coordination topology assessment: scheduler, cohorts, relays, and hierarchy claims')
