@@ -1163,16 +1163,23 @@ a:hover {
   height: 28px;
   width: auto;
   min-width: unset;
-  padding: 0 8px;
+  padding: 0 7px 0 8px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   letter-spacing: 0.06em;
   font-family: inherit;
   transition: all 0.15s ease;
+}
+
+.dropdown-trigger.lang-dropdown-trigger > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .dropdown-trigger.lang-dropdown-trigger:hover,
@@ -1183,20 +1190,33 @@ a:hover {
 }
 
 .dropdown-trigger.lang-dropdown-trigger .dropdown-caret {
+  display: inline-flex;
+  align-items: center;
   font-size: 9px;
+  line-height: 1;
   color: var(--muted-text);
-  margin-left: 1px;
+  margin-left: 0;
+  transform-origin: center;
 }
 
 .lang-trigger-content {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  line-height: 1;
 }
 
 .lang-dropdown-trigger .lang-icon {
   color: var(--muted-text);
   flex-shrink: 0;
+  display: block;
+}
+
+.lang-dropdown-trigger .lang-code-text {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  transform: translateY(-0.5px);
 }
 
 .lang-dropdown-menu {
@@ -1477,6 +1497,7 @@ a:hover {
   line-height: 1.35;
   margin: 22px 0 12px;
   position: relative;
+  scroll-margin-top: 100px;
 }
 
 .markdown-body h2 {

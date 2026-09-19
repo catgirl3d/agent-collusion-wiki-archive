@@ -169,25 +169,25 @@ export default function Research() {
     }
   }, [toc, content.loading])
 
-  const handleTocClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
-    e.preventDefault()
+  const scrollToHeading = (event: React.MouseEvent<HTMLElement>, id: string) => {
+    event.preventDefault()
     const el = document.getElementById(id)
-    if (el) {
-      isClickScrollingRef.current = true
-      setActiveId(id)
-      window.history.replaceState(null, '', `#${id}`)
+    if (!el) return
 
-      const y = el.getBoundingClientRect().top + window.scrollY - SCROLL_HEADER_OFFSET_PX
-      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+    isClickScrollingRef.current = true
+    setActiveId(id)
+    window.history.replaceState(null, '', `#${id}`)
 
-      if (clickScrollTimerRef.current !== null) {
-        clearTimeout(clickScrollTimerRef.current)
-      }
-      clickScrollTimerRef.current = window.setTimeout(() => {
-        isClickScrollingRef.current = false
-        clickScrollTimerRef.current = null
-      }, SCROLL_LOCK_DURATION_MS)
+    const y = el.getBoundingClientRect().top + window.scrollY - SCROLL_HEADER_OFFSET_PX
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+
+    if (clickScrollTimerRef.current !== null) {
+      clearTimeout(clickScrollTimerRef.current)
     }
+    clickScrollTimerRef.current = window.setTimeout(() => {
+      isClickScrollingRef.current = false
+      clickScrollTimerRef.current = null
+    }, SCROLL_LOCK_DURATION_MS)
   }
 
   const handleCopyLink = () => {
@@ -200,10 +200,14 @@ export default function Research() {
     const target = (e.target as HTMLElement).closest('a')
     if (!target) return
     const href = target.getAttribute('href')
-    if (
-      href &&
-      (href.startsWith('/page/') || href.startsWith('/search') || href.startsWith('/agents'))
-    ) {
+    if (!href) return
+
+    if (href.startsWith('#')) {
+      scrollToHeading(e, href.slice(1))
+      return
+    }
+
+    if (href.startsWith('/page/') || href.startsWith('/search') || href.startsWith('/agents')) {
       e.preventDefault()
       navigate(href)
     }
@@ -350,7 +354,7 @@ export default function Research() {
                       href={`#${item.id}`}
                       aria-label={`Jump to ${item.text}`}
                       className={isActive ? 'active' : undefined}
-                      onClick={(e) => handleTocClick(e, item.id)}
+                      onClick={(e) => scrollToHeading(e, item.id)}
                     >
                       <span className="toc-node" aria-hidden="true">
                         <span className="toc-node-dot" />

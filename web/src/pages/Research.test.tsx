@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Research from './Research'
@@ -107,7 +107,8 @@ const index = {
 }
 
 const bodies: Record<string, string> = {
-  'research/docs/coordination-topology.html': '<h2>Coordination topology</h2><p>First body</p>',
+  'research/docs/coordination-topology.html':
+    '<h2 id="section-1">Coordination topology</h2><p>First body</p><p><a class="heading-anchor" href="#section-1" aria-label="Direct link to Section 1">#</a></p>',
   'research/docs/coordination-topology-ru.html': '<h2>Топология координации</h2><p>Русский текст</p>',
   'research/docs/relay-scenarios.html': '<h2>Relay scenarios</h2><p>Second body</p>',
   'research/docs/domain-overview.html': '<h2>Domain overview</h2><p>Domain body</p>',
@@ -129,6 +130,7 @@ function renderResearch(entry = '/research') {
 afterEach(() => {
   loadJsonMock.mockReset()
   loadTextMock.mockReset()
+  vi.restoreAllMocks()
 })
 
 describe('Research', () => {
@@ -240,6 +242,31 @@ describe('Research', () => {
 
     const link = screen.getByRole('link', { name: 'Solo Russian report' })
     expect(link).toHaveAttribute('href', '/research?doc=solo-report-ru')
+  })
+
+  it('scrolls to in-document heading anchors with the header offset', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    renderResearch()
+    await screen.findByText('First body')
+
+    const heading = document.getElementById('section-1')!
+    vi.spyOn(heading, 'getBoundingClientRect').mockReturnValue({
+      top: 400,
+      bottom: 430,
+      left: 0,
+      right: 100,
+      width: 100,
+      height: 30,
+      x: 0,
+      y: 400,
+      toJSON: () => {},
+    })
+
+    const anchor = screen.getByRole('link', { name: 'Direct link to Section 1' })
+    expect(fireEvent.click(anchor)).toBe(false)
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 300, behavior: 'smooth' })
+    expect(window.location.hash).toBe('#section-1')
   })
 
   it('keeps navigation usable with a legacy index without language metadata', async () => {
