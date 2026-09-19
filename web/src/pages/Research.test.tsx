@@ -7,8 +7,19 @@ const loadJsonMock = vi.hoisted(() => vi.fn())
 const loadTextMock = vi.hoisted(() => vi.fn())
 vi.mock('../api', () => ({ loadJson: loadJsonMock, loadText: loadTextMock }))
 
+const coordinationTranslations = [
+  { lang: 'en', slug: 'coordination-topology' },
+  { lang: 'ru', slug: 'coordination-topology-ru' },
+]
+
 const index = {
   source: 'data/validation',
+  languages: [
+    { code: 'en', label: 'EN' },
+    { code: 'ru', label: 'RU' },
+    { code: 'uk', label: 'UA' },
+    { code: 'de', label: 'DE' },
+  ],
   groups: [
     {
       id: 'assessments',
@@ -20,6 +31,27 @@ const index = {
           source: 'coordination-topology-assessment.md',
           html: 'research/docs/coordination-topology.html',
           raw: 'research/files/coordination-topology-assessment.md',
+          lang: 'en',
+          base: 'coordination-topology',
+          translations: coordinationTranslations,
+          meta: { date: '2026-09-19', author: 'Alina Lisova', status: 'PRELIMINARY' },
+          toc: [
+            { id: 'section-1', text: 'Section 1', level: 2 },
+            { id: 'section-2', text: '2. Top heading', level: 2 },
+            { id: 'section-3', text: '1.1 Nested heading', level: 3 },
+          ],
+        },
+        {
+          slug: 'coordination-topology-ru',
+          title: 'Топология координации',
+          source: 'coordination-topology-assessment.ru.md',
+          html: 'research/docs/coordination-topology-ru.html',
+          raw: 'research/files/coordination-topology-assessment.ru.md',
+          lang: 'ru',
+          base: 'coordination-topology',
+          translations: coordinationTranslations,
+          meta: { date: '2026-09-19', author: 'Alina Lisova', status: 'PRELIMINARY' },
+          toc: [{ id: 'section-1-ru', text: 'Раздел 1', level: 2 }],
         },
         {
           slug: 'relay-scenarios',
@@ -27,6 +59,9 @@ const index = {
           source: 'relay-scenarios.md',
           html: 'research/docs/relay-scenarios.html',
           raw: 'research/files/relay-scenarios.md',
+          lang: 'en',
+          base: 'relay-scenarios',
+          translations: [{ lang: 'en', slug: 'relay-scenarios' }],
         },
         {
           slug: 'broken-doc',
@@ -34,6 +69,19 @@ const index = {
           source: 'broken-doc.md',
           html: 'research/docs/broken-doc.html',
           raw: 'research/files/broken-doc.md',
+          lang: 'en',
+          base: 'broken-doc',
+          translations: [{ lang: 'en', slug: 'broken-doc' }],
+        },
+        {
+          slug: 'solo-report-ru',
+          title: 'Solo Russian report',
+          source: 'solo-report.ru.md',
+          html: 'research/docs/solo-report-ru.html',
+          raw: 'research/files/solo-report.ru.md',
+          lang: 'ru',
+          base: 'solo-report',
+          translations: [{ lang: 'ru', slug: 'solo-report-ru' }],
         },
       ],
       files: [],
@@ -48,6 +96,9 @@ const index = {
           source: 'domain-infrastructure/README.md',
           html: 'research/docs/domain-overview.html',
           raw: 'research/files/domain-infrastructure/README.md',
+          lang: 'en',
+          base: 'domain-overview',
+          translations: [{ lang: 'en', slug: 'domain-overview' }],
         },
       ],
       files: [{ name: 'domains.csv', raw: 'research/files/domain-infrastructure/domains.csv' }],
@@ -57,6 +108,7 @@ const index = {
 
 const bodies: Record<string, string> = {
   'research/docs/coordination-topology.html': '<h2>Coordination topology</h2><p>First body</p>',
+  'research/docs/coordination-topology-ru.html': '<h2>Топология координации</h2><p>Русский текст</p>',
   'research/docs/relay-scenarios.html': '<h2>Relay scenarios</h2><p>Second body</p>',
   'research/docs/domain-overview.html': '<h2>Domain overview</h2><p>Domain body</p>',
 }
@@ -87,7 +139,21 @@ describe('Research', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Assessments' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: 'Domain and external infrastructure' })).toBeInTheDocument()
     expect(loadTextMock).toHaveBeenCalledWith('research/docs/coordination-topology.html')
+    expect(screen.getByText('PRELIMINARY')).toBeInTheDocument()
+    expect(screen.getByText('Alina Lisova')).toBeInTheDocument()
+    expect(screen.getByText('Section 1')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Coordination topology' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('preserves author numbering and heading levels in the TOC', async () => {
+    renderResearch()
+    await screen.findByText('First body')
+
+    expect(screen.getByText('2. Top heading')).toBeInTheDocument()
+    const nested = screen.getByText('1.1 Nested heading')
+    expect(nested).toBeInTheDocument()
+    expect(nested.closest('li')).toHaveClass('level-3')
+    expect(document.querySelector('.toc-item-index')).toBeNull()
   })
 
   it('switches documents when another entry is selected', async () => {
@@ -120,9 +186,99 @@ describe('Research', () => {
     expect(csv).toHaveAttribute('href', '/data/research/files/domain-infrastructure/domains.csv')
   })
 
+  it('marks the table of contents as loading until the document body resolves', async () => {
+    loadJsonMock.mockResolvedValue(index)
+    let resolveText: (value: string) => void = () => {}
+    loadTextMock.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveText = resolve
+        }),
+    )
+    render(
+      <MemoryRouter initialEntries={['/research']}>
+        <Research />
+      </MemoryRouter>,
+    )
+
+    const toc = await screen.findByLabelText('Table of contents')
+    expect(toc).toHaveClass('is-loading')
+    expect(screen.getByLabelText('Loading document content')).toBeInTheDocument()
+
+    resolveText(bodies['research/docs/coordination-topology.html'])
+
+    expect(await screen.findByText('First body')).toBeInTheDocument()
+    expect(screen.getByLabelText('Table of contents')).not.toHaveClass('is-loading')
+  })
+
   it('reports a document loading failure', async () => {
     renderResearch('/research?doc=broken-doc')
 
     expect(await screen.findByText(/Error loading document: HTTP 404/)).toBeInTheDocument()
+  })
+
+  it('switches document language via language dropdown', async () => {
+    renderResearch()
+    await screen.findByText('First body')
+
+    const langTrigger = screen.getByRole('combobox', { name: 'Select language' })
+    expect(langTrigger).toHaveTextContent('EN')
+
+    fireEvent.click(langTrigger)
+    const ruOption = screen.getByRole('option', { name: 'RU' })
+    expect(ruOption).not.toBeDisabled()
+    expect(screen.getByRole('option', { name: 'UA' })).toBeDisabled()
+
+    fireEvent.click(ruOption)
+    expect(await screen.findByText('Русский текст')).toBeInTheDocument()
+    expect(loadTextMock).toHaveBeenCalledWith('research/docs/coordination-topology-ru.html')
+  })
+
+  it('shows a translation-only document in the navigation', async () => {
+    renderResearch()
+    await screen.findByText('First body')
+
+    const link = screen.getByRole('link', { name: 'Solo Russian report' })
+    expect(link).toHaveAttribute('href', '/research?doc=solo-report-ru')
+  })
+
+  it('keeps navigation usable with a legacy index without language metadata', async () => {
+    const legacyIndex = {
+      source: 'data/validation',
+      groups: [
+        {
+          id: 'assessments',
+          label: 'Assessments',
+          docs: [
+            {
+              slug: 'legacy-doc',
+              title: 'Legacy document',
+              source: 'legacy.md',
+              html: 'research/docs/legacy.html',
+              raw: 'research/files/legacy.md',
+            },
+            {
+              slug: 'legacy-doc-ru',
+              title: 'Legacy RU document',
+              source: 'legacy.ru.md',
+              html: 'research/docs/legacy-ru.html',
+              raw: 'research/files/legacy.ru.md',
+            },
+          ],
+          files: [],
+        },
+      ],
+    }
+    loadJsonMock.mockResolvedValue(legacyIndex)
+    loadTextMock.mockResolvedValue('<h2>Legacy heading</h2><p>Legacy text</p>')
+    render(
+      <MemoryRouter initialEntries={['/research']}>
+        <Research />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Legacy text')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Legacy document' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Legacy RU document' })).toBeInTheDocument()
   })
 })

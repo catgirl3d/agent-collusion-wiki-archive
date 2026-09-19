@@ -1,27 +1,74 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, Download, Link2 } from 'lucide-react'
+import { Check, Download, Languages, Link2 } from 'lucide-react'
 import { loadText } from '../api'
+import { Dropdown } from '../components/Dropdown'
 import { useData, useJson } from '../components/useQuery'
-import type { ResearchIndex } from '../types'
+import type { ResearchDoc, ResearchIndex, ResearchTocItem } from '../types'
 
 function fileName(path: string) {
   return path.split('/').pop() ?? path
 }
 
-function headingToId(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/<[^>]+>/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+
+const DEFAULT_LANGUAGE = 'en'
+const NO_TOC: ResearchTocItem[] = []
+
+function familyKey(doc: ResearchDoc): string {
+  return doc.base || doc.slug
 }
 
-interface TocItem {
-  id: string
-  text: string
-  level: number
+function pickVariant(variants: ResearchDoc[], preferredLang: string): ResearchDoc {
+  return (
+    variants.find((doc) => doc.lang === preferredLang) ??
+    variants.find((doc) => doc.lang === DEFAULT_LANGUAGE) ??
+    variants[0]
+  )
 }
+
+function groupFamilies(docs: ResearchDoc[]): ResearchDoc[][] {
+  const families = new Map<string, ResearchDoc[]>()
+  for (const doc of docs) {
+    const key = familyKey(doc)
+    const variants = families.get(key)
+    if (variants) variants.push(doc)
+    else families.set(key, [doc])
+  }
+  return [...families.values()]
+}
+
+function ResearchSkeleton() {
+  return (
+    <div className="research-skeleton" aria-busy="true" aria-label="Loading document content">
+      <div className="skeleton-line skeleton-title" />
+      <div className="skeleton-line skeleton-meta" />
+      <div className="skeleton-block">
+        <div className="skeleton-line" style={{ width: '96%' }} />
+        <div className="skeleton-line" style={{ width: '92%' }} />
+        <div className="skeleton-line" style={{ width: '98%' }} />
+        <div className="skeleton-line" style={{ width: '70%' }} />
+      </div>
+      <div className="skeleton-line skeleton-heading" />
+      <div className="skeleton-block">
+        <div className="skeleton-line" style={{ width: '100%' }} />
+        <div className="skeleton-line" style={{ width: '94%' }} />
+        <div className="skeleton-line" style={{ width: '88%' }} />
+        <div className="skeleton-line" style={{ width: '60%' }} />
+      </div>
+      <div className="skeleton-line skeleton-heading" />
+      <div className="skeleton-block">
+        <div className="skeleton-line" style={{ width: '95%' }} />
+        <div className="skeleton-line" style={{ width: '91%' }} />
+        <div className="skeleton-line" style={{ width: '85%' }} />
+      </div>
+    </div>
+  )
+}
+
+const SCROLL_HEADER_OFFSET_PX = 100
+const SCROLL_ACTIVE_THRESHOLD_PX = 110 // SCROLL_HEADER_OFFSET_PX + 10px hysteresis
+const SCROLL_BOTTOM_THRESHOLD_PX = 60
+const SCROLL_LOCK_DURATION_MS = 900
 
 export default function Research() {
   const { data, error } = useData<ResearchIndex>('research/index.json')
@@ -33,173 +80,49 @@ export default function Research() {
   const active = docs.find((doc) => doc.slug === requested) ?? docs[0] ?? null
   const content = useJson(() => (active ? loadText(active.html) : Promise.resolve('')), [active?.html])
 
+  const languages = useMemo(() => data?.languages ?? [], [data])
+  const translationsByLang = useMemo(
+    () => new Map((active?.translations ?? []).map((translation) => [translation.lang, translation.slug])),
+    [active],
+  )
+  const languageOptions = useMemo(
+    () =>
+      languages.map((language) => ({
+        value: language.code,
+        label: language.label,
+        disabled: !translationsByLang.has(language.code),
+      })),
+    [languages, translationsByLang],
+  )
+  const availableLanguagesCount = languageOptions.filter((option) => !option.disabled).length
+  const activeLanguageLabel =
+    languages.find((language) => language.code === active?.lang)?.label ?? active?.lang?.toUpperCase() ?? ''
+
   const [activeId, setActiveId] = useState<string>('')
   const [copied, setCopied] = useState(false)
+  const isClickScrollingRef = useRef(false)
+  const clickScrollTimerRef = useRef<number | null>(null)
 
-  const { enrichedHtml, toc, metaInfo } = useMemo(() => {
-    if (!content.data) {
-      return { enrichedHtml: '', toc: [], metaInfo: null }
-    }
-
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(content.data, 'text/html')
-
-    const rawText = doc.body.textContent || ''
-
-    // Parse status, author, and date metadata if embedded in the document
-    const dateMatch = rawText.match(/(?:Date|Дата):\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/i)
-    const authorMatch = rawText.match(/(?:Author|Автор):\s*([^.\n]+)/i)
-    const statusMatch = rawText.match(/(?:Status|Статус):\s*([A-Za-zА-Яа-я]+)[^.\n]*/i)
-
-    // Remove Date and Author paragraphs from the document body so they don't duplicate metadata
-    doc.querySelectorAll('p').forEach((p) => {
-      const text = p.textContent?.trim() || ''
-      if (/^(?:Date|Author|Дата|Автор):\s*/i.test(text)) {
-        p.remove()
-      }
-    })
-
-    // Extract headings for Table of Contents & attach anchor links
-    const headings = Array.from(doc.querySelectorAll('h2, h3'))
-    const tocItems: TocItem[] = []
-    const usedIds = new Set<string>()
-
-    headings.forEach((heading, index) => {
-      const text = heading.textContent?.trim() || ''
-      const level = parseInt(heading.tagName[1], 10)
-
-      let id = headingToId(text) || `section-${index}`
-      if (usedIds.has(id)) {
-        id = `${id}-${index}`
-      }
-      usedIds.add(id)
-      heading.id = id
-
-      // Exclude main document title heading (first h2) from TOC to avoid redundancy
-      const isDocTitle = index === 0 && level === 2
-      if (!isDocTitle && text) {
-        tocItems.push({ id, text, level })
-      }
-
-      const anchor = doc.createElement('a')
-      anchor.className = 'heading-anchor'
-      anchor.href = `#${id}`
-      anchor.setAttribute('aria-label', `Direct link to ${text}`)
-      anchor.textContent = '#'
-      heading.appendChild(anchor)
-    })
-
-    // Auto-link dse/... wiki page references to actual archive pages
-    const codeTags = Array.from(doc.querySelectorAll('code'))
-    codeTags.forEach((code) => {
-      if (code.parentElement?.tagName.toLowerCase() === 'pre') return
-      const text = code.textContent?.trim() || ''
-      if (/^dse\/[A-Za-z0-9_-]+$/.test(text)) {
-        const a = doc.createElement('a')
-        a.href = `/page/${encodeURIComponent(text)}`
-        a.className = 'archive-page-ref'
-        a.title = `View wiki page ${text}`
-        a.textContent = text
-        code.replaceWith(a)
-      }
-    })
-
-    // Link table entities: queries to /search, agent labels to /agents
-    const tables = Array.from(doc.querySelectorAll('table'))
-    tables.forEach((table) => {
-      const headers = Array.from(table.querySelectorAll('th')).map((th) =>
-        th.textContent?.trim().toLowerCase() || '',
-      )
-      const queryColIdx = headers.findIndex(
-        (h) => h.includes('literal query') || h === 'query',
-      )
-      const labelColIdx = headers.findIndex(
-        (h) => h === 'label' || h.includes('agent'),
-      )
-
-      const rows = Array.from(table.querySelectorAll('tbody tr'))
-      rows.forEach((row) => {
-        const cells = Array.from(row.querySelectorAll('td'))
-
-        // Link literal search queries in query columns
-        if (queryColIdx !== -1 && cells[queryColIdx]) {
-          const cell = cells[queryColIdx]
-          const code = cell.querySelector('code')
-          if (code && !code.closest('a')) {
-            const queryText = code.textContent?.trim() || ''
-            const isCaseSensitive = cell.textContent?.toLowerCase().includes('case-sensitive')
-            const a = doc.createElement('a')
-            a.href = `/search?q=${encodeURIComponent(queryText)}${isCaseSensitive ? '&case=1' : ''}`
-            a.className = 'archive-query-link'
-            a.title = `Search archive revisions for "${queryText}"`
-            code.replaceWith(a)
-            a.appendChild(code)
-          }
-        }
-
-        // Link agent labels in label columns
-        if (labelColIdx !== -1 && cells[labelColIdx]) {
-          const cell = cells[labelColIdx]
-          const code = cell.querySelector('code')
-          if (code && !code.closest('a')) {
-            const labelText = code.textContent?.trim() || ''
-            const a = doc.createElement('a')
-            a.href = `/agents?q=${encodeURIComponent(labelText)}`
-            a.className = 'archive-agent-link'
-            a.title = `View agent "${labelText}" in Agents directory`
-            code.replaceWith(a)
-            a.appendChild(code)
-          }
-        }
-      })
-    })
-
-    // Highlight key "Bottom line" / findings block
-    const bottomLine = Array.from(doc.querySelectorAll('h3')).find(
-      (h) => h.textContent?.trim().toLowerCase().includes('bottom line'),
-    )
-    if (bottomLine && bottomLine.parentNode) {
-      const callout = doc.createElement('div')
-      callout.className = 'research-callout-summary'
-      const badge = doc.createElement('div')
-      badge.className = 'callout-badge'
-      badge.textContent = 'KEY FINDING / EXECUTIVE SUMMARY'
-      callout.appendChild(badge)
-
-      let curr: Element | null = bottomLine
-      const elementsToMove: Element[] = []
-      while (curr && (curr === bottomLine || !['H2', 'H3'].includes(curr.tagName))) {
-        const next: Element | null = curr.nextElementSibling
-        elementsToMove.push(curr)
-        curr = next
-      }
-      bottomLine.parentNode.insertBefore(callout, bottomLine)
-      elementsToMove.forEach((el) => callout.appendChild(el))
-    }
-
-    return {
-      enrichedHtml: doc.body.innerHTML,
-      toc: tocItems,
-      metaInfo: {
-        date: dateMatch ? dateMatch[1] : null,
-        author: authorMatch ? authorMatch[1].trim() : 'Alina Lisova',
-        status: statusMatch ? statusMatch[1].trim() : null,
-      },
-    }
-  }, [content.data])
+  const metaInfo = active?.meta ?? null
+  const toc = active?.toc ?? NO_TOC
+  const enrichedHtml = content.data ?? ''
+  const hasToc = toc.length > 0
 
   useEffect(() => {
-    if (toc.length === 0) return
+    if (toc.length === 0 || content.loading) return
 
     let rafId: number | null = null
+
     const onScroll = () => {
+      if (isClickScrollingRef.current) return
       if (rafId !== null) return
       rafId = requestAnimationFrame(() => {
         rafId = null
-        const offset = 120
+        if (isClickScrollingRef.current) return
+
         const isBottom =
           window.innerHeight + window.scrollY >=
-          document.documentElement.scrollHeight - 60
+          document.documentElement.scrollHeight - SCROLL_BOTTOM_THRESHOLD_PX
 
         if (isBottom) {
           setActiveId(toc[toc.length - 1].id)
@@ -215,7 +138,7 @@ export default function Research() {
 
         if (headings.length === 0) return
 
-        const passed = headings.filter((h) => h.top <= offset)
+        const passed = headings.filter((h) => h.top <= SCROLL_ACTIVE_THRESHOLD_PX)
         if (passed.length > 0) {
           setActiveId(passed[passed.length - 1].id)
         } else {
@@ -224,23 +147,46 @@ export default function Research() {
       })
     }
 
+    const unlock = () => {
+      isClickScrollingRef.current = false
+      if (clickScrollTimerRef.current !== null) {
+        clearTimeout(clickScrollTimerRef.current)
+        clickScrollTimerRef.current = null
+      }
+    }
+
     window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('wheel', unlock, { passive: true })
+    window.addEventListener('touchmove', unlock, { passive: true })
     onScroll()
 
     return () => {
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('wheel', unlock)
+      window.removeEventListener('touchmove', unlock)
       if (rafId !== null) cancelAnimationFrame(rafId)
+      unlock()
     }
-  }, [toc])
+  }, [toc, content.loading])
 
   const handleTocClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault()
     const el = document.getElementById(id)
     if (el) {
-      const y = el.getBoundingClientRect().top + window.scrollY - 100
-      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+      isClickScrollingRef.current = true
       setActiveId(id)
       window.history.replaceState(null, '', `#${id}`)
+
+      const y = el.getBoundingClientRect().top + window.scrollY - SCROLL_HEADER_OFFSET_PX
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+
+      if (clickScrollTimerRef.current !== null) {
+        clearTimeout(clickScrollTimerRef.current)
+      }
+      clickScrollTimerRef.current = window.setTimeout(() => {
+        isClickScrollingRef.current = false
+        clickScrollTimerRef.current = null
+      }, SCROLL_LOCK_DURATION_MS)
     }
   }
 
@@ -272,23 +218,27 @@ export default function Research() {
         <h1>Research</h1>
       </div>
 
-      <div className={`research-layout${toc.length > 0 ? ' has-toc' : ''}`}>
+      <div className={`research-layout${hasToc ? ' has-toc' : ''}`}>
         <nav className="card research-nav" aria-label="Research documents">
           {data.groups.map((group) => (
             <section className="research-group" key={group.id}>
               <h2>{group.label}</h2>
               <ul className="research-list">
-                {group.docs.map((doc) => (
-                  <li key={doc.slug}>
-                    <Link
-                      className={doc.slug === active?.slug ? 'research-link active' : 'research-link'}
-                      to={`/research?doc=${doc.slug}`}
-                      aria-current={doc.slug === active?.slug ? 'page' : undefined}
-                    >
-                      {doc.title}
-                    </Link>
-                  </li>
-                ))}
+                {groupFamilies(group.docs).map((variants) => {
+                  const navDoc = pickVariant(variants, active?.lang ?? DEFAULT_LANGUAGE)
+                  const isActive = active !== null && familyKey(active) === familyKey(navDoc)
+                  return (
+                    <li key={familyKey(navDoc)}>
+                      <Link
+                        className={isActive ? 'research-link active' : 'research-link'}
+                        to={`/research?doc=${navDoc.slug}`}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        {navDoc.title}
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
               {group.files.length > 0 && (
                 <div className="research-files-section">
@@ -327,6 +277,28 @@ export default function Research() {
                 )}
               </div>
               <div className="research-actions">
+                {active && availableLanguagesCount > 1 && (
+                  <Dropdown
+                    ariaLabel="Select language"
+                    className="lang-dropdown-trigger"
+                    menuClassName="lang-dropdown-menu"
+                    align="right"
+                    value={active.lang}
+                    options={languageOptions}
+                    renderTriggerLabel={() => (
+                      <span className="lang-trigger-content">
+                        <Languages size={13} className="lang-icon" aria-hidden="true" />
+                        <span className="lang-code-text">{activeLanguageLabel}</span>
+                      </span>
+                    )}
+                    onChange={(lang) => {
+                      const slug = translationsByLang.get(lang)
+                      if (slug && slug !== active.slug) {
+                        navigate(`/research?doc=${slug}`)
+                      }
+                    }}
+                  />
+                )}
                 <button
                   type="button"
                   className={`action-icon-btn${copied ? ' copied' : ''}`}
@@ -349,33 +321,45 @@ export default function Research() {
             </div>
           )}
           {content.error && <div className="error">Error loading document: {content.error}</div>}
-          {content.loading && <div className="loading">Loading…</div>}
-          {/* Build-time HTML from data/validation; raw HTML inside the documents is escaped by the converter. */}
-          <div
-            className="markdown-body"
-            dangerouslySetInnerHTML={{ __html: enrichedHtml }}
-            onClick={handleContentClick}
-          />
+          {content.loading ? (
+            <ResearchSkeleton />
+          ) : (
+            <div
+              className="markdown-body"
+              dangerouslySetInnerHTML={{ __html: enrichedHtml }}
+              onClick={handleContentClick}
+            />
+          )}
         </article>
 
-        {toc.length > 0 && (
-          <aside className="card research-toc" aria-label="Table of contents">
+        {hasToc && (
+          <aside
+            className={`card research-toc${content.loading ? ' is-loading' : ''}`}
+            aria-label="Table of contents"
+          >
             <div className="research-toc-header">
               <span className="research-toc-title">On this page</span>
             </div>
             <ul className="research-toc-list">
-              {toc.map((item) => (
-                <li key={item.id} className={`research-toc-item level-${item.level}`}>
-                  <a
-                    href={`#${item.id}`}
-                    aria-label={`Jump to ${item.text}`}
-                    className={activeId === item.id ? 'active' : undefined}
-                    onClick={(e) => handleTocClick(e, item.id)}
-                  >
-                    {item.text}
-                  </a>
-                </li>
-              ))}
+              {toc.map((item) => {
+                const isActive = activeId === item.id
+
+                return (
+                  <li key={item.id} className={`research-toc-item level-${item.level}`}>
+                    <a
+                      href={`#${item.id}`}
+                      aria-label={`Jump to ${item.text}`}
+                      className={isActive ? 'active' : undefined}
+                      onClick={(e) => handleTocClick(e, item.id)}
+                    >
+                      <span className="toc-node" aria-hidden="true">
+                        <span className="toc-node-dot" />
+                      </span>
+                      <span className="toc-item-text">{item.text}</span>
+                    </a>
+                  </li>
+                )
+              })}
             </ul>
             <div className="research-toc-footer">
               <button
@@ -383,7 +367,7 @@ export default function Research() {
                 className="btn-back-top"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               >
-                Back to top ↑
+                <span>Back to top ↑</span>
               </button>
             </div>
           </aside>

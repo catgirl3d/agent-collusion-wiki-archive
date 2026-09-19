@@ -209,12 +209,39 @@ export interface CorpusSearchResult {
   matches: CorpusMatch[]
 }
 
+export interface ResearchTocItem {
+  id: string
+  text: string
+  level: number
+}
+
+export interface ResearchMeta {
+  date: string | null
+  author: string
+  status: string | null
+}
+
+export interface ResearchLanguage {
+  code: string
+  label: string
+}
+
+export interface ResearchTranslation {
+  lang: string
+  slug: string
+}
+
 export interface ResearchDoc {
   slug: string
   title: string
   source: string
   html: string
   raw: string
+  lang: string
+  base: string
+  translations: ResearchTranslation[]
+  meta?: ResearchMeta
+  toc?: ResearchTocItem[]
 }
 
 export interface ResearchFile {
@@ -231,6 +258,7 @@ export interface ResearchGroup {
 
 export interface ResearchIndex {
   source: string
+  languages: ResearchLanguage[]
   groups: ResearchGroup[]
 }
 
