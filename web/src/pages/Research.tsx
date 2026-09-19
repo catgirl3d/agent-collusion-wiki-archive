@@ -36,22 +36,28 @@ export default function Research() {
   const [activeId, setActiveId] = useState<string>('')
   const [copied, setCopied] = useState(false)
 
-  const { enrichedHtml, toc, stats, metaInfo } = useMemo(() => {
+  const { enrichedHtml, toc, metaInfo } = useMemo(() => {
     if (!content.data) {
-      return { enrichedHtml: '', toc: [], stats: null, metaInfo: null }
+      return { enrichedHtml: '', toc: [], metaInfo: null }
     }
 
     const parser = new DOMParser()
     const doc = parser.parseFromString(content.data, 'text/html')
 
     const rawText = doc.body.textContent || ''
-    const words = rawText.trim().split(/\s+/).filter(Boolean).length
-    const readingTime = Math.max(1, Math.round(words / 200))
 
     // Parse status, author, and date metadata if embedded in the document
-    const dateMatch = rawText.match(/Date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/)
-    const authorMatch = rawText.match(/Author:\s*([^.\n]+)/i)
-    const statusMatch = rawText.match(/Status:\s*([A-Z]+)[^.\n]*/)
+    const dateMatch = rawText.match(/(?:Date|Дата):\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/i)
+    const authorMatch = rawText.match(/(?:Author|Автор):\s*([^.\n]+)/i)
+    const statusMatch = rawText.match(/(?:Status|Статус):\s*([A-Za-zА-Яа-я]+)[^.\n]*/i)
+
+    // Remove Date and Author paragraphs from the document body so they don't duplicate metadata
+    doc.querySelectorAll('p').forEach((p) => {
+      const text = p.textContent?.trim() || ''
+      if (/^(?:Date|Author|Дата|Автор):\s*/i.test(text)) {
+        p.remove()
+      }
+    })
 
     // Extract headings for Table of Contents & attach anchor links
     const headings = Array.from(doc.querySelectorAll('h2, h3'))
@@ -174,7 +180,6 @@ export default function Research() {
     return {
       enrichedHtml: doc.body.innerHTML,
       toc: tocItems,
-      stats: { words, readingTime },
       metaInfo: {
         date: dateMatch ? dateMatch[1] : null,
         author: authorMatch ? authorMatch[1].trim() : 'Alina Lisova',
@@ -318,12 +323,6 @@ export default function Research() {
                   <>
                     <span className="meta-sep" aria-hidden="true">·</span>
                     <span className="meta-item">{metaInfo.author}</span>
-                  </>
-                )}
-                {stats && (
-                  <>
-                    <span className="meta-sep" aria-hidden="true">·</span>
-                    <span className="meta-item">{stats.readingTime} min read</span>
                   </>
                 )}
               </div>
