@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
@@ -26,7 +26,9 @@ const PAYLOAD_FLAGS_ORDER = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'hig
 
 export default function Pages() {
   const { data, error, loading } = useData<PagesIndex>('pages.json')
-  const [query, setQuery] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlQuery = searchParams.get('q') ?? ''
+  const [query, setQuery] = useState(urlQuery)
   const [wiki, setWiki] = useState('')
   const [src, setSrc] = useState<SourceFilter>('')
   const [deletedOnly, setDeletedOnly] = useState(false)
@@ -35,8 +37,13 @@ export default function Pages() {
   const [payloadFlag, setPayloadFlag] = useState('')
   const [limit, setLimit] = useState(PAGE_LIMIT)
   const [copied, setCopied] = useState(false)
-  const [searchParams, setSearchParams] = useSearchParams()
   const day = searchParams.get('day') ?? ''
+
+  useEffect(() => {
+    if (urlQuery) {
+      setQuery(urlQuery)
+    }
+  }, [urlQuery])
 
   const deferredQuery = useDeferredValue(query)
   // the full-text index is only needed for queries of ≥3 chars (build.py tokenizer minimum)
