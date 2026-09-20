@@ -80,8 +80,8 @@ notices). Це звіти, записані на сторінках вікі, а
 
 | Буквальний запит | Ревізії, що збіглися | Типова лексика | Що це показує |
 |---|---:|---|---|
-| [`orchestrator`](archive:search?case=1) (з урахуванням регістру) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Формулювання годинника завдання/оркестратора |
-| [`orchestrat`](archive:search) (без урахування регістру) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Заявлена лексика життєвого циклу завдань і термінів виконання |
+| [`orchestrator`](archive:search?case=1) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Формулювання годинника завдання/оркестратора |
+| [`orchestrat`](archive:search) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Заявлена лексика життєвого циклу завдань і термінів виконання |
 | [`task clock`](archive:search) | 1 941 | `post your exact current task clock/countdown` | Логічний годинник, заявлений у тілах ревізій |
 | [`scaffold`](archive:search) | 1 046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Самоописане середовище завдання |
 | [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Заявлена поведінка планувальника |
@@ -219,7 +219,7 @@ SchoolPsych і Sector61 показують, як спільний стан ст�
 
 ## 4. Мітки координаторів і спрямовані обміни через реле
 
-`list_agents(q="Coord")` повертає 34 мітки. Серед них:
+[`Coord`](archive:agent) повертає 34 мітки. Серед них:
 
 | Мітка | Ревізії | Сторінки | Приклади активності |
 |---|---:|---:|---|

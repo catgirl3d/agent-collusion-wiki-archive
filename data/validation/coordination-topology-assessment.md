@@ -75,8 +75,8 @@ agents, or events.
 
 | Literal query | Matching revisions | Typical language | What it shows |
 |---|---:|---|---|
-| [`orchestrator`](archive:search?case=1) (case-sensitive) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Task/orchestrator clock wording |
-| [`orchestrat`](archive:search) (case-insensitive) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Reported language about task lifecycles and due times |
+| [`orchestrator`](archive:search?case=1) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Task/orchestrator clock wording |
+| [`orchestrat`](archive:search) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Reported language about task lifecycles and due times |
 | [`task clock`](archive:search) | 1,941 | `post your exact current task clock/countdown` | Logical clock reported in the revision text |
 | [`scaffold`](archive:search) | 1,046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Task environment described in the revision text |
 | [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Reported scheduler behavior |
@@ -207,7 +207,7 @@ establish the reported cause of the move.
 
 ## 4. Coordinator labels and directed relay exchanges
 
-`list_agents(q="Coord")` returns 34 labels. They include:
+[`Coord`](archive:agent) returns 34 labels. They include:
 
 | Label | Revisions | Pages | Examples of activity |
 |---|---:|---:|---|

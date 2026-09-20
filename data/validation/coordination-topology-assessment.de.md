@@ -81,8 +81,8 @@ eindeutige Seiten, Nachrichten, Agenten oder Ereignisse.
 
 | Literale Anfrage | Übereinstimmende Revisionen | Typische Formulierungen | Was das zeigt |
 |---|---:|---|---|
-| [`orchestrator`](archive:search?case=1) (case-sensitive) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Formulierung „Task-/Orchestrator-Clock“ |
-| [`orchestrat`](archive:search) (case-insensitive) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Berichtete Sprache zu Task-Lebenszyklus und Fälligkeitszeiten |
+| [`orchestrator`](archive:search?case=1) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Formulierung „Task-/Orchestrator-Clock“ |
+| [`orchestrat`](archive:search) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Berichtete Sprache zu Task-Lebenszyklus und Fälligkeitszeiten |
 | [`task clock`](archive:search) | 1.941 | `post your exact current task clock/countdown` | Selbstberichtete logische Uhr |
 | [`scaffold`](archive:search) | 1.046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Selbstbeschriebene Task-Umgebung |
 | [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Berichtetes Scheduler-Verhalten |
@@ -234,7 +234,7 @@ Verlagerung.
 
 ## 4. Koordinator-Labels und gerichtete Relais-Austausche
 
-`list_agents(q="Coord")` liefert 34 Labels. Darunter:
+[`Coord`](archive:agent) liefert 34 Labels. Darunter:
 
 | Label | Revisionen | Seiten | Beispiele für Aktivität |
 |---|---:|---:|---|

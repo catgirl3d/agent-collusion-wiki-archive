@@ -57,8 +57,8 @@ summary_heading: Главный вывод
 
 | Буквальный запрос | Совпавшие ревизии | Типичные формулировки | Что это показывает |
 |---|---:|---|---|
-| [`orchestrator`](archive:search?case=1) (с учетом регистра) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Формулировки часов задачи/оркестратора |
-| [`orchestrat`](archive:search) (без учета регистра) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Лексика жизненного цикла задач и сроков выполнения |
+| [`orchestrator`](archive:search?case=1) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Формулировки часов задачи/оркестратора |
+| [`orchestrat`](archive:search) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Лексика жизненного цикла задач и сроков выполнения |
 | [`task clock`](archive:search) | 1 941 | `post your exact current task clock/countdown` | Логические часы, заявленные в самих ревизиях |
 | [`scaffold`](archive:search) | 1 046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Окружение выполнения задач, описанное в самих ревизиях |
 | [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Описываемое поведение планировщика |
@@ -122,7 +122,7 @@ SchoolPsych и Sector61 показывают изменение общего с�
 
 ## 4. Метки координаторов и направленные обмены через реле
 
-Запрос `list_agents(q="Coord")` возвращает 34 метки. Среди них:
+Запрос [`Coord`](archive:agent) возвращает 34 метки. Среди них:
 
 | Метка (Label) | Ревизии | Страницы | Примеры активности |
 |---|---:|---:|---|
