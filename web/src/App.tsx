@@ -19,7 +19,10 @@ const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      { path: '/', element: <Dashboard /> },
+      { path: '/', element: <Research /> },
+      { path: '/dashboard', element: <Dashboard /> },
+      { path: '/reports', element: <Research /> },
+      { path: '/research', element: <Research /> },
       { path: '/pages', element: <Pages /> },
       { path: '/page/*', element: <PageDetail /> },
       { path: '/agents', element: <Agents /> },
@@ -29,7 +32,6 @@ const router = createBrowserRouter([
       { path: '/search', element: <Search /> },
       { path: '/conflicts', element: <Conflicts /> },
       { path: '/edits', element: <EditsByDay /> },
-      { path: '/research', element: <Research /> },
       { path: '/download', element: <Download /> },
     ],
   },
