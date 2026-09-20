@@ -211,6 +211,133 @@ body::before {
   text-decoration: none;
 }
 
+/* Topbar Actions & Search Bar */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.search-bar-form {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.search-bar-form.is-collapsed {
+  width: 32px;
+}
+
+.search-bar-form.is-expanded {
+  width: 260px;
+}
+
+.search-bar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.search-bar-form.is-collapsed .search-bar-toggle-btn {
+  width: 32px;
+}
+
+.search-bar-form.is-collapsed .search-bar-toggle-btn:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.search-bar-form.is-expanded .search-bar-toggle-btn {
+  position: absolute;
+  left: 9px;
+  width: auto;
+  border: none;
+  background: transparent;
+  pointer-events: none;
+  color: var(--accent);
+  z-index: 2;
+}
+
+.search-bar-input {
+  height: 32px;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+}
+
+.search-bar-form.is-collapsed .search-bar-input {
+  width: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.search-bar-form.is-expanded .search-bar-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12), 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 0 54px 0 32px;
+  opacity: 1;
+  transition: all 0.2s ease;
+}
+
+.search-bar-input::placeholder {
+  color: #64748b;
+}
+
+.search-bar-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-bar-kbd {
+  position: absolute;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+  pointer-events: none;
+  line-height: 1.2;
+}
+
+.search-bar-clear {
+  position: absolute;
+  right: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.search-bar-clear:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* Main Layout Area */
 .main {
   flex: 1;
