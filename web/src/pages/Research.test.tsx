@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Research from './Research'
@@ -16,9 +16,9 @@ const index = {
   source: 'data/validation',
   languages: [
     { code: 'en', label: 'EN' },
-    { code: 'ru', label: 'RU' },
-    { code: 'uk', label: 'UA' },
     { code: 'de', label: 'DE' },
+    { code: 'uk', label: 'UA' },
+    { code: 'ru', label: 'RU' },
   ],
   groups: [
     {

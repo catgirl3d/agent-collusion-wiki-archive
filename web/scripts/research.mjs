@@ -139,7 +139,7 @@ export function extractMetadata(body, frontmatter = {}) {
 }
 
 export function cleanMarkdownBody(body) {
-  return body.replace(/^(?:Date|Author|Дата|Автор|Datum|Autor):\s*.*$\r?\n?/gim, '')
+  return body.replace(/^(?:Date|Author|Status|Дата|Автор|Статус|Datum|Autor):\s*.*$\r?\n?/gim, '')
 }
 
 export function headingToId(text) {

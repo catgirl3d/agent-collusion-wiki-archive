@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   buildArchiveLink,
+  cleanMarkdownBody,
   convertResearch,
   enhanceHtml,
   extractMetadata,
@@ -423,6 +424,25 @@ describe('parseFrontmatter and extractMetadata', () => {
     expect(meta.date).toBe('2026-09-15')
     expect(meta.author).toBe('Legacy Author')
     expect(meta.status).toBe('CONFIRMED')
+  })
+
+  it('strips legacy Date/Author/Status lines from bodies without frontmatter', () => {
+    const body = `# Title\n\nDate: 2026-09-12.\n\nStatus: PRELIMINARY, non-blind, machine-assisted. This document records\nobservable sequences.\n\nContent.\n`
+    const cleaned = cleanMarkdownBody(body)
+
+    expect(cleaned).not.toMatch(/^Date:/m)
+    expect(cleaned).not.toMatch(/^Status:/m)
+    expect(cleaned).toContain('observable sequences.')
+    expect(cleaned).toContain('Content.')
+  })
+
+  it('strips localized Статус metadata lines', () => {
+    const body = `# Заголовок\n\nДата: 2026-09-12.\n\nСтатус: ЧЕРНЕТКА\n\nЗміст.\n`
+    const cleaned = cleanMarkdownBody(body)
+
+    expect(cleaned).not.toMatch(/^Дата:/m)
+    expect(cleaned).not.toMatch(/^Статус:/m)
+    expect(cleaned).toContain('Зміст.')
   })
 })
 
