@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, Download, Languages, Link2, Microscope } from 'lucide-react'
 import { loadText } from '../api'
 import { Dropdown } from '../components/Dropdown'
+import { SelectionPopup } from '../components/SelectionPopup'
 import { useData, useJson } from '../components/useQuery'
 import type { ResearchDoc, ResearchIndex, ResearchTocItem } from '../types'
 
@@ -74,6 +75,7 @@ export default function Research() {
   const { data, error } = useData<ResearchIndex>('research/index.json')
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const docRef = useRef<HTMLElement>(null)
 
   const docs = data?.groups.flatMap((group) => group.docs) ?? []
   const requested = searchParams.get('doc')
@@ -265,7 +267,7 @@ export default function Research() {
           ))}
         </nav>
 
-        <article className="card research-doc">
+        <article ref={docRef} className="card research-doc">
           {active && (
             <div className="research-doc-meta">
               <div className="research-meta-line">
@@ -337,6 +339,7 @@ export default function Research() {
               onClick={handleContentClick}
             />
           )}
+          <SelectionPopup containerRef={docRef} />
         </article>
 
         {hasToc && (

@@ -1810,3 +1810,93 @@ a:hover {
     max-height: none;
   }
 }
+
+/* Floating Selection Popup Toolbar */
+.selection-popup {
+  position: fixed;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 6px;
+  background: rgba(18, 24, 38, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: translate(-50%, -100%);
+  user-select: none;
+  animation: popupFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+.selection-popup.selection-popup-below {
+  transform: translate(-50%, 0);
+  animation-name: popupFadeInBelow;
+}
+
+@keyframes popupFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 6px)) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
+@keyframes popupFadeInBelow {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.selection-popup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f1f5f9;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.selection-popup-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent);
+}
+
+.selection-popup-btn:active {
+  transform: scale(0.97);
+}
+
+.selection-popup-ext {
+  opacity: 0.6;
+  margin-left: 1px;
+}
+
+.selection-popup-btn:hover .selection-popup-ext {
+  opacity: 1;
+}
+
+.selection-popup-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 2px;
+}
+
