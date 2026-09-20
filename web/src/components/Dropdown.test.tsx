@@ -138,4 +138,106 @@ describe('Dropdown', () => {
 
     expect(screen.getByRole('combobox', { name: 'dse' })).toBeInTheDocument()
   })
+
+  it('ignores clicks on disabled options and skips them with arrow keys', () => {
+    const onChange = vi.fn()
+    render(
+      <Dropdown
+        value="en"
+        options={[
+          { value: 'en', label: 'EN' },
+          { value: 'ru', label: 'RU', disabled: true },
+          { value: 'de', label: 'DE' },
+        ]}
+        onChange={onChange}
+      />,
+    )
+
+    const trigger = screen.getByRole('combobox', { name: 'EN' })
+    fireEvent.click(trigger)
+
+    const ruOption = screen.getByRole('option', { name: 'RU' })
+    expect(ruOption).toBeDisabled()
+    expect(ruOption).toHaveAttribute('aria-disabled', 'true')
+
+    fireEvent.click(ruOption)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    expect(trigger).toHaveAttribute('aria-activedescendant', expect.stringContaining('-option-2'))
+
+    fireEvent.keyDown(trigger, { key: 'ArrowUp' })
+    expect(trigger).toHaveAttribute('aria-activedescendant', expect.stringContaining('-option-0'))
+
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith('de')
+  })
+
+  it('skips disabled options for Home and End', () => {
+    render(
+      <Dropdown
+        value="b"
+        options={[
+          { value: 'a', label: 'A', disabled: true },
+          { value: 'b', label: 'B' },
+          { value: 'c', label: 'C', disabled: true },
+          { value: 'd', label: 'D' },
+        ]}
+        onChange={() => {}}
+      />,
+    )
+
+    const trigger = screen.getByRole('combobox', { name: 'B' })
+    fireEvent.click(trigger)
+    expect(trigger).toHaveAttribute('aria-activedescendant', expect.stringContaining('-option-1'))
+
+    fireEvent.keyDown(trigger, { key: 'End' })
+    expect(trigger).toHaveAttribute('aria-activedescendant', expect.stringContaining('-option-3'))
+
+    fireEvent.keyDown(trigger, { key: 'Home' })
+    expect(trigger).toHaveAttribute('aria-activedescendant', expect.stringContaining('-option-1'))
+  })
+
+  it('falls back to the first enabled option when the selected option is disabled', () => {
+    render(
+      <Dropdown
+        value="a"
+        options={[
+          { value: 'a', label: 'A', disabled: true },
+          { value: 'b', label: 'B' },
+          { value: 'c', label: 'C' },
+        ]}
+        onChange={() => {}}
+      />,
+    )
+
+    const trigger = screen.getByRole('combobox', { name: 'A' })
+    fireEvent.click(trigger)
+
+    expect(trigger).toHaveAttribute('aria-activedescendant', expect.stringContaining('-option-1'))
+  })
+
+  it('supports align, menuClassName and renderTriggerLabel', () => {
+    render(
+      <Dropdown
+        value="en"
+        align="right"
+        menuClassName="lang-dropdown-menu"
+        options={[{ value: 'en', label: 'English' }]}
+        renderTriggerLabel={(opt) => <span>Custom: {opt?.label}</span>}
+        onChange={() => {}}
+      />,
+    )
+
+    const trigger = screen.getByRole('combobox')
+    expect(trigger).toHaveTextContent('Custom: English')
+
+    fireEvent.click(trigger)
+    const listbox = screen.getByRole('listbox')
+    expect(listbox).toHaveClass('align-right')
+    expect(listbox).toHaveClass('lang-dropdown-menu')
+  })
 })
+

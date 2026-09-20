@@ -18,7 +18,13 @@ export default function Layout() {
         </div>
         <nav className="nav">
           <NavLink to="/" end className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Research
+          </NavLink>
+          <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Dashboard
+          </NavLink>
+          <NavLink to="/search" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
+            Text search
           </NavLink>
           <NavLink to="/edits" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Edits by day
@@ -37,9 +43,6 @@ export default function Layout() {
           </NavLink>
           <NavLink to="/timeline" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Timeline
-          </NavLink>
-          <NavLink to="/search" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
-            Text search
           </NavLink>
           <NavLink to="/conflicts" className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}>
             Shared pages

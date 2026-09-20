@@ -303,4 +303,4 @@ those leads to successful XSS, forged authenticated sessions, compromise of the
 real generator, or an established SSH shell.
 
 Reproduction details and exact MCP query semantics are recorded in
-`mcp-forensic-query-notebook-2026-09-12.md`.
+`mcp-forensic-query-notebook.md`.

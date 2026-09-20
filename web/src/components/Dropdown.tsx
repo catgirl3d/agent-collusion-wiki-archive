@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 export interface DropdownOption<Value extends string | number> {
   value: Value
   label: ReactNode
+  disabled?: boolean
 }
 
 export interface DropdownProps<Value extends string | number> {
@@ -13,6 +14,9 @@ export interface DropdownProps<Value extends string | number> {
   ariaLabel?: string
   className?: string
   disabled?: boolean
+  align?: 'left' | 'right'
+  menuClassName?: string
+  renderTriggerLabel?: (option: DropdownOption<Value> | undefined) => ReactNode
 }
 
 export function Dropdown<Value extends string | number>({
@@ -23,6 +27,9 @@ export function Dropdown<Value extends string | number>({
   ariaLabel,
   className = '',
   disabled = false,
+  align = 'left',
+  menuClassName,
+  renderTriggerLabel,
 }: DropdownProps<Value>) {
   const [open, setOpen] = useState(false)
   const [activeValue, setActiveValue] = useState<Value | null>(null)
@@ -34,10 +41,21 @@ export function Dropdown<Value extends string | number>({
   const listboxId = `dropdown-options-${instanceId}`
   const selectedIndex = options.findIndex((option) => option.value === value)
   const selectedOption = options[selectedIndex]
-  const fallbackIndex = selectedIndex >= 0 ? selectedIndex : 0
+  const findEnabledIndex = (start: number, step: 1 | -1) => {
+    for (let index = start; index >= 0 && index < options.length; index += step) {
+      if (!options[index].disabled) return index
+    }
+    return -1
+  }
+  const firstEnabledIndex = findEnabledIndex(0, 1)
+  const fallbackIndex = selectedIndex >= 0 && !options[selectedIndex].disabled
+    ? selectedIndex
+    : (firstEnabledIndex >= 0 ? firstEnabledIndex : 0)
   const activeValueIndex = options.findIndex((option) => option.value === activeValue)
   const activeOptionIndex = activeValueIndex >= 0 ? activeValueIndex : fallbackIndex
-  const displayedLabel = selectedOption?.label ?? (value === '' ? 'select…' : String(value))
+  const displayedLabel = renderTriggerLabel
+    ? renderTriggerLabel(selectedOption)
+    : (selectedOption?.label ?? (value === '' ? 'select…' : String(value)))
   const fallbackAriaLabel = typeof displayedLabel === 'string' || typeof displayedLabel === 'number' ? String(displayedLabel) : undefined
 
   useEffect(() => {
@@ -73,6 +91,7 @@ export function Dropdown<Value extends string | number>({
   }
 
   const select = (option: DropdownOption<Value>) => {
+    if (option.disabled) return
     if (option.value !== value) onChange(option.value)
     close()
   }
@@ -101,7 +120,7 @@ export function Dropdown<Value extends string | number>({
       event.preventDefault()
       if (!open) {
         openWithIndex(fallbackIndex)
-      } else if (options[activeOptionIndex]) {
+      } else if (options[activeOptionIndex] && !options[activeOptionIndex].disabled) {
         select(options[activeOptionIndex])
       }
       return
@@ -112,8 +131,8 @@ export function Dropdown<Value extends string | number>({
       if (!open) {
         openWithIndex(fallbackIndex)
       } else {
-        const nextIndex = Math.min(activeOptionIndex + 1, options.length - 1)
-        setActiveValue(options[nextIndex]?.value ?? null)
+        const nextIndex = findEnabledIndex(activeOptionIndex + 1, 1)
+        if (nextIndex >= 0) setActiveValue(options[nextIndex].value)
       }
       return
     }
@@ -123,21 +142,22 @@ export function Dropdown<Value extends string | number>({
       if (!open) {
         openWithIndex(fallbackIndex)
       } else {
-        const nextIndex = Math.max(activeOptionIndex - 1, 0)
-        setActiveValue(options[nextIndex]?.value ?? null)
+        const prevIndex = findEnabledIndex(activeOptionIndex - 1, -1)
+        if (prevIndex >= 0) setActiveValue(options[prevIndex].value)
       }
       return
     }
 
     if (event.key === 'Home' && open) {
       event.preventDefault()
-      setActiveValue(options[0]?.value ?? null)
+      if (firstEnabledIndex >= 0) setActiveValue(options[firstEnabledIndex].value)
       return
     }
 
     if (event.key === 'End' && open) {
       event.preventDefault()
-      setActiveValue(options[options.length - 1]?.value ?? null)
+      const lastEnabledIndex = findEnabledIndex(options.length - 1, -1)
+      if (lastEnabledIndex >= 0) setActiveValue(options[lastEnabledIndex].value)
     }
   }
 
@@ -164,7 +184,7 @@ export function Dropdown<Value extends string | number>({
       {open && options.length > 0 && (
         <div
           id={listboxId}
-          className="dropdown-menu"
+          className={`dropdown-menu${align === 'right' ? ' align-right' : ''}${menuClassName ? ` ${menuClassName}` : ''}`}
           role="listbox"
           aria-labelledby={triggerId}
         >
@@ -177,8 +197,12 @@ export function Dropdown<Value extends string | number>({
               tabIndex={-1}
               role="option"
               aria-selected={option.value === value}
+              aria-disabled={option.disabled}
+              disabled={option.disabled}
               className={`dropdown-option${activeOptionIndex === index ? ' active' : ''}`}
-              onMouseEnter={() => setActiveValue(option.value)}
+              onMouseEnter={() => {
+                if (!option.disabled) setActiveValue(option.value)
+              }}
               onClick={() => select(option)}
             >
               {option.label}

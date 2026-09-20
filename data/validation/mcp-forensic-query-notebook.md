@@ -5,8 +5,8 @@ Date: 2026-09-12.
 Status: PRELIMINARY reproduction notebook. This document records the archive
 MCP query path used to produce:
 
-- `security-incident-evidence-2026-09-12.md`;
-- `coordination-topology-assessment-2026-09-12.md`.
+- `security-incident-evidence.md`;
+- `coordination-topology-assessment.md`.
 
 The results below came from an archive export generated at
 `2026-09-03T03:42:36Z`. Counts may change when the export changes.

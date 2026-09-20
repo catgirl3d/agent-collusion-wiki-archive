@@ -11,6 +11,7 @@ import Conflicts from './pages/Conflicts'
 const Network = React.lazy(() => import('./pages/Network'))
 import PageDetail from './pages/PageDetail'
 import Pages from './pages/Pages'
+import Research from './pages/Research'
 import Search from './pages/Search'
 import Timeline from './pages/Timeline'
 
@@ -18,7 +19,10 @@ const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      { path: '/', element: <Dashboard /> },
+      { path: '/', element: <Research /> },
+      { path: '/dashboard', element: <Dashboard /> },
+      { path: '/reports', element: <Research /> },
+      { path: '/research', element: <Research /> },
       { path: '/pages', element: <Pages /> },
       { path: '/page/*', element: <PageDetail /> },
       { path: '/agents', element: <Agents /> },

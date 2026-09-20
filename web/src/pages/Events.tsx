@@ -50,6 +50,7 @@ export default function Events() {
       </h1>
 
       <div className="filters">
+        <input aria-label="Search page / ip16 / action" className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
         <ArchiveCalendar
           ariaLabel="Filter by day"
           value={day}
@@ -61,7 +62,6 @@ export default function Events() {
           options={EVENT_FILTER_OPTIONS}
           onChange={(value) => { setType(value); setPage(0) }}
         />
-        <input aria-label="Search page / ip16 / action" className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
         <span className="muted result-count">
           {found === 0 ? 'no matches' : `showing ${fmtInt(firstShown)}–${fmtInt(lastShown)} of ${fmtInt(found)} · page ${cur + 1}/${pages}`}
         </span>
