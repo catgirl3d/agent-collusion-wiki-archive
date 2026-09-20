@@ -324,7 +324,6 @@ body::before {
 }
 
 .ghost-link {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -337,6 +336,7 @@ body::before {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .ghost-link:hover {
