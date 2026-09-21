@@ -34,7 +34,6 @@ export const exploreItems: NavDropdownItem[] = [
     label: 'Agents',
     description: 'Agent identities and edit metrics',
     icon: Bot,
-    isActive: (pathname) => pathname.startsWith('/agent'),
   },
   {
     to: '/search',
@@ -83,12 +82,3 @@ export const isResearchActive = (pathname: string): boolean =>
   pathname === '/' ||
   isNavItemActive({ to: '/research' }, pathname) ||
   isNavItemActive({ to: '/reports' }, pathname)
-
-// Keep a floating menu inside the viewport: prefer the trigger's left edge,
-// otherwise pin the menu's right edge with an 8px margin
-export function clampFloatingLeft(triggerLeft: number, menuWidth: number, viewportWidth: number): number {
-  if (triggerLeft + menuWidth <= viewportWidth - 8) {
-    return Math.max(8, triggerLeft)
-  }
-  return Math.max(8, viewportWidth - menuWidth - 8)
-}

@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Menu, X } from 'lucide-react'
+import { MobileNavDrawer } from './MobileNavDrawer'
 import { NavDropdown } from './NavDropdown'
 import { dynamicsItems, exploreItems, isResearchActive } from './nav-items'
 import { SearchBar } from './SearchBar'
@@ -14,12 +16,17 @@ export default function Layout() {
   const footerCounts = totals ? ` · ${fmtInt(totals.revisions)} revisions across ${fmtInt(totals.pages)} pages` : ''
 
   const [activeDropdown, setActiveDropdown] = useState<'explore' | 'dynamics' | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Route-change closing lives in NavDropdown (it calls onClose);
-  // Layout only owns which dropdown is open.
   const openDropdown = (id: 'explore' | 'dynamics') => {
     setActiveDropdown(id)
   }
+
+  // Centrally close any open dropdowns or mobile drawer on route navigation
+  useEffect(() => {
+    setActiveDropdown(null)
+    setMobileMenuOpen(false)
+  }, [location.key])
 
   const researchActive = isResearchActive(location.pathname)
 
@@ -84,8 +91,23 @@ export default function Layout() {
           >
             Source: collusion.wiki ↗
           </a>
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label="Toggle navigation menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            {mobileMenuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+          </button>
         </div>
       </header>
+
+      <MobileNavDrawer
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
+
       <main className="main">
         <Outlet />
       </main>

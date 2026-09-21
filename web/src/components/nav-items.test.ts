@@ -1,22 +1,48 @@
 import { describe, expect, it } from 'vitest'
-import { clampFloatingLeft } from './nav-items'
+import { isNavItemActive, isResearchActive } from './nav-items'
 
-describe('clampFloatingLeft', () => {
-  it('keeps the trigger left edge when the menu fits', () => {
-    expect(clampFloatingLeft(100, 250, 1024)).toBe(100)
+describe('isNavItemActive', () => {
+  it('returns true for exact path match', () => {
+    expect(isNavItemActive({ to: '/pages' }, '/pages')).toBe(true)
+    expect(isNavItemActive({ to: '/agents' }, '/agents')).toBe(true)
   })
 
-  it('clamps a negative trigger edge to the 8px margin', () => {
-    expect(clampFloatingLeft(-20, 250, 1024)).toBe(8)
+  it('returns true for sub-paths of to', () => {
+    expect(isNavItemActive({ to: '/pages' }, '/pages/subpage')).toBe(true)
+    expect(isNavItemActive({ to: '/agents' }, '/agents/overview')).toBe(true)
   })
 
-  it('pins the right edge when the menu would overflow (360px viewport)', () => {
-    // Reported case: trigger at 300px, 280px menu on a 360px screen
-    // used to render at left=122 and overflow by ~30px
-    expect(clampFloatingLeft(300, 280, 360)).toBe(72)
+  it('returns false for non-matching paths', () => {
+    expect(isNavItemActive({ to: '/pages' }, '/dashboard')).toBe(false)
+    expect(isNavItemActive({ to: '/pages' }, '/page-other')).toBe(false)
   })
 
-  it('never goes below the 8px margin, even on tiny viewports', () => {
-    expect(clampFloatingLeft(0, 300, 200)).toBe(8)
+  it('uses custom isActive predicate when provided', () => {
+    const item = {
+      to: '/pages',
+      isActive: (pathname: string) => pathname.startsWith('/page'),
+    }
+    expect(isNavItemActive(item, '/page/detail-123')).toBe(true)
+    expect(isNavItemActive(item, '/pages')).toBe(true)
+    expect(isNavItemActive(item, '/dashboard')).toBe(false)
+  })
+})
+
+describe('isResearchActive', () => {
+  it('is active on root path /', () => {
+    expect(isResearchActive('/')).toBe(true)
+  })
+
+  it('is active on /research and /reports paths', () => {
+    expect(isResearchActive('/research')).toBe(true)
+    expect(isResearchActive('/research/doc-1')).toBe(true)
+    expect(isResearchActive('/reports')).toBe(true)
+    expect(isResearchActive('/reports/summary')).toBe(true)
+  })
+
+  it('is not active on other routes', () => {
+    expect(isResearchActive('/dashboard')).toBe(false)
+    expect(isResearchActive('/pages')).toBe(false)
+    expect(isResearchActive('/agents')).toBe(false)
   })
 })

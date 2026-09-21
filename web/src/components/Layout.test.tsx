@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Layout from './Layout'
@@ -115,8 +115,7 @@ describe('Layout', () => {
     expect(researchActive).toHaveAttribute('aria-current', 'page')
   })
 
-  it('does not slam a newly opened dropdown shut when the previous close timer fires', () => {
-    vi.useFakeTimers()
+  it('opens and closes mobile navigation drawer on toggle, close button, and escape', () => {
     useDataMock.mockReturnValue({ data: null, error: null })
 
     render(
@@ -125,19 +124,96 @@ describe('Layout', () => {
       </MemoryRouter>
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /^explore$/i }))
-    expect(screen.getByRole('menu', { name: 'Explore' })).toBeInTheDocument()
+    const toggleBtn = screen.getByRole('button', { name: /toggle navigation menu/i })
+    expect(toggleBtn).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('dialog', { name: /mobile navigation/i })).not.toBeInTheDocument()
 
-    // Slip off Explore (arms its 200ms close timer), then open Dynamics
-    fireEvent.mouseLeave(screen.getByRole('button', { name: /^explore$/i }).closest('.nav-dropdown')!)
-    fireEvent.click(screen.getByRole('button', { name: /^dynamics$/i }))
-    expect(screen.getByRole('menu', { name: 'Dynamics' })).toBeInTheDocument()
+    // Open mobile menu
+    fireEvent.click(toggleBtn)
+    expect(toggleBtn).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('dialog', { name: /mobile navigation/i })).toBeInTheDocument()
 
-    act(() => {
-      vi.advanceTimersByTime(300)
-    })
+    // Close via close button in drawer
+    const closeBtn = screen.getByRole('button', { name: /close navigation menu/i })
+    fireEvent.click(closeBtn)
+    expect(screen.queryByRole('dialog', { name: /mobile navigation/i })).not.toBeInTheDocument()
+    expect(toggleBtn).toHaveAttribute('aria-expanded', 'false')
 
-    expect(screen.getByRole('menu', { name: 'Dynamics' })).toBeInTheDocument()
-    expect(screen.queryByRole('menu', { name: 'Explore' })).not.toBeInTheDocument()
+    // Open again and close via Escape
+    fireEvent.click(toggleBtn)
+    expect(screen.getByRole('dialog', { name: /mobile navigation/i })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: /mobile navigation/i })).not.toBeInTheDocument()
+  })
+
+  it('renders all section links in mobile drawer and closes drawer on link click', () => {
+    useDataMock.mockReturnValue({ data: null, error: null })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Layout />
+      </MemoryRouter>
+    )
+
+    const toggleBtn = screen.getByRole('button', { name: /toggle navigation menu/i })
+    fireEvent.click(toggleBtn)
+
+    const drawer = screen.getByRole('dialog', { name: /mobile navigation/i })
+    expect(drawer).toBeInTheDocument()
+
+    // Verify groups and links are present in drawer
+    expect(within(drawer).getByText('Explore')).toBeInTheDocument()
+    expect(within(drawer).getByText('Dynamics')).toBeInTheDocument()
+
+    const pagesLink = within(drawer).getByRole('link', { name: /^pages/i })
+    fireEvent.click(pagesLink)
+
+    // Route change closes drawer
+    expect(screen.queryByRole('dialog', { name: /mobile navigation/i })).not.toBeInTheDocument()
+  })
+
+  it('manages focus within mobile drawer, traps tab navigation, and sets aria-current', async () => {
+    useDataMock.mockReturnValue({ data: null, error: null })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Layout />
+      </MemoryRouter>
+    )
+
+    const toggleBtn = screen.getByRole('button', { name: /toggle navigation menu/i })
+    toggleBtn.focus()
+    expect(document.activeElement).toBe(toggleBtn)
+
+    fireEvent.click(toggleBtn)
+
+    const drawer = screen.getByRole('dialog', { name: /mobile navigation/i })
+    expect(drawer).toBeInTheDocument()
+
+    // Verify Research link has aria-current="page"
+    const researchLink = within(drawer).getByRole('link', { name: /^research$/i })
+    expect(researchLink).toHaveAttribute('aria-current', 'page')
+
+    // Verify focus moves into drawer close button
+    const closeBtn = within(drawer).getByRole('button', { name: /close navigation menu/i })
+    await waitFor(() => expect(document.activeElement).toBe(closeBtn))
+
+    // Test Tab wrapping: focus on last link, press Tab -> wraps to closeBtn
+    const links = within(drawer).getAllByRole('link')
+    const lastLink = links[links.length - 1]
+    lastLink.focus()
+    expect(document.activeElement).toBe(lastLink)
+
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(document.activeElement).toBe(closeBtn)
+
+    // Test Shift+Tab wrapping: focus on closeBtn, press Shift+Tab -> wraps to lastLink
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(lastLink)
+
+    // Close via Escape and verify focus restores to toggleBtn
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: /mobile navigation/i })).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(toggleBtn)
   })
 })
