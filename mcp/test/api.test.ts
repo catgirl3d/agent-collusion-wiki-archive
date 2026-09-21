@@ -7,7 +7,7 @@ function response(body: unknown, status = 200): Response {
 
 function hangingFetch() {
   return vi.fn(
-    (_request: Request | URL, init?: RequestInit) =>
+    (_request: Request | URL | string, init?: RequestInit) =>
       new Promise<Response>((_, reject) => {
         init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
       }),

@@ -109,6 +109,22 @@ function assertRange(from: string | undefined, to: string | undefined): void {
   if (from && to && from > to) throw new ArchiveQueryError('from must not be after to')
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isPageEntry(value: unknown): value is PageEntry {
+  return isRecord(value) && typeof value.id === 'string'
+}
+
+function isActivityDay(value: unknown): value is ActivityDay {
+  return isRecord(value) && typeof value.date === 'string' && typeof value.wiki === 'string'
+}
+
+function isActivityHour(value: unknown): value is ActivityHour {
+  return isRecord(value) && typeof value.hour === 'string'
+}
+
 function sha256Hex(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex')
 }
@@ -297,6 +313,10 @@ export class ArchiveResearch {
     if (file?.meta?.schema_version !== 1 || !Array.isArray(file.r)) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json has an unsupported schema')
     }
+    // A missing timestamp and an explicit null both mean "generation unknown".
+    if ((file.meta.export_generated_at ?? null) !== (summary.export_generated_at ?? null)) {
+      throw new ArchiveDataError('archive_data_invalid', 'timeline.json does not match summary generation')
+    }
     if (file.meta.count !== file.r.length) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json count does not match its rows')
     }
@@ -323,6 +343,9 @@ export class ArchiveResearch {
     const version = versionOf(summary)
     if (this.pagesCache?.version === version) return this.pagesCache.value
     const file = await this.assets.getJson<{ p: PageEntry[] }>(DATA_PATHS.pages)
+    if (!file || !Array.isArray(file.p) || !file.p.every(isPageEntry)) {
+      throw new ArchiveDataError('archive_data_invalid', 'pages.json has an unsupported schema')
+    }
     const map = new Map(file.p.map((page) => [page.id, page]))
     this.pagesCache = { version, value: map }
     return map
@@ -382,7 +405,11 @@ export class ArchiveResearch {
         ? [...rows].sort(
             (a, b) => a.t.localeCompare(b.t) || a.id.localeCompare(b.id) || (a.seq ?? 0) - (b.seq ?? 0),
           )
-        : rows
+        : [...rows].sort(
+            // Canonical project order: time follows the requested direction,
+            // tie-breakers always ascend (matches searchCorpus and the build pipeline).
+            (a, b) => b.t.localeCompare(a.t) || a.id.localeCompare(b.id) || (a.seq ?? 0) - (b.seq ?? 0),
+          )
 
     return {
       export_generated_at: summary.export_generated_at ?? null,
@@ -472,14 +499,22 @@ export class ArchiveResearch {
         throw new ArchiveQueryError('hourly activity has no wiki/date dimensions; use by=day for filters')
       }
       if (this.hourCache?.version !== version) {
-        this.hourCache = { version, value: await this.assets.getJson<ActivityHour[]>(DATA_PATHS.activityByHour) }
+        const hours = await this.assets.getJson<ActivityHour[]>(DATA_PATHS.activityByHour)
+        if (!Array.isArray(hours) || !hours.every(isActivityHour)) {
+          throw new ArchiveDataError('archive_data_invalid', 'activity_by_hour.json has an unsupported schema')
+        }
+        this.hourCache = { version, value: hours }
       }
       const rows = this.hourCache.value
       return { by: 'hour', export_generated_at: summary.export_generated_at ?? null, total: rows.length, rows }
     }
 
     if (this.dayCache?.version !== version) {
-      this.dayCache = { version, value: await this.assets.getJson<ActivityDay[]>(DATA_PATHS.activityByDay) }
+      const days = await this.assets.getJson<ActivityDay[]>(DATA_PATHS.activityByDay)
+      if (!Array.isArray(days) || !days.every(isActivityDay)) {
+        throw new ArchiveDataError('archive_data_invalid', 'activity_by_day.json has an unsupported schema')
+      }
+      this.dayCache = { version, value: days }
     }
     const rows = this.dayCache.value.filter((row) => {
       if (args.wiki && row.wiki !== args.wiki) return false

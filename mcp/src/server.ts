@@ -33,16 +33,29 @@ type ShutdownTarget = {
   exit(code: number): void
 }
 
+export const SHUTDOWN_TIMEOUT_MS = 5_000
+
 export function installShutdownHandlers(handle: ClosableHandle, proc: ShutdownTarget = process): void {
   let closing = false
   const shutdown = () => {
     if (closing) return
     closing = true
+    let settled = false
+    const finish = (code: number) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      proc.exit(code)
+    }
+    const timeout = setTimeout(() => {
+      console.error('MCP server shutdown timed out')
+      finish(1)
+    }, SHUTDOWN_TIMEOUT_MS)
     handle.close().then(
-      () => proc.exit(0),
+      () => finish(0),
       (error: unknown) => {
         console.error(error instanceof Error ? error.message : error)
-        proc.exit(1)
+        finish(1)
       },
     )
   }
@@ -291,7 +304,7 @@ export function createArchiveMcpServer(
       description:
         'Literal substring search across all revision bodies (case-insensitive by default). The corpus is scanned locally in the MCP process: the first search loads about 3.2 MB gzip (~41 MB decoded) and caches it for the session. Returns one row per matching revision with the exact occurrence count and a snippet. Paginate with limit/offset without rescanning; set case_sensitive for exact-case matching.',
       inputSchema: {
-        q: nonEmptyText('Literal substring, 3-120 characters.', 120),
+        q: z.string().trim().min(3).max(120).describe('Literal substring, 3-120 characters.'),
         wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter.'),
         label: z.string().trim().max(200).optional().describe('Optional exact agent label filter.'),
         from: utcDate('Optional inclusive start date').optional(),
@@ -344,7 +357,7 @@ export function createArchiveMcpServer(
       description: 'Without other, return { label, links } with precomputed top links. With other, return the shared-page intersection across indexed pages (up to 2,000 stored pages per agent).',
       inputSchema: {
         label: nonEmptyText('Required exact agent label.', 200),
-        other: z.string().trim().max(200).optional().describe('Optional exact other agent label for the pair intersection.'),
+        other: z.string().trim().min(1).max(200).optional().describe('Optional exact other agent label for the pair intersection.'),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
