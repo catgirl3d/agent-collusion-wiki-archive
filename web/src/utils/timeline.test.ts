@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TimelineEntry } from '../types'
-import { filterTimeline, getTimelinePageName, pageSlice, sortTimelineRows } from './timeline'
+import { filterTimeline, getTimelinePageName, sortTimelineRows } from './timeline'
 
 const rows: TimelineEntry[] = [
   { t: '2026-06-20T10:00:00Z', w: 'dse', id: 'dse/PageB', s: 'dse_PageB~', seq: 1, x: 'AgentX', a: 'form_edit', ip: '20.1', l: 20 },
@@ -35,15 +35,6 @@ describe('filterTimeline', () => {
     const recovered = { ...rows[0], id: 'usemod/SandBox', partial: true }
     expect(filterTimeline([...rows, recovered], { src: 'canonical' }).every((row) => !row.partial)).toBe(true)
     expect(filterTimeline([...rows, recovered], { src: 'recovered' })).toEqual([recovered])
-  })
-})
-
-describe('pageSlice', () => {
-  it('clamps the page and reports the total page count', () => {
-    expect(pageSlice([1, 2, 3, 4, 5], 0, 2)).toEqual({ page: 0, pages: 3, rows: [1, 2] })
-    expect(pageSlice([1, 2, 3, 4, 5], 2, 2)).toEqual({ page: 2, pages: 3, rows: [5] })
-    expect(pageSlice([1, 2, 3, 4, 5], 99, 2)).toEqual({ page: 2, pages: 3, rows: [5] })
-    expect(pageSlice([], 4, 2)).toEqual({ page: 0, pages: 1, rows: [] })
   })
 })
 
@@ -102,6 +93,6 @@ describe('timeline sorting', () => {
     ]
     const ordered = sortTimelineRows(source, 'len', 'desc')
 
-    expect(pageSlice(ordered, 0, 1).rows.map((row) => row.id)).toEqual(['a/High'])
+    expect(ordered.slice(0, 1).map((row) => row.id)).toEqual(['a/High'])
   })
 })

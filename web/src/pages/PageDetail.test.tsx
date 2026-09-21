@@ -181,32 +181,29 @@ describe('PageDetail', () => {
     expect(domainBadge2).toHaveAttribute('title', 'prowiki.org')
   })
 
-  it('renders the revision history one page at a time', async () => {
+  it('renders the revision history with incremental load more', async () => {
     mockBigPage(120)
     renderPageDetail(['/page/main%2FBig'])
 
-    expect(await screen.findByText(/showing 1–50 · page 1\/3/)).toBeInTheDocument()
+    expect(await screen.findByText(/showing 50 of 120 revisions/)).toBeInTheDocument()
     expect(document.querySelectorAll('article.rev')).toHaveLength(50)
     expect(screen.getByText('#120')).toBeInTheDocument()
     expect(screen.getByText('#71')).toBeInTheDocument()
     expect(screen.queryByText('#70')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'older →' }))
+    fireEvent.click(screen.getByRole('button', { name: /Load older revisions/ }))
 
-    expect(screen.getByText(/showing 51–100 · page 2\/3/)).toBeInTheDocument()
-    expect(document.querySelectorAll('article.rev')).toHaveLength(50)
+    expect(screen.getByText(/showing 100 of 120 revisions/)).toBeInTheDocument()
+    expect(document.querySelectorAll('article.rev')).toHaveLength(100)
     expect(screen.getByText('#70')).toBeInTheDocument()
-    expect(screen.queryByText('#120')).toBeNull()
+    expect(screen.getByText('#120')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'older →' }))
+    fireEvent.click(screen.getByRole('button', { name: /Load older revisions/ }))
 
-    expect(screen.getByText(/showing 101–120 · page 3\/3/)).toBeInTheDocument()
-    expect(document.querySelectorAll('article.rev')).toHaveLength(20)
+    expect(screen.getByText(/showing 120 of 120 revisions/)).toBeInTheDocument()
+    expect(document.querySelectorAll('article.rev')).toHaveLength(120)
     expect(screen.getByText('#1')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'older →' })).toBeDisabled()
-
-    fireEvent.click(screen.getByRole('button', { name: '← newer' }))
-    expect(screen.getByText(/showing 51–100 · page 2\/3/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Load older revisions/ })).toBeNull()
   })
 
   it('keeps every revision available in the compare selectors', async () => {
@@ -222,13 +219,13 @@ describe('PageDetail', () => {
     mockBigPage(60, 'UNIQUE_OLDEST_MARKER https://api.counterapi.dev/v1/x/seen/up', [{ id: 'main/Big', s: 'main_Big~', f: ['beacon'], u: [] }])
     renderPageDetail(['/page/main%2FBig'])
 
-    expect(await screen.findByText(/showing 1–50 · page 1\/2/)).toBeInTheDocument()
+    expect(await screen.findByText(/showing 50 of 60 revisions/)).toBeInTheDocument()
     expect(document.querySelectorAll('article.rev')).toHaveLength(50)
 
     fireEvent.click(await screen.findByText('What matched these flags?'))
     fireEvent.click(await screen.findByRole('button', { name: 'Open revision #1' }))
 
-    expect(await screen.findByText(/showing 51–60 · page 2\/2/)).toBeInTheDocument()
+    expect(await screen.findByText(/showing 60 of 60 revisions/)).toBeInTheDocument()
     const article = document.getElementById('rev-0')
     expect(article).not.toBeNull()
     expect(within(article as HTMLElement).getByText(/UNIQUE_OLDEST_MARKER/)).toBeVisible()

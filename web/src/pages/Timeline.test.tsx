@@ -224,7 +224,7 @@ describe('Timeline', () => {
     expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
     await waitFor(() => expect(currentSearch().get('to')).toBe('2026-06-20'))
     expect(currentSearch().has('day')).toBe(false)
-    expect(await screen.findByText(/2 of 2 revisions/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /2 of 2 revisions/ })).toBeInTheDocument()
   })
 
   it('drops the range start when the picked end date is earlier', async () => {
@@ -294,7 +294,7 @@ describe('Timeline', () => {
     expect(currentSearch().has('from')).toBe(false)
     expect(currentSearch().get('to')).toBe('2026-06-20')
     expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
-    expect(screen.getByText(/2 of 2 revisions/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /2 of 2 revisions/ })).toBeInTheDocument()
   })
 
   it('clears only the range end when the to picker is cleared', async () => {
@@ -310,7 +310,7 @@ describe('Timeline', () => {
     expect(currentSearch().has('to')).toBe(false)
     expect(currentSearch().get('from')).toBe('2026-06-19')
     expect(await screen.findByRole('link', { name: 'PageB' })).toBeInTheDocument()
-    expect(screen.getByText(/2 of 2 revisions/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /2 of 2 revisions/ })).toBeInTheDocument()
   })
 
   it('normalizes invalid source and fractional page', async () => {

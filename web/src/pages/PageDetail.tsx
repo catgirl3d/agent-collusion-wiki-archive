@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { buildPairTimeline, collectPayloadEvidence, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
 import { loadJson, revisionFile } from '../api'
 import { Dropdown } from '../components/Dropdown'
-import { Badge, Button, Chip, PageLink } from '../components/ui'
+import { Badge, Button, Chip, LoadMore, PageLink } from '../components/ui'
 import { DiffView } from '../components/DiffView'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import { useData, useJson } from '../components/useQuery'
@@ -332,7 +332,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   const [sel, setSel] = useState<{ from: number; to: number } | null>(null)
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
   const [evidenceOpen, setEvidenceOpen] = useState(false)
-  const [revPage, setRevPage] = useState(0)
+  const [revLimit, setRevLimit] = useState(REVISIONS_PER_PAGE)
 
   const payload = useMemo(() => (lookupId ? payloadIndex?.find((item) => item.s === meta?.s || item.id === lookupId) : undefined), [payloadIndex, meta?.s, lookupId])
   const evidence = useMemo(() => evidenceOpen && payload && revs ? collectPayloadEvidence(revs, payload.f) : null, [evidenceOpen, payload, revs])
@@ -442,19 +442,15 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     label: `#${index + 1} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
   }))
 
-  const revTotalPages = Math.max(1, Math.ceil(revs.length / REVISIONS_PER_PAGE))
-  const revCur = Math.min(revPage, revTotalPages - 1)
-  const revOffset = revCur * REVISIONS_PER_PAGE
-  const revFirst = revs.length === 0 ? 0 : revOffset + 1
-  const revLast = Math.min(revOffset + REVISIONS_PER_PAGE, revs.length)
   const visibleRevisions: number[] = []
-  for (let i = revs.length - 1 - revOffset; i >= 0 && visibleRevisions.length < REVISIONS_PER_PAGE; i--) visibleRevisions.push(i)
+  for (let i = revs.length - 1; i >= 0 && visibleRevisions.length < revLimit; i--) visibleRevisions.push(i)
 
-  // Payload evidence can point at a revision on another history page: switch to that page first,
-  // then focus and scroll to the article once React has committed the new page to the DOM.
+  // Payload evidence can point at an older revision: expand the limit if needed,
+  // then focus and scroll to the article once React has committed the revision to the DOM.
   const openRevision = (index: number) => {
     setExpanded((prev) => ({ ...prev, [index]: true }))
-    setRevPage(Math.floor((revs.length - 1 - index) / REVISIONS_PER_PAGE))
+    const needed = revs.length - index
+    if (needed > revLimit) setRevLimit(needed)
     requestAnimationFrame(() => {
       const element = document.getElementById(`rev-${index}`)
       if (!element) return
@@ -559,7 +555,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         <h2>
           Revision history ({fmtInt(revs.length)}){' '}
           {revs.length > 0 && (
-            <span className="muted">showing {fmtInt(revFirst)}–{fmtInt(revLast)} · page {revCur + 1}/{revTotalPages}</span>
+            <span className="muted">showing {fmtInt(visibleRevisions.length)} of {fmtInt(revs.length)} revisions</span>
           )}
         </h2>
         {visibleRevisions.map((i) => {
@@ -597,12 +593,14 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
             </article>
           )
         })}
-        {revTotalPages > 1 && (
-          <div className="pager">
-            <Button variant="ghost" disabled={revCur === 0} onClick={() => setRevPage(Math.max(0, revCur - 1))}>← newer</Button>
-            <Button variant="ghost" disabled={revCur >= revTotalPages - 1} onClick={() => setRevPage(Math.min(revTotalPages - 1, revCur + 1))}>older →</Button>
-          </div>
-        )}
+        <LoadMore
+          loaded={visibleRevisions.length}
+          total={revs.length}
+          onLoadMore={() => setRevLimit((prev) => prev + REVISIONS_PER_PAGE)}
+          step={REVISIONS_PER_PAGE}
+          unit="remaining"
+          action="Load older revisions"
+        />
       </section>
     </div>
   )
