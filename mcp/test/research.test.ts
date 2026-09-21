@@ -313,13 +313,28 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
     await expect(research.listRevisions({ order: 'sideways' as 'asc' })).rejects.toBeInstanceOf(ArchiveQueryError)
   })
 
+  it('sorts desc explicitly even when the timeline file is not pre-sorted', async () => {
+    const { state, assets } = fakeAssets()
+    state.timeline = { ...timeline, r: [...timeline.r].reverse() }
+    const research = new ArchiveResearch(assets)
+
+    const result = await research.listRevisions({})
+
+    expect(result.order).toBe('desc')
+    expect(result.revisions.map((row) => row.t)).toEqual([
+      '2026-06-20T10:00:00Z',
+      '2026-06-19T10:00:00Z',
+      '2026-06-18T10:00:00Z',
+    ])
+  })
+
   it('filters daily activity and rejects unsupported hourly filters', async () => {
     const { assets } = fakeAssets()
     const research = new ArchiveResearch(assets)
 
     const days = await research.getActivity({ by: 'day', wiki: 'dse', from: '2026-06-19' })
     expect(days.total).toBe(1)
-    expect(days.rows[0].date).toBe('2026-06-19')
+    expect((days.rows[0] as ActivityDay).date).toBe('2026-06-19')
 
     const hours = await research.getActivity({ by: 'hour' })
     expect(hours).toMatchObject({ by: 'hour', total: 1 })
@@ -370,6 +385,58 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
     expect(result.revisions.at(-1)).toMatchObject({ id: 'other/Page', partial: true })
   })
 
+  it('orders desc ties by id and seq ascending like the canonical pipeline order', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = { ...state.summary, counts: { revisions: 4 } }
+    state.timeline = {
+      ...timeline,
+      meta: { ...timeline.meta, count: 4 },
+      r: [
+        { t: '2026-06-19T10:00:00Z', w: 'dse', id: 'dse/PageB', s: 'dse_PageB~', seq: 2, x: 'AgentY', a: 'form_edit', ip: null, l: 18 },
+        { t: '2026-06-18T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 1, x: 'AgentX', a: 'form_edit', ip: null, l: 40 },
+        { t: '2026-06-19T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 2, x: 'AgentY', a: 'form_edit', ip: null, l: 18 },
+        { t: '2026-06-19T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 1, x: 'AgentX', a: 'form_edit', ip: null, l: 40 },
+      ],
+    }
+
+    const result = await new ArchiveResearch(assets).listRevisions({})
+
+    expect(result.revisions.map((row) => [row.id, row.seq])).toEqual([
+      ['dse/PageA', 1],
+      ['dse/PageA', 2],
+      ['dse/PageB', 2],
+      ['dse/PageA', 1],
+    ])
+  })
+
+  it('keeps paginated desc pages consistent across tie boundaries without mutating input', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = { ...state.summary, counts: { revisions: 5 } }
+    const shuffled = [
+      { t: '2026-06-19T10:00:00Z', w: 'dse', id: 'dse/PageB', s: 'dse_PageB~', seq: 1, x: 'AgentY', a: 'form_edit', ip: null, l: 18 },
+      { t: '2026-06-20T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 1, x: 'AgentX', a: 'form_edit', ip: null, l: 40 },
+      { t: '2026-06-19T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 2, x: 'AgentY', a: 'form_edit', ip: null, l: 18 },
+      { t: '2026-06-18T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 1, x: 'AgentX', a: 'form_edit', ip: null, l: 40 },
+      { t: '2026-06-19T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 1, x: 'AgentX', a: 'form_edit', ip: null, l: 40 },
+    ]
+    state.timeline = { ...timeline, meta: { ...timeline.meta, count: 5 }, r: shuffled }
+    const before = JSON.stringify(shuffled)
+    const research = new ArchiveResearch(assets)
+
+    const full = await research.listRevisions({ limit: 5 })
+    const page0 = await research.listRevisions({ limit: 2, offset: 0 })
+    const page1 = await research.listRevisions({ limit: 2, offset: 2 })
+    const page2 = await research.listRevisions({ limit: 2, offset: 4 })
+
+    expect(full.total).toBe(5)
+    expect([...page0.revisions, ...page1.revisions, ...page2.revisions]).toEqual(full.revisions)
+    expect(page1.revisions.map((row) => [row.id, row.seq])).toEqual([
+      ['dse/PageA', 2],
+      ['dse/PageB', 1],
+    ])
+    expect(JSON.stringify(shuffled)).toBe(before)
+  })
+
   it('rejects a timeline from a different data release than the summary', async () => {
     const { state, assets } = fakeAssets()
     state.summary = { ...state.summary, export_generated_at: '2026-06-22T00:00:00Z' }
@@ -397,6 +464,7 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
       'timeline.json does not match summary generation',
     )
   })
+
   it('rejects a timeline whose row count disagrees with the combined summary', async () => {
     const { state, assets } = fakeAssets()
     state.summary = { ...state.summary, combined: { revisions: 4 } }

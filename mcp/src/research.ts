@@ -405,7 +405,11 @@ export class ArchiveResearch {
         ? [...rows].sort(
             (a, b) => a.t.localeCompare(b.t) || a.id.localeCompare(b.id) || (a.seq ?? 0) - (b.seq ?? 0),
           )
-        : rows
+        : [...rows].sort(
+            // Canonical project order: time follows the requested direction,
+            // tie-breakers always ascend (matches searchCorpus and the build pipeline).
+            (a, b) => b.t.localeCompare(a.t) || a.id.localeCompare(b.id) || (a.seq ?? 0) - (b.seq ?? 0),
+          )
 
     return {
       export_generated_at: summary.export_generated_at ?? null,
