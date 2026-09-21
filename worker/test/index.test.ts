@@ -233,6 +233,14 @@ describe('Worker API default fetch handler', () => {
     const missing = await request('/api/pages/Unknown~_h00000000/revisions')
     expect(missing.response.status).toBe(404)
     expect(await json(missing.response)).toEqual({ error: 'revisions not found for slug', code: 'not_found' })
+
+    const upstreamError = await request(
+      '/api/pages/Page_One~_h12345678/revisions',
+      undefined,
+      { '/data/revisions/Page_One~_h12345678.json': new Response('upstream error', { status: 500 }) }
+    )
+    expect(upstreamError.response.status).toBe(500)
+    expect(await json(upstreamError.response)).toEqual({ error: 'internal error', code: 'internal_error' })
   })
 
   it('clears a rejected asset cache entry so a later request retries', async () => {
@@ -323,6 +331,47 @@ describe('Worker API default fetch handler', () => {
   it('filters the complete conflicts list', async () => {
     const result = await request('/api/conflicts?minChurn=0&zzz=true&limit=200')
     expect(await json(result.response)).toMatchObject({ total: 1, conflicts: [conflicts[0]] })
+  })
+
+  it('treats explicit false conflict flags as no filter', async () => {
+    const flagged = [
+      { id: 'a/zzz', s: 'a_zzz~', churn: 5, zzz: true, front: false },
+      { id: 'b/front', s: 'b_front~', churn: 5, zzz: false, front: true },
+      { id: 'c/plain', s: 'c_plain~', churn: 5, zzz: false, front: false },
+    ]
+    const overrides = { '/data/conflicts.json': flagged }
+    const get = async (query: string) =>
+      json((await request(`/api/conflicts?minChurn=0${query}&limit=200`, undefined, overrides)).response)
+
+    expect((await get('')).total).toBe(3)
+    expect((await get('&zzz=false')).total).toBe(3)
+    expect((await get('&front=false')).total).toBe(3)
+    expect((await get('&zzz=true')).total).toBe(1)
+    expect((await get('&front=true')).total).toBe(1)
+  })
+
+  it('rejects revision body values other than 0 or 1', async () => {
+    const bad = await request('/api/pages/Page_One~_h12345678/revisions?body=2')
+    expect(bad.response.status).toBe(400)
+    expect(await json(bad.response)).toMatchObject({ code: 'invalid_param' })
+  })
+
+  it('distinguishes missing revision assets from corrupt ones', async () => {
+    const missing = await request('/api/pages/Missing~_h00000000/revisions')
+    expect(missing.response.status).toBe(404)
+    expect(await json(missing.response)).toMatchObject({ code: 'not_found' })
+
+    const corrupt = await request('/api/pages/Page_One~_h12345678/revisions', undefined, {
+      '/data/revisions/Page_One~_h12345678.json': new Response('not json', { status: 200 }),
+    })
+    expect(corrupt.response.status).toBe(500)
+    expect(await json(corrupt.response)).toMatchObject({ code: 'internal_error' })
+
+    const misleading = await request('/api/pages/Page_One~_h12345678/revisions', undefined, {
+      '/data/revisions/Page_One~_h12345678.json': new Response('HTTP 404 missing page', { status: 200 }),
+    })
+    expect(misleading.response.status).toBe(500)
+    expect(await json(misleading.response)).toMatchObject({ code: 'internal_error' })
   })
 
   it('filters revisions by raw contains and emits snippets only without bodies', async () => {
