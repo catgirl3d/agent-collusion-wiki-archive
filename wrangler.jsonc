@@ -3,6 +3,17 @@
   "name": "agent-collusion-archive",
   "main": "worker/src/index.ts",
   "compatibility_date": "2025-06-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true
+    },
+    "traces": {
+      "enabled": true
+    }
+  },
   "assets": {
     "directory": "./web/dist",
     "binding": "ASSETS",
