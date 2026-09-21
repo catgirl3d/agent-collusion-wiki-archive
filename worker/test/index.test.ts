@@ -342,6 +342,12 @@ describe('Worker API default fetch handler', () => {
     expect((await get('&front=true')).total).toBe(1)
   })
 
+  it('rejects revision body values other than 0 or 1', async () => {
+    const bad = await request('/api/pages/Page_One~_h12345678/revisions?body=2')
+    expect(bad.response.status).toBe(400)
+    expect(await json(bad.response)).toMatchObject({ code: 'invalid_param' })
+  })
+
   it('filters revisions by raw contains and emits snippets only without bodies', async () => {
     const result = await request('/api/pages/Page_One~_h12345678/revisions?label=Bob&contains=NEEDLE&body=0')
     const body = await json(result.response)

@@ -255,6 +255,7 @@ export default {
           seq = parsed
         }
         const body = url.searchParams.get('body') ?? '1'
+        if (body !== '0' && body !== '1') return err(400, 'body must be 0 or 1', 'invalid_param')
         const withBody = body !== '0'
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 500)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
