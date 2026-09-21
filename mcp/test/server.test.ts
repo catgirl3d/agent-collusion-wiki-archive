@@ -265,6 +265,38 @@ describe('archive MCP server', () => {
     expect(result.isError).toBe(true)
   })
 
+  it('rejects an undersized corpus query before invoking the research handler', async () => {
+    const research = fakeResearch()
+    const searchCorpus = vi.fn(research.searchCorpus)
+    research.searchCorpus = searchCorpus
+    const server = createArchiveMcpServer(fakeApi(), research)
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverTransport)
+    const client = new Client({ name: 'corpus-length-test-client', version: '1.0.0' })
+    await client.connect(clientTransport)
+
+    const result = await client.callTool({ name: 'search_corpus', arguments: { q: 'ab' } })
+
+    expect(result.isError).toBe(true)
+    expect(searchCorpus).not.toHaveBeenCalled()
+  })
+
+  it('rejects a blank agent-links other before invoking the API', async () => {
+    const api = fakeApi()
+    const getAgentLinks = vi.fn(api.getAgentLinks)
+    api.getAgentLinks = getAgentLinks
+    const server = createArchiveMcpServer(api, fakeResearch())
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverTransport)
+    const client = new Client({ name: 'links-blank-test-client', version: '1.0.0' })
+    await client.connect(clientTransport)
+
+    const result = await client.callTool({ name: 'get_agent_links', arguments: { label: 'A', other: '   ' } })
+
+    expect(result.isError).toBe(true)
+    expect(getAgentLinks).not.toHaveBeenCalled()
+  })
+
   it('closes the stdio server and exits 0 on SIGINT or SIGTERM', async () => {
     const listeners = new Map<string, Array<() => void>>()
     const target = {
@@ -285,6 +317,46 @@ describe('archive MCP server', () => {
     for (const listener of listeners.get('SIGINT') ?? []) listener()
     expect(close).toHaveBeenCalledTimes(1)
   })
+
+  it('exits 1 when the shutdown close hangs', async () => {
+    const listeners = new Map<string, Array<() => void>>()
+    const target = {
+      on(signal: string, listener: () => void) {
+        listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
+      },
+      exit: vi.fn(),
+    }
+    const close = vi.fn().mockReturnValue(new Promise(() => {}))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    installShutdownHandlers({ close }, target)
+    for (const listener of listeners.get('SIGTERM') ?? []) listener()
+    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(1), { timeout: 8000 })
+    expect(error).toHaveBeenCalledWith('MCP server shutdown timed out')
+  }, 15_000)
+
+  it('calls exit only once when close settles after the timeout', async () => {
+    const listeners = new Map<string, Array<() => void>>()
+    const target = {
+      on(signal: string, listener: () => void) {
+        listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
+      },
+      exit: vi.fn(),
+    }
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const close = vi.fn().mockReturnValue(gate)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    installShutdownHandlers({ close }, target)
+    for (const listener of listeners.get('SIGTERM') ?? []) listener()
+    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(1), { timeout: 8000 })
+    release()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(target.exit).toHaveBeenCalledTimes(1)
+  }, 15_000)
 
   it('exits 1 when the shutdown close fails', async () => {
     const listeners = new Map<string, Array<() => void>>()
