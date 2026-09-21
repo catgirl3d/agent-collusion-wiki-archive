@@ -69,6 +69,18 @@ function pageView(p: PageRecord) {
 }
 
 // In-memory per-isolate cache: pages.json (1.2 MB) is parsed once.
+export class AssetHttpError extends Error {
+  readonly status: number
+  readonly path: string
+
+  constructor(path: string, status: number) {
+    super(`asset ${path}: HTTP ${status}`)
+    this.name = 'AssetHttpError'
+    this.status = status
+    this.path = path
+  }
+}
+
 const cache = new Map<string, Promise<unknown>>()
 
 function loadAsset<T>(env: Env, req: Request, path: string): Promise<T> {
@@ -76,7 +88,7 @@ function loadAsset<T>(env: Env, req: Request, path: string): Promise<T> {
   if (hit) return hit
   const url = new URL(path, req.url)
   const p: Promise<T> = env.ASSETS.fetch(new Request(url)).then(async (res: Response) => {
-    if (!res.ok) throw new Error(`asset ${path}: HTTP ${res.status}`)
+    if (!res.ok) throw new AssetHttpError(path, res.status)
     return (await res.json()) as T
   })
   cache.set(path, p)
@@ -262,8 +274,13 @@ export default {
         let revs: Record<string, unknown>[]
         try {
           revs = await loadAsset<Record<string, unknown>[]>(env, req, `/data/revisions/${slug}.json`)
-        } catch {
-          return err(404, 'revisions not found for slug', 'not_found')
+        } catch (e) {
+          // loadAsset reports a missing asset as `HTTP 404`; anything else means the
+          // asset exists but is unreadable, and must not be masked as not_found.
+          if (e instanceof AssetHttpError && e.status === 404) {
+            return err(404, 'revisions not found for slug', 'not_found')
+          }
+          throw e
         }
         const labelFiltered = label ? revs.filter((r) => r['label'] === label) : revs
         const seqFiltered = seq === null ? labelFiltered : labelFiltered.filter((r) => r['seq'] === seq)

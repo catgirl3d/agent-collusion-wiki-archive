@@ -233,6 +233,14 @@ describe('Worker API default fetch handler', () => {
     const missing = await request('/api/pages/Unknown~_h00000000/revisions')
     expect(missing.response.status).toBe(404)
     expect(await json(missing.response)).toEqual({ error: 'revisions not found for slug', code: 'not_found' })
+
+    const upstreamError = await request(
+      '/api/pages/Page_One~_h12345678/revisions',
+      undefined,
+      { '/data/revisions/Page_One~_h12345678.json': new Response('upstream error', { status: 500 }) }
+    )
+    expect(upstreamError.response.status).toBe(500)
+    expect(await json(upstreamError.response)).toEqual({ error: 'internal error', code: 'internal_error' })
   })
 
   it('clears a rejected asset cache entry so a later request retries', async () => {
@@ -346,6 +354,24 @@ describe('Worker API default fetch handler', () => {
     const bad = await request('/api/pages/Page_One~_h12345678/revisions?body=2')
     expect(bad.response.status).toBe(400)
     expect(await json(bad.response)).toMatchObject({ code: 'invalid_param' })
+  })
+
+  it('distinguishes missing revision assets from corrupt ones', async () => {
+    const missing = await request('/api/pages/Missing~_h00000000/revisions')
+    expect(missing.response.status).toBe(404)
+    expect(await json(missing.response)).toMatchObject({ code: 'not_found' })
+
+    const corrupt = await request('/api/pages/Page_One~_h12345678/revisions', undefined, {
+      '/data/revisions/Page_One~_h12345678.json': new Response('not json', { status: 200 }),
+    })
+    expect(corrupt.response.status).toBe(500)
+    expect(await json(corrupt.response)).toMatchObject({ code: 'internal_error' })
+
+    const misleading = await request('/api/pages/Page_One~_h12345678/revisions', undefined, {
+      '/data/revisions/Page_One~_h12345678.json': new Response('HTTP 404 missing page', { status: 200 }),
+    })
+    expect(misleading.response.status).toBe(500)
+    expect(await json(misleading.response)).toMatchObject({ code: 'internal_error' })
   })
 
   it('filters revisions by raw contains and emits snippets only without bodies', async () => {
