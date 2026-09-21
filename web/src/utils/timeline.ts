@@ -89,16 +89,3 @@ export function sortTimelineRows(rows: TimelineEntry[], sort: TimelineSortKey, d
   ))
 }
 
-export function pageSlice<T>(
-  rows: T[],
-  page: number,
-  pageSize = TIMELINE_PAGE_SIZE,
-): { page: number; pages: number; rows: T[] } {
-  const pages = Math.max(1, Math.ceil(rows.length / pageSize))
-  const current = Math.min(Math.max(page, 0), pages - 1)
-  return {
-    page: current,
-    pages,
-    rows: rows.slice(current * pageSize, (current + 1) * pageSize),
-  }
-}

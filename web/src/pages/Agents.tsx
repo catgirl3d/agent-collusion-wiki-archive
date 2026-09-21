@@ -1,7 +1,7 @@
 import { Fragment, useDeferredValue, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
-import { Badge, Button, PageLink } from '../components/ui'
+import { Badge, Button, LoadMore, PageLink } from '../components/ui'
 import type { LabelsIndex } from '../types'
 import { filterLabels, fmtInt, toCsv } from '../utils/format'
 import { downloadBlob } from '../utils/download'
@@ -120,13 +120,13 @@ export default function Agents() {
         </table>
       </div>
 
-      {filtered.length > shown.length && (
-        <div style={{ marginTop: 16 }}>
-          <Button onClick={() => setLimit((n) => n + RESULT_LIMIT)}>
-            Load more ({fmtInt(filtered.length - shown.length)} remaining)
-          </Button>
-        </div>
-      )}
+      <LoadMore
+        loaded={shown.length}
+        total={filtered.length}
+        onLoadMore={() => setLimit((n) => n + RESULT_LIMIT)}
+        step={RESULT_LIMIT}
+        unit="remaining"
+      />
     </div>
   )
 }

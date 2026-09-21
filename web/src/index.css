@@ -1296,7 +1296,8 @@ a:hover {
   cursor: not-allowed;
 }
 
-.pager {
+.pager,
+.load-more-row {
   display: flex;
   align-items: center;
   gap: 12px;

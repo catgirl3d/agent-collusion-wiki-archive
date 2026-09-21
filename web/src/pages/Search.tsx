@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, Button, PageLink, SortHeader } from '../components/ui'
+import { Badge, Button, LoadMore, PageLink, SortHeader } from '../components/ui'
 import type { CorpusMatch, CorpusRevisionKey, CorpusSearchResult, Summary } from '../types'
 import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
 import {
@@ -187,6 +187,7 @@ export default function Search() {
     setState(urlQ.trim() ? { status: 'loading', message: 'starting…' } : { status: 'idle' })
   }
 
+  const [loadingMore, setLoadingMore] = useState(false)
   const latestRequest = useRef(0)
   const lastRunKey = useRef('')
   const urlKeyRef = useRef(urlKey)
@@ -203,8 +204,14 @@ export default function Search() {
     return subscribeCorpusWorker((message) => {
       if (!message || message.requestId !== latestRequest.current) return
       if (message.type === 'progress') setState({ status: 'loading', message: progressMessage(message) })
-      else if (message.type === 'result') setState({ status: 'ready', result: message.result })
-      else if (message.type === 'error') setState({ status: 'error', message: message.error, code: message.code })
+      else if (message.type === 'result') {
+        setLoadingMore(false)
+        setState({ status: 'ready', result: message.result })
+      }
+      else if (message.type === 'error') {
+        setLoadingMore(false)
+        setState({ status: 'error', message: message.error, code: message.code })
+      }
     })
   }, [workerUnavailable])
 
@@ -226,13 +233,13 @@ export default function Search() {
       to: searchParams.get('to') || undefined,
       caseSensitive: searchParams.get('case') === '1',
       wholeWord: searchParams.get('word') === '1',
-      limit: PAGE_SIZE,
-      offset: Math.max(0, Number(searchParams.get('page') ?? '0') || 0) * PAGE_SIZE,
+      limit: (page + 1) * PAGE_SIZE,
+      offset: 0,
       sort: sortState.sort,
       dir: sortState.dir,
     }
     postCorpusRequest(message)
-  }, [searchParams, runId, workerUnavailable, sortState.sort, sortState.dir])
+  }, [searchParams, runId, workerUnavailable, sortState.sort, sortState.dir, page])
 
   const visibleState: SearchState = urlQ.trim() ? state : { status: 'idle' }
 
@@ -303,6 +310,7 @@ export default function Search() {
   }
 
   const goToPage = (nextPage: number) => {
+    setLoadingMore(true)
     const next = new URLSearchParams(searchParams)
     if (nextPage > 0) next.set('page', String(nextPage))
     else next.delete('page')
@@ -384,7 +392,7 @@ export default function Search() {
         <>
           <div className="filters">
             <span className="muted result-count">
-              {fmtInt(visibleState.result.total)} matching revisions · page {Math.floor(visibleState.result.offset / PAGE_SIZE) + 1}/{Math.max(1, Math.ceil(visibleState.result.total / PAGE_SIZE))}
+              showing {fmtInt(visibleState.result.matches.length)} of {fmtInt(visibleState.result.total)} matching revisions
             </span>
           </div>
           <div className="table-wrap">
@@ -454,16 +462,13 @@ export default function Search() {
             </table>
           </div>
           {visibleState.result.matches.length === 0 && <div className="muted">No matches in the selected scope.</div>}
-          <div className="pager">
-            <Button variant="ghost" disabled={visibleState.result.offset === 0} onClick={() => goToPage(page - 1)}>← prev</Button>
-            <Button
-              variant="ghost"
-              disabled={visibleState.result.offset + PAGE_SIZE >= visibleState.result.total}
-              onClick={() => goToPage(page + 1)}
-            >
-              next →
-            </Button>
-          </div>
+          <LoadMore
+            loaded={visibleState.result.matches.length}
+            total={visibleState.result.total}
+            onLoadMore={() => goToPage(page + 1)}
+            step={PAGE_SIZE}
+            loading={loadingMore}
+          />
         </>
       )}
     </div>

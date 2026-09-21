@@ -1,8 +1,8 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useData } from '../components/useQuery'
-import { Badge, Button, PageLink } from '../components/ui'
+import { Badge, LoadMore, PageLink } from '../components/ui'
 import type { ConflictRow, PageRecord, PagesIndex } from '../types'
-import { fmtDuration } from '../utils/format'
+import { fmtDuration, fmtInt } from '../utils/format'
 
 const PAGE_SIZE = 50
 const ZZZ_COLOR = '#f59e0b'
@@ -15,7 +15,7 @@ export default function Conflicts() {
   const [frontOnly, setFrontOnly] = useState(false)
   const [zzzOnly, setZzzOnly] = useState(false)
   const [sharedOnly, setSharedOnly] = useState(true)
-  const [page, setPage] = useState(0)
+  const [limit, setLimit] = useState(PAGE_SIZE)
   const deferredQuery = useDeferredValue(query)
 
   const names = useMemo(() => {
@@ -39,13 +39,11 @@ export default function Conflicts() {
   if (error) return <div className="error">Error: {error}</div>
   if (!conflicts || !pages) return <div className="loading">Loading…</div>
 
-  const pagesCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const currentPage = Math.min(page, pagesCount - 1)
-  const shown = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
+  const shown = filtered.slice(0, limit)
 
-  const resetPage = <T,>(callback: (value: T) => void, value: T) => {
+  const resetLimit = <T,>(callback: (value: T) => void, value: T) => {
     callback(value)
-    setPage(0)
+    setLimit(PAGE_SIZE)
   }
 
   return (
@@ -57,21 +55,21 @@ export default function Conflicts() {
           aria-label="Search shared pages"
           placeholder="Search page / id…"
           value={query}
-          onChange={(event) => resetPage(setQuery, event.target.value)}
+          onChange={(event) => resetLimit(setQuery, event.target.value)}
         />
         <label className="check">
-          <input type="checkbox" checked={sharedOnly} onChange={(event) => resetPage(setSharedOnly, event.target.checked)} />
+          <input type="checkbox" checked={sharedOnly} onChange={(event) => resetLimit(setSharedOnly, event.target.checked)} />
           shared only
         </label>
         <label className="check">
-          <input type="checkbox" checked={frontOnly} onChange={(event) => resetPage(setFrontOnly, event.target.checked)} />
+          <input type="checkbox" checked={frontOnly} onChange={(event) => resetLimit(setFrontOnly, event.target.checked)} />
           front only
         </label>
         <label className="check">
-          <input type="checkbox" checked={zzzOnly} onChange={(event) => resetPage(setZzzOnly, event.target.checked)} />
+          <input type="checkbox" checked={zzzOnly} onChange={(event) => resetLimit(setZzzOnly, event.target.checked)} />
           zzz only
         </label>
-        <span className="muted result-count">{filtered.length} shown · page {currentPage + 1}/{pagesCount}</span>
+        <span className="muted result-count">{filtered.length === 0 ? 'no matches' : `showing ${fmtInt(shown.length)} of ${fmtInt(filtered.length)} shared pages`}</span>
       </div>
 
       <div className="table-wrap">
@@ -103,10 +101,12 @@ export default function Conflicts() {
         </table>
       </div>
 
-      <div className="pager">
-        <Button variant="ghost" disabled={currentPage === 0} onClick={() => setPage((value) => value - 1)}>← prev</Button>
-        <Button variant="ghost" disabled={currentPage >= pagesCount - 1} onClick={() => setPage((value) => value + 1)}>next →</Button>
-      </div>
+      <LoadMore
+        loaded={shown.length}
+        total={filtered.length}
+        onLoadMore={() => setLimit((value) => value + PAGE_SIZE)}
+        step={PAGE_SIZE}
+      />
     </div>
   )
 }

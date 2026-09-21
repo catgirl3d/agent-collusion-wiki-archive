@@ -1,5 +1,6 @@
 import { Link, type LinkProps } from 'react-router-dom'
 import type { SortState } from '../utils/sort'
+import { fmtInt } from '../utils/format'
 
 export function PageLink({ id, name, max }: { id: string; name: string; max?: number }) {
   const short = max && name.length > max ? `${name.slice(0, max)}…` : name
@@ -81,3 +82,70 @@ export function Button({ variant = 'primary', size = 'md', className, children, 
   }
   return <button type="button" className={classes} {...rest}>{children}</button>
 }
+
+const SCROLL_TOP_LABEL = 'Scroll to top'
+
+export function ScrollTopButton({
+  children,
+  className,
+  ...rest
+}: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'className' | 'onClick' | 'type'> & {
+  children?: React.ReactNode
+  className?: string
+}) {
+  // The accessible label is pinned only to the default content: custom children
+  // keep their own accessible name so the visible text and the name never diverge.
+  return (
+    <Button
+      variant="ghost"
+      className={className}
+      aria-label={children === undefined ? SCROLL_TOP_LABEL : undefined}
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      {...rest}
+    >
+      {children ?? (<><span aria-hidden="true">↑ </span>top</>)}
+    </Button>
+  )
+}
+
+export function LoadMore({
+  loaded,
+  total,
+  onLoadMore,
+  step = 50,
+  unit = 'left',
+  label,
+  action = 'Load more',
+  showScrollTop = true,
+  loading = false,
+  disabled = false,
+}: {
+  loaded: number
+  total: number
+  onLoadMore: () => void
+  step?: number
+  unit?: string
+  label?: string
+  action?: string
+  showScrollTop?: boolean
+  loading?: boolean
+  disabled?: boolean
+}) {
+  const remaining = Math.max(0, total - loaded)
+  const hasMore = remaining > 0
+  const canScrollTop = showScrollTop && loaded > step
+
+  if (!hasMore && !canScrollTop) return null
+
+  return (
+    <div className="load-more-row">
+      {hasMore && (
+        <Button onClick={onLoadMore} disabled={disabled || loading} aria-busy={loading || undefined}>
+          {loading ? 'Loading…' : (label ?? `${action} (${fmtInt(remaining)} ${unit})`)}
+        </Button>
+      )}
+      {canScrollTop && <ScrollTopButton />}
+    </div>
+  )
+}
+

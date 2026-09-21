@@ -3,15 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, Button, PageLink, SortHeader } from '../components/ui'
+import { Badge, LoadMore, PageLink, SortHeader } from '../components/ui'
 import type { TimelineFile } from '../types'
 import { fmtInt, fmtTime, SOURCE_FILTER_OPTIONS } from '../utils/format'
 import type { SourceFilter } from '../utils/format'
 import {
   filterTimeline,
   getTimelinePageName,
-  pageSlice,
   sortTimelineRows,
+  TIMELINE_PAGE_SIZE,
   TIMELINE_SORT_DEFAULT,
   TIMELINE_SORT_DEFAULTS,
   TIMELINE_SORT_KEYS,
@@ -120,7 +120,8 @@ export default function Timeline() {
   if (error) return <div className="error">Error: {error}</div>
   if (!data) return <div className="loading">Loading…</div>
 
-  const paged = pageSlice(filtered, page)
+  const visibleCount = Math.min(filtered.length, (page + 1) * TIMELINE_PAGE_SIZE)
+  const shownRows = filtered.slice(0, visibleCount)
 
   return (
     <div className="page">
@@ -149,7 +150,7 @@ export default function Timeline() {
         <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={pickDay} />
         <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={pickFrom} />
         <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={pickTo} />
-        <span className="muted result-count">page {paged.page + 1}/{paged.pages}</span>
+        <span className="muted result-count">{filtered.length === 0 ? 'no matches' : `showing ${fmtInt(shownRows.length)} of ${fmtInt(filtered.length)} revisions`}</span>
       </div>
 
       <div className="table-wrap">
@@ -166,7 +167,7 @@ export default function Timeline() {
             </tr>
           </thead>
           <tbody>
-            {paged.rows.map((row, index) => (
+            {shownRows.map((row, index) => (
               <tr key={`${row.id}-${row.seq}-${row.t}-${index}`}>
                 <td className="muted nowrap">{fmtTime(row.t)}</td>
                 <td>{row.w}</td>
@@ -181,22 +182,12 @@ export default function Timeline() {
         </table>
       </div>
 
-      <div className="pager">
-        <Button
-          variant="ghost"
-          disabled={paged.page === 0}
-          onClick={() => update({ page: String(Math.max(0, paged.page - 1)) }, false)}
-        >
-          ← prev
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={paged.page >= paged.pages - 1}
-          onClick={() => update({ page: String(paged.page + 1) }, false)}
-        >
-          next →
-        </Button>
-      </div>
+      <LoadMore
+        loaded={shownRows.length}
+        total={filtered.length}
+        onLoadMore={() => update({ page: String(page + 1) }, false)}
+        step={TIMELINE_PAGE_SIZE}
+      />
     </div>
   )
 }
