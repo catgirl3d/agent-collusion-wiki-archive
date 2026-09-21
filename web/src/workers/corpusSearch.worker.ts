@@ -122,8 +122,8 @@ async function runSearch(request: CorpusSearchRequest) {
     throw new CorpusWorkerError('invalid_param', 'from must not be after to')
   }
 
-  const limit = Math.min(100, Math.max(1, Math.floor(request.limit || 20)))
-  const offset = Math.min(100_000, Math.max(0, Math.floor(request.offset || 0)))
+  const limit = Math.min(CORPUS_MAX_ROWS, Math.max(1, Math.floor(request.limit || 20)))
+  const offset = Math.min(CORPUS_MAX_ROWS, Math.max(0, Math.floor(request.offset || 0)))
   const sortState = resolveSort(request.sort, request.dir, CORPUS_SORT_KEYS, CORPUS_SORT_DEFAULTS)
 
   const current = await ensureSummary()

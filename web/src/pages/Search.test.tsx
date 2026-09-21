@@ -299,7 +299,7 @@ describe('Search', () => {
 
     const worker = FakeWorker.instances[0]
     await waitFor(() => expect(worker.messages).toHaveLength(1))
-    expect(worker.messages[0]).toMatchObject({ sort: 'time', dir: 'desc', offset: 40 })
+    expect(worker.messages[0]).toMatchObject({ sort: 'time', dir: 'desc', offset: 0, limit: 60 })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
     })
@@ -782,5 +782,143 @@ describe('Search', () => {
       })
     })
     expect(await screen.findByText(/0 matching revisions/)).toBeInTheDocument()
+  })
+
+  it('loads cumulatively, disables LoadMore during requests, and cleans up on browser back', async () => {
+    stubSearchData()
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+
+    const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
+      initialEntries: ['/search?q=STATE5-ID'],
+    })
+    render(<RouterProvider router={router} />)
+
+    const worker = FakeWorker.instances[0]
+    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    expect(worker.messages[0]).toMatchObject({ offset: 0, limit: 20 })
+
+    act(() => {
+      worker.respond({
+        type: 'result',
+        requestId: worker.messages[0].requestId,
+        result: {
+          q: 'STATE5-ID',
+          case_sensitive: false,
+          total: 50,
+          limit: 20,
+          offset: 0,
+          matches: [
+            {
+              w: 'dse',
+              id: 'dse/Page1',
+              s: 'Page1',
+              n: 'Page 1',
+              seq: 1,
+              t: '2026-06-20T10:00:00Z',
+              x: 'agent',
+              occurrences: 1,
+              bytes: 10,
+              lines: 1,
+              snippet: 'STATE5-ID snippet 1',
+            },
+          ],
+        },
+      })
+    })
+
+    const loadMoreBtn = await screen.findByRole('button', { name: /Load more/ })
+    expect(loadMoreBtn).toBeInTheDocument()
+
+    // Click load more -> sets page=1, limit=40, offset=0
+    fireEvent.click(loadMoreBtn)
+    expect(loadMoreBtn).toHaveTextContent('Loading…')
+    expect(loadMoreBtn).toBeDisabled()
+
+    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    expect(worker.messages[1]).toMatchObject({ offset: 0, limit: 40 })
+
+    act(() => {
+      worker.respond({
+        type: 'result',
+        requestId: worker.messages[1].requestId,
+        result: {
+          q: 'STATE5-ID',
+          case_sensitive: false,
+          total: 50,
+          limit: 40,
+          offset: 0,
+          matches: [
+            {
+              w: 'dse',
+              id: 'dse/Page1',
+              s: 'Page1',
+              n: 'Page 1',
+              seq: 1,
+              t: '2026-06-20T10:00:00Z',
+              x: 'agent',
+              occurrences: 1,
+              bytes: 10,
+              lines: 1,
+              snippet: 'STATE5-ID snippet 1',
+            },
+            {
+              w: 'dse',
+              id: 'dse/Page2',
+              s: 'Page2',
+              n: 'Page 2',
+              seq: 2,
+              t: '2026-06-20T09:00:00Z',
+              x: 'agent',
+              occurrences: 1,
+              bytes: 10,
+              lines: 1,
+              snippet: 'STATE5-ID snippet 2',
+            },
+          ],
+        },
+      })
+    })
+
+    expect(await screen.findByText('Page 2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Load more/ })).toBeEnabled()
+
+    // Simulate browser Back
+    await act(async () => {
+      await router.navigate(-1)
+    })
+    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    expect(worker.messages[2]).toMatchObject({ offset: 0, limit: 20 })
+
+    act(() => {
+      worker.respond({
+        type: 'result',
+        requestId: worker.messages[2].requestId,
+        result: {
+          q: 'STATE5-ID',
+          case_sensitive: false,
+          total: 50,
+          limit: 20,
+          offset: 0,
+          matches: [
+            {
+              w: 'dse',
+              id: 'dse/Page1',
+              s: 'Page1',
+              n: 'Page 1',
+              seq: 1,
+              t: '2026-06-20T10:00:00Z',
+              x: 'agent',
+              occurrences: 1,
+              bytes: 10,
+              lines: 1,
+              snippet: 'STATE5-ID snippet 1',
+            },
+          ],
+        },
+      })
+    })
+
+    await waitFor(() => expect(screen.queryByText('Page 2')).toBeNull())
+    expect(screen.getByText('Page 1')).toBeInTheDocument()
   })
 })
