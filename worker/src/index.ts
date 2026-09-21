@@ -486,8 +486,8 @@ export default {
         const conflicts = await loadAsset<ConflictRecord[]>(env, req, '/data/conflicts.json')
         const rows = conflicts.filter((row) => {
           if (row.churn < minChurn) return false
-          if (zzzParam !== null && row.zzz !== zzz) return false
-          if (frontParam !== null && row.front !== front) return false
+          if (zzz && !row.zzz) return false
+          if (front && !row.front) return false
           return true
         })
         return json({ total: rows.length, limit, offset, conflicts: rows.slice(offset, offset + limit) })

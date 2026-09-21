@@ -325,6 +325,23 @@ describe('Worker API default fetch handler', () => {
     expect(await json(result.response)).toMatchObject({ total: 1, conflicts: [conflicts[0]] })
   })
 
+  it('treats explicit false conflict flags as no filter', async () => {
+    const flagged = [
+      { id: 'a/zzz', s: 'a_zzz~', churn: 5, zzz: true, front: false },
+      { id: 'b/front', s: 'b_front~', churn: 5, zzz: false, front: true },
+      { id: 'c/plain', s: 'c_plain~', churn: 5, zzz: false, front: false },
+    ]
+    const overrides = { '/data/conflicts.json': flagged }
+    const get = async (query: string) =>
+      json((await request(`/api/conflicts?minChurn=0${query}&limit=200`, undefined, overrides)).response)
+
+    expect((await get('')).total).toBe(3)
+    expect((await get('&zzz=false')).total).toBe(3)
+    expect((await get('&front=false')).total).toBe(3)
+    expect((await get('&zzz=true')).total).toBe(1)
+    expect((await get('&front=true')).total).toBe(1)
+  })
+
   it('filters revisions by raw contains and emits snippets only without bodies', async () => {
     const result = await request('/api/pages/Page_One~_h12345678/revisions?label=Bob&contains=NEEDLE&body=0')
     const body = await json(result.response)
