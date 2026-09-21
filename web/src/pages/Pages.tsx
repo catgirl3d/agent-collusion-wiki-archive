@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, Button, Chip, PageLink } from '../components/ui'
+import { Badge, Button, Chip, LoadMore, PageLink } from '../components/ui'
 import type { DayActivity, PagesIndex, PayloadRecord, SearchIndex } from '../types'
 import {
   WIKIS,
@@ -229,11 +229,12 @@ export default function Pages() {
         </table>
       </div>
 
-      {filtered.length > shown.length && (
-        <Button onClick={() => setLimit((n) => n + PAGE_LIMIT)}>
-          Load more ({fmtInt(filtered.length - shown.length)} left)
-        </Button>
-      )}
+      <LoadMore
+        loaded={shown.length}
+        total={filtered.length}
+        onLoadMore={() => setLimit((n) => n + PAGE_LIMIT)}
+        step={PAGE_LIMIT}
+      />
     </div>
   )
 }

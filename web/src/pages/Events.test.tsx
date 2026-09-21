@@ -38,7 +38,7 @@ describe('Events', () => {
     renderEvents(makeEvents(3))
 
     expect(screen.getByText('(3 events)')).toBeInTheDocument()
-    expect(screen.getByText('showing 1–3 of 3 · page 1/1')).toBeInTheDocument()
+    expect(screen.getByText('showing 3 of 3 events')).toBeInTheDocument()
   })
 
   it('keeps the header filtered when a query matches every event', async () => {
@@ -53,12 +53,12 @@ describe('Events', () => {
   it('pages through the full set without claiming everything is rendered', () => {
     renderEvents(makeEvents(120))
 
-    expect(screen.getByText('showing 1–50 of 120 · page 1/3')).toBeInTheDocument()
+    expect(screen.getByText('showing 50 of 120 events')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'next →' }))
+    fireEvent.click(screen.getByRole('button', { name: /Load more/ }))
 
-    expect(screen.getByText('showing 51–100 of 120 · page 2/3')).toBeInTheDocument()
-    expect(screen.queryByText('showing 1–120 of 120 · page 1/1')).not.toBeInTheDocument()
+    expect(screen.getByText('showing 100 of 120 events')).toBeInTheDocument()
+    expect(screen.queryByText('showing 120 of 120 events')).not.toBeInTheDocument()
   })
 
   it('splits matched events from the total and renders an empty state', async () => {
@@ -70,7 +70,7 @@ describe('Events', () => {
     fireEvent.change(search, { target: { value: 'AgentZzz' } })
 
     expect(await screen.findByText('(1 of 3 events match)')).toBeInTheDocument()
-    expect(screen.getByText('showing 1–1 of 1 · page 1/1')).toBeInTheDocument()
+    expect(screen.getByText('showing 1 of 1 events')).toBeInTheDocument()
 
     fireEvent.change(search, { target: { value: 'nothing-matches-this' } })
 

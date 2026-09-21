@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, Button, PageLink } from '../components/ui'
+import { Badge, LoadMore, PageLink } from '../components/ui'
 import type { EventType, RecentEvent } from '../types'
 import { EVENT_FILTER_OPTIONS, eventColor, eventPageId, filterEventsByDay, fmtInt, fmtTime } from '../utils/format'
 
@@ -13,7 +13,7 @@ export default function Events() {
   const { data, error } = useData<RecentEvent[]>('recent_events.json')
   const [type, setType] = useState<'' | EventType>('')
   const [query, setQuery] = useState('')
-  const [page, setPage] = useState(0)
+  const [limit, setLimit] = useState(PAGE_SIZE)
   const [searchParams, setSearchParams] = useSearchParams()
   const day = searchParams.get('day') ?? ''
 
@@ -32,13 +32,9 @@ export default function Events() {
   if (error) return <div className="error">Error: {error}</div>
   if (!data) return <div className="loading">Loading…</div>
 
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const cur = Math.min(page, pages - 1)
-  const shown = filtered.slice(cur * PAGE_SIZE, (cur + 1) * PAGE_SIZE)
+  const shown = filtered.slice(0, limit)
   const found = filtered.length
   const hasFilter = Boolean(day) || Boolean(type) || deferredQuery.trim() !== ''
-  const firstShown = cur * PAGE_SIZE + 1
-  const lastShown = Math.min((cur + 1) * PAGE_SIZE, found)
 
   return (
     <div className="page">
@@ -50,20 +46,20 @@ export default function Events() {
       </h1>
 
       <div className="filters">
-        <input aria-label="Search page / ip16 / action" className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
+        <input aria-label="Search page / ip16 / action" className="input" placeholder="Search page / ip16 / action…" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE_SIZE) }} />
         <ArchiveCalendar
           ariaLabel="Filter by day"
           value={day}
-          onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setPage(0) }}
+          onChange={(date) => { const next = new URLSearchParams(searchParams); if (date) next.set('day', date); else next.delete('day'); setSearchParams(next); setLimit(PAGE_SIZE) }}
         />
         <Dropdown
           value={type}
           ariaLabel="Filter by event type"
           options={EVENT_FILTER_OPTIONS}
-          onChange={(value) => { setType(value); setPage(0) }}
+          onChange={(value) => { setType(value); setLimit(PAGE_SIZE) }}
         />
         <span className="muted result-count">
-          {found === 0 ? 'no matches' : `showing ${fmtInt(firstShown)}–${fmtInt(lastShown)} of ${fmtInt(found)} · page ${cur + 1}/${pages}`}
+          {found === 0 ? 'no matches' : `showing ${fmtInt(shown.length)} of ${fmtInt(found)} events`}
         </span>
       </div>
 
@@ -119,10 +115,12 @@ export default function Events() {
         </table>
       </div>
 
-      <div className="pager">
-        <Button variant="ghost" disabled={cur === 0} onClick={() => setPage((p) => p - 1)}>← prev</Button>
-        <Button variant="ghost" disabled={cur >= pages - 1} onClick={() => setPage((p) => p + 1)}>next →</Button>
-      </div>
+      <LoadMore
+        loaded={shown.length}
+        total={found}
+        onLoadMore={() => setLimit((n) => n + PAGE_SIZE)}
+        step={PAGE_SIZE}
+      />
     </div>
   )
 }
