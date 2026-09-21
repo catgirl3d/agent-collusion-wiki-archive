@@ -537,7 +537,7 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
 
     summaryState.export_generated_at = '2026-06-22T00:00:00Z'
     const newest = await research.searchCorpus({ q: 'state5-id' })
-    releaseFirst?.()
+    releaseFirst!()
     await oldest
 
     expect(newest.total).toBe(2)
