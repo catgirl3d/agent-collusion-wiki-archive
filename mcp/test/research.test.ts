@@ -3,6 +3,7 @@ import { gzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { ArchiveDataError, DATA_PATHS } from '../src/assets.js'
 import type { AssetReader } from '../src/research.js'
+import type { ActivityDay, Summary, SummaryCorpus, TimelineFile } from '../src/research.js'
 import {
   ArchiveQueryError,
   ArchiveResearch,
@@ -48,7 +49,10 @@ function sha256(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex')
 }
 
-function makeSummary(gzip: Uint8Array = corpusGzip, plain: Uint8Array = corpusPlain) {
+function makeSummary(
+  gzip: Uint8Array = corpusGzip,
+  plain: Uint8Array = corpusPlain,
+): Summary & { corpus: SummaryCorpus } {
   return {
     export_generated_at: '2026-06-21T00:00:00Z',
     counts: { revisions: corpusRecords.length },
@@ -70,7 +74,7 @@ const pages = {
   ],
 }
 
-const timeline = {
+const timeline: TimelineFile = {
   meta: { schema_version: 1, export_generated_at: '2026-06-21T00:00:00Z', count: 3, order: 'time_desc' },
   r: [
     { t: '2026-06-20T10:00:00Z', w: 'dse', id: 'dse/PageB', s: 'dse_PageB~', seq: 1, x: 'AgentX', a: 'form_edit', ip: '20.1', l: 20 },
@@ -79,7 +83,7 @@ const timeline = {
   ],
 }
 
-const combinedTimeline = {
+const combinedTimeline: TimelineFile = {
   meta: { schema_version: 1, export_generated_at: '2026-06-21T00:00:00Z', count: 4, order: 'time_desc' },
   r: [
     ...timeline.r,
@@ -99,12 +103,22 @@ type FakeState = {
   summary: ReturnType<typeof makeSummary>
   calls: string[]
   failCorpus: boolean
-  pages: typeof pages
+  pages: unknown
   timeline: typeof timeline | typeof combinedTimeline
+  activityDays: unknown
+  activityHours: unknown
 }
 
 function fakeAssets(): { state: FakeState; assets: AssetReader } {
-  const state: FakeState = { summary: makeSummary(), calls: [], failCorpus: false, pages, timeline }
+  const state: FakeState = {
+    summary: makeSummary(),
+    calls: [],
+    failCorpus: false,
+    pages,
+    timeline,
+    activityDays,
+    activityHours,
+  }
   const assets = {
     async getJson(path: string) {
       state.calls.push(path)
@@ -116,9 +130,9 @@ function fakeAssets(): { state: FakeState; assets: AssetReader } {
         case DATA_PATHS.timeline:
           return state.timeline
         case DATA_PATHS.activityByDay:
-          return activityDays
+          return state.activityDays
         case DATA_PATHS.activityByHour:
-          return activityHours
+          return state.activityHours
         default:
           throw new Error(`unexpected path ${path}`)
       }
@@ -241,6 +255,22 @@ describe('ArchiveResearch searchCorpus', () => {
     expect(second.offset).toBe(1)
   })
 
+  it('rejects a structurally invalid pages.json with archive_data_invalid', async () => {
+    const { state, assets } = fakeAssets()
+    state.pages = { unexpected: true }
+    const research = new ArchiveResearch(assets)
+
+    await expect(research.searchCorpus({ q: 'state5-id' })).rejects.toMatchObject({ code: 'archive_data_invalid' })
+  })
+
+  it('rejects null page entries with archive_data_invalid', async () => {
+    const { state, assets } = fakeAssets()
+    state.pages = { p: [null] }
+    const research = new ArchiveResearch(assets)
+
+    await expect(research.searchCorpus({ q: 'state5-id' })).rejects.toMatchObject({ code: 'archive_data_invalid' })
+  })
+
   it('fails closed when a match references a page missing from pages.json', async () => {
     const { state, assets } = fakeAssets()
     state.pages = { p: [pages.p[0]] }
@@ -299,6 +329,32 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
     )
   })
 
+  it('rejects structurally invalid activity assets with archive_data_invalid', async () => {
+    const { state, assets } = fakeAssets()
+    state.activityDays = { unexpected: true }
+    await expect(new ArchiveResearch(assets).getActivity({ by: 'day' })).rejects.toMatchObject({
+      code: 'archive_data_invalid',
+    })
+
+    state.activityHours = { unexpected: true }
+    await expect(new ArchiveResearch(assets).getActivity({ by: 'hour' })).rejects.toMatchObject({
+      code: 'archive_data_invalid',
+    })
+  })
+
+  it('rejects malformed activity rows with archive_data_invalid', async () => {
+    const { state, assets } = fakeAssets()
+    state.activityDays = [{ unexpected: true }]
+    await expect(new ArchiveResearch(assets).getActivity({ by: 'day' })).rejects.toMatchObject({
+      code: 'archive_data_invalid',
+    })
+
+    state.activityHours = [{ unexpected: true }]
+    await expect(new ArchiveResearch(assets).getActivity({ by: 'hour' })).rejects.toMatchObject({
+      code: 'archive_data_invalid',
+    })
+  })
+
   it('accepts a combined timeline with recovered partial rows', async () => {
     const { state, assets } = fakeAssets()
     state.summary = {
@@ -314,6 +370,33 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
     expect(result.revisions.at(-1)).toMatchObject({ id: 'other/Page', partial: true })
   })
 
+  it('rejects a timeline from a different data release than the summary', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = { ...state.summary, export_generated_at: '2026-06-22T00:00:00Z' }
+
+    await expect(new ArchiveResearch(assets).listRevisions({})).rejects.toThrow(
+      'timeline.json does not match summary generation',
+    )
+  })
+
+  it('treats a missing summary timestamp the same as an explicit null timeline timestamp', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = { ...state.summary, export_generated_at: undefined }
+    state.timeline = { ...timeline, meta: { ...timeline.meta, export_generated_at: null } }
+
+    const result = await new ArchiveResearch(assets).listRevisions({})
+
+    expect(result.total).toBe(3)
+  })
+
+  it('rejects a timeline when only the summary omits the generation timestamp', async () => {
+    const { state, assets } = fakeAssets()
+    state.summary = { ...state.summary, export_generated_at: null }
+
+    await expect(new ArchiveResearch(assets).listRevisions({})).rejects.toThrow(
+      'timeline.json does not match summary generation',
+    )
+  })
   it('rejects a timeline whose row count disagrees with the combined summary', async () => {
     const { state, assets } = fakeAssets()
     state.summary = { ...state.summary, combined: { revisions: 4 } }
