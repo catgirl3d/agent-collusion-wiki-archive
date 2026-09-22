@@ -19,6 +19,7 @@ const RESEARCH_GROUPS = [
       { slug: 'coordination-topology-uk', path: 'coordination-topology-assessment.uk.md' },
       { slug: 'coordination-topology-de', path: 'coordination-topology-assessment.de.md' },
       { slug: 'ip16-network-catalog', path: 'ip16-network-catalog.md' },
+      { slug: 'openai-wiki-incident-acknowledgment', path: 'openai-wiki-incident-acknowledgment.md' },
     ],
     files: [],
   },
@@ -268,6 +269,7 @@ const ALERT_TITLES = {
 export function createEngine({ onHeading, onCodeSpan } = {}) {
   const engine = new Marked({ gfm: true })
   engine.use(markedKatex({ throwOnError: false, nonStandard: true }))
+  const footnotes = { definitions: new Map(), numbers: new Map(), order: [] }
   let linkCaptionDepth = 0
   engine.use({
     renderer: {
@@ -338,12 +340,82 @@ export function createEngine({ onHeading, onCodeSpan } = {}) {
         return `<blockquote>\n${body}</blockquote>\n`
       },
     },
+    extensions: [
+      {
+        name: 'footnoteDefinition',
+        level: 'block',
+        start(src) {
+          const index = src.search(/^\[\^[A-Za-z0-9_-]+\]:/m)
+          return index === -1 ? undefined : index
+        },
+        tokenizer(src) {
+          const match = /^\[\^([A-Za-z0-9_-]+)\]:[ \t]*([^\n]*)(?:\n+|$)/.exec(src)
+          if (!match) return undefined
+          if (footnotes.definitions.has(match[1])) {
+            throw new Error(`footnote "[^${match[1]}]" is defined more than once`)
+          }
+          footnotes.definitions.set(match[1], match[2].trim())
+          return { type: 'footnoteDefinition', raw: match[0] }
+        },
+        renderer() {
+          return ''
+        },
+      },
+      {
+        name: 'footnoteReference',
+        level: 'inline',
+        start(src) {
+          const index = src.search(/\[\^[A-Za-z0-9_-]+\]/)
+          return index === -1 ? undefined : index
+        },
+        tokenizer(src) {
+          const match = /^\[\^([A-Za-z0-9_-]+)\]/.exec(src)
+          if (!match) return undefined
+          const id = match[1]
+          let number = footnotes.numbers.get(id)
+          if (!number) {
+            number = footnotes.order.length + 1
+            footnotes.numbers.set(id, number)
+            footnotes.order.push(id)
+          }
+          return { type: 'footnoteReference', raw: match[0], id, number }
+        },
+        renderer({ id, number }) {
+          return `<sup class="footnote-ref"><a href="#fn-${id}" id="fnref-${id}">${number}</a></sup>`
+        },
+      },
+    ],
   })
+  engine.parseDocument = (markdown) => {
+    footnotes.definitions.clear()
+    footnotes.numbers.clear()
+    footnotes.order.length = 0
+    return appendFootnotes(engine.parse(markdown), engine, footnotes)
+  }
   return engine
 }
 
+function appendFootnotes(html, engine, footnotes) {
+  const order = [...footnotes.order]
+  if (order.length === 0) return html
+
+  const items = order.map((id) => {
+    const definition = footnotes.definitions.get(id)
+    if (definition === undefined) throw new Error(`footnote reference "[^${id}]" has no definition`)
+    const number = footnotes.numbers.get(id)
+    const body = engine.parseInline(definition)
+    return `<li id="fn-${id}">${body} <a href="#fnref-${id}" class="footnote-backref" aria-label="Back to reference ${number}">↩</a></li>`
+  })
+
+  if (footnotes.order.length !== order.length) {
+    throw new Error('footnote definitions must not reference other footnotes')
+  }
+
+  return `${html}<div class="footnotes">\n<h3 id="footnotes">Footnotes</h3>\n<ol>\n${items.map((item) => `  ${item}\n`).join('')}</ol>\n</div>\n`
+}
+
 export function renderMarkdown(markdown, engine = createEngine()) {
-  return engine.parse(markdown)
+  return engine.parseDocument(markdown)
 }
 
 export function extractTitle(markdown) {

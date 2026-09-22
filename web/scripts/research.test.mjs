@@ -7,6 +7,7 @@ import {
   buildArchiveLink,
   cleanMarkdownBody,
   convertResearch,
+  createEngine,
   enhanceHtml,
   extractMetadata,
   extractTitle,
@@ -202,6 +203,44 @@ describe('archive link validation', () => {
     expect(() => renderMarkdown('[**MapHelper**](archive:agent)')).toThrow(/archive agent requires explicit q or a single codespan caption/i)
     expect(() => renderMarkdown('[dse/Page](archive:page)')).toThrow(/archive page requires explicit id or a single codespan caption/i)
     expect(() => renderMarkdown('[` `](archive:search)')).toThrow(/archive search q must not be empty/i)
+  })
+})
+
+describe('renderMarkdown footnotes', () => {
+  it('numbers references in order, dedupes repeats, and lists each definition once', () => {
+    const html = renderMarkdown('[^a] First.[^b] Again.[^a]\n\n[^a]: Alpha note.\n[^b]: Beta note.\n')
+
+    expect(html).toContain('<sup class="footnote-ref"><a href="#fn-a" id="fnref-a">1</a></sup> First.')
+    expect(html).toContain('<sup class="footnote-ref"><a href="#fn-b" id="fnref-b">2</a></sup> Again.')
+    expect(html.match(/id="fnref-a"/g)).toHaveLength(2)
+    expect(html).toContain('<li id="fn-a">Alpha note. <a href="#fnref-a"')
+    expect(html).toContain('<li id="fn-b">Beta note. <a href="#fnref-b"')
+    expect(html).toContain('<h3 id="footnotes">Footnotes</h3>')
+    expect(html.match(/<li id="fn-a">/g)).toHaveLength(1)
+  })
+
+  it('renders markdown inside definitions while leaving code spans and unsafe links untouched', () => {
+    const html = renderMarkdown('Claim.[^a]\n\n[^a]: See [source](https://example.com).\n')
+
+    expect(html).toContain('<li id="fn-a">See <a href="https://example.com">source</a>.')
+    expect(renderMarkdown('Code `[^a]` stays literal.\n\n[^a]: Unused.\n')).toContain('<code>[^a]</code>')
+    expect(renderMarkdown('Code `[^a]` stays literal.\n\n[^a]: Unused.\n')).not.toContain('class="footnotes"')
+    expect(renderMarkdown('Claim.[^a]\n\n[^a]: [x](javascript:alert(1))\n')).not.toContain('javascript:')
+  })
+
+  it('rejects references without definitions and duplicate definitions', () => {
+    expect(() => renderMarkdown('Text.[^missing]\n')).toThrow(/footnote reference "\[\^missing\]" has no definition/)
+    expect(() => renderMarkdown('Text.[^a]\n\n[^a]: one\n[^a]: two\n')).toThrow(/footnote "\[\^a\]" is defined more than once/)
+  })
+
+  it('keeps numbering independent across documents rendered by the same engine', () => {
+    const engine = createEngine()
+    const first = renderMarkdown('First.[^a]\n\n[^a]: Alpha.\n', engine)
+    const second = renderMarkdown('Second.[^a]\n\n[^a]: Alpha again.\n', engine)
+
+    expect(first).toContain('<a href="#fn-a" id="fnref-a">1</a>')
+    expect(second).toContain('<a href="#fn-a" id="fnref-a">1</a>')
+    expect(second.match(/<li id="fn-a">/g)).toHaveLength(1)
   })
 })
 
@@ -462,6 +501,7 @@ describe('published research package', () => {
       'coordination-topology-uk',
       'coordination-topology-de',
       'ip16-network-catalog',
+      'openai-wiki-incident-acknowledgment',
     ])
     expect(docs[0].lang).toBe('en')
     expect(docs[0].base).toBe('coordination-topology')
@@ -476,6 +516,14 @@ describe('published research package', () => {
     expect(docs[4]).toMatchObject({ lang: 'en', base: 'ip16-network-catalog' })
     expect(docs[4].title).toBe('IP16 network catalog and label–prefix associations')
     expect(docs[4].translations).toEqual([{ lang: 'en', slug: 'ip16-network-catalog' }])
+    expect(docs[5]).toMatchObject({ lang: 'en', base: 'openai-wiki-incident-acknowledgment' })
+    expect(docs[5].title).toBe('OpenAI Acknowledgment of the Wiki Incident')
+    expect(docs[5].translations).toEqual([{ lang: 'en', slug: 'openai-wiki-incident-acknowledgment' }])
+    expect(docs[5].meta).toEqual({
+      date: '2026-09-22',
+      author: 'Alina Lisova',
+      status: 'PRELIMINARY',
+    })
     expect(docs[4].meta).toEqual({
       date: '2026-09-22',
       author: 'Alina Lisova',
@@ -495,6 +543,7 @@ describe('published research package', () => {
       'coordination-topology-uk.html',
       'coordination-topology.html',
       'ip16-network-catalog.html',
+      'openai-wiki-incident-acknowledgment.html',
     ])
     expect(readdirSync(join(outDir, 'files')).sort()).toEqual([
       'coordination-topology-assessment.de.md',
@@ -502,7 +551,17 @@ describe('published research package', () => {
       'coordination-topology-assessment.ru.md',
       'coordination-topology-assessment.uk.md',
       'ip16-network-catalog.md',
+      'openai-wiki-incident-acknowledgment.md',
     ])
+
+    const acknowledgmentHtml = readFileSync(join(outDir, 'docs', 'openai-wiki-incident-acknowledgment.html'), 'utf8')
+    expect(acknowledgmentHtml).not.toContain('[^')
+    expect(acknowledgmentHtml).toContain('<h3 id="footnotes">Footnotes</h3>')
+    expect(acknowledgmentHtml).toContain('<a href="#fn-openai-x" id="fnref-openai-x">1</a>')
+    expect(acknowledgmentHtml).toContain('<li id="fn-redwood-hf">')
+    expect(acknowledgmentHtml).toContain('Deepa Seetharaman and Raphael Satter')
+    expect(acknowledgmentHtml).toContain('<a href="#fnref-redwood-hf" class="footnote-backref"')
+    expect(acknowledgmentHtml).not.toContain('id="sources"')
 
     for (const doc of docs) {
       const html = readFileSync(join(outDir, ...doc.html.replace('research/', '').split('/')), 'utf8')
