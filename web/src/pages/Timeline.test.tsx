@@ -82,6 +82,105 @@ describe('Timeline', () => {
     }
   })
 
+  it('filters by the IP16 substring from the URL and writes it back', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?ip=20')
+
+    await screen.findByRole('link', { name: 'PageB' })
+    expect(screen.queryByRole('link', { name: 'PageA' })).toBeNull()
+    expect(screen.getByText(/1 of 2 revisions/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter by IP16')).toHaveValue('20')
+
+    fireEvent.change(screen.getByLabelText('Filter by IP16'), { target: { value: '57' } })
+    await waitFor(() => expect(currentSearch().get('ip')).toBe('57'))
+    expect(await screen.findByText(/0 of 2 revisions/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'PageB' })).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Filter by IP16'), { target: { value: '' } })
+    await waitFor(() => expect(currentSearch().has('ip')).toBe(false))
+    expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
+  })
+
+  it('shows an IP16 dossier for the prefix slice and drills into a label', async () => {
+    const dossier = {
+      meta: { schema_version: 1, export_generated_at: '2026-06-21T00:00:00Z', count: 4, order: 'time_desc' },
+      r: [
+        { t: '2026-06-20T10:00:00Z', w: 'dse', id: 'dse/PageB', s: 'dse_PageB~', seq: 1, x: 'AgentX', a: 'form_edit', ip: '20.1', l: 20 },
+        { t: '2026-06-19T10:00:00Z', w: 'dse', id: 'dse/PageA', s: 'dse_PageA~', seq: 2, x: 'AgentX', a: 'form_edit', ip: '20.2', l: 18 },
+        { t: '2026-06-18T10:00:00Z', w: 'dse', id: 'dse/PageC', s: 'dse_PageC~', seq: 1, x: 'AgentY', a: 'form_edit', ip: '20.2', l: 10 },
+        { t: '2026-06-17T10:00:00Z', w: 'dse', id: 'dse/PageD', s: 'dse_PageD~', seq: 1, x: 'AgentZ', a: 'form_edit', ip: '57.1', l: 10 },
+      ],
+    }
+    loadJsonMock.mockImplementation((path: string) => path === 'timeline.json' ? Promise.resolve(dossier) : Promise.resolve(activity))
+    renderTimeline('/timeline?ip=20&label=AgentX')
+
+    const panel = await screen.findByRole('region', { name: 'IP16 20 dossier' })
+    expect(panel).toHaveTextContent('3 revisions')
+    expect(panel).toHaveTextContent('2 labels')
+    expect(panel).toHaveTextContent('3 pages')
+    expect(panel).toHaveTextContent('2026-06-18')
+    expect(panel).toHaveTextContent('2026-06-20')
+    expect(screen.getByRole('link', { name: 'PageB' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'PageC' })).toBeNull()
+    expect(screen.getByRole('button', { name: /AgentX/ })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: /AgentY/ }))
+    await waitFor(() => expect(currentSearch().get('label')).toBe('AgentY'))
+    expect(await screen.findByRole('link', { name: 'PageC' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'PageA' })).toBeNull()
+    expect(screen.getByRole('button', { name: /AgentY/ })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: /AgentY/ }))
+    await waitFor(() => expect(currentSearch().has('label')).toBe(false))
+    expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
+  })
+
+  it('hides the IP16 dossier without an ip filter', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?label=AgentX')
+
+    await screen.findByRole('link', { name: 'PageB' })
+    expect(screen.queryByRole('region', { name: /dossier/ })).toBeNull()
+  })
+
+  it('hides the IP16 dossier and does not filter when ip query contains only whitespace', async () => {
+    stubArchiveData()
+    renderTimeline('/timeline?ip=%20')
+
+    await screen.findByRole('link', { name: 'PageB' })
+    expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /dossier/ })).toBeNull()
+    await waitFor(() => expect(currentSearch().has('ip')).toBe(false))
+  })
+
+  it('expands the dossier label list past the top 12', async () => {
+    const manyLabels = Array.from({ length: 14 }, (_, index) => ({
+      t: '2026-06-20T10:00:00Z',
+      w: 'dse',
+      id: `dse/Page${index}`,
+      s: `dse_Page${index}~`,
+      seq: index,
+      x: `Agent${String(index).padStart(2, '0')}`,
+      a: 'form_edit',
+      ip: '20.1',
+      l: 10,
+    }))
+    loadJsonMock.mockImplementation((path: string) => path === 'timeline.json'
+      ? Promise.resolve({ meta: { ...timeline.meta, count: manyLabels.length }, r: manyLabels })
+      : Promise.resolve(activity))
+    renderTimeline('/timeline?ip=20')
+
+    const panel = await screen.findByRole('region', { name: 'IP16 20 dossier' })
+    expect(panel).toHaveTextContent('14 revisions')
+    expect(screen.queryByRole('button', { name: /Agent13/ })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '+2 more' }))
+    expect(await screen.findByRole('button', { name: /Agent13/ })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'show top 12' }))
+    expect(screen.queryByRole('button', { name: /Agent13/ })).toBeNull()
+  })
+
   it('sorts by clickable headers and resets pagination', async () => {
     stubArchiveData()
     renderTimeline('/timeline?page=2')
