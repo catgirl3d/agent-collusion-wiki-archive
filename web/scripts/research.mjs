@@ -18,6 +18,7 @@ const RESEARCH_GROUPS = [
       { slug: 'coordination-topology-ru', path: 'coordination-topology-assessment.ru.md' },
       { slug: 'coordination-topology-uk', path: 'coordination-topology-assessment.uk.md' },
       { slug: 'coordination-topology-de', path: 'coordination-topology-assessment.de.md' },
+      { slug: 'ip16-network-catalog', path: 'ip16-network-catalog.md' },
     ],
     files: [],
   },

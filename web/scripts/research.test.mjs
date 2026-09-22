@@ -461,6 +461,7 @@ describe('published research package', () => {
       'coordination-topology-ru',
       'coordination-topology-uk',
       'coordination-topology-de',
+      'ip16-network-catalog',
     ])
     expect(docs[0].lang).toBe('en')
     expect(docs[0].base).toBe('coordination-topology')
@@ -472,6 +473,14 @@ describe('published research package', () => {
     ])
     expect(docs[1]).toMatchObject({ lang: 'ru', base: 'coordination-topology' })
     expect(docs[0].title).toBe('Coordination topology assessment: scheduler, cohorts, relays, and hierarchy claims')
+    expect(docs[4]).toMatchObject({ lang: 'en', base: 'ip16-network-catalog' })
+    expect(docs[4].title).toBe('IP16 network catalog and label–prefix associations')
+    expect(docs[4].translations).toEqual([{ lang: 'en', slug: 'ip16-network-catalog' }])
+    expect(docs[4].meta).toEqual({
+      date: '2026-09-22',
+      author: 'Alina Lisova',
+      status: 'PRELIMINARY',
+    })
     expect(files).toHaveLength(0)
     expect(docs.map((doc) => doc.slug)).not.toContain('proxy-audit')
     expect(docs[0].meta).toEqual({
@@ -485,12 +494,14 @@ describe('published research package', () => {
       'coordination-topology-ru.html',
       'coordination-topology-uk.html',
       'coordination-topology.html',
+      'ip16-network-catalog.html',
     ])
     expect(readdirSync(join(outDir, 'files')).sort()).toEqual([
       'coordination-topology-assessment.de.md',
       'coordination-topology-assessment.md',
       'coordination-topology-assessment.ru.md',
       'coordination-topology-assessment.uk.md',
+      'ip16-network-catalog.md',
     ])
 
     for (const doc of docs) {
