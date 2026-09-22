@@ -530,4 +530,40 @@ describe('published research package', () => {
       expect(html).not.toContain('markdown-alert')
     })
   })
+
+  describe('renderMarkdown math formulas (KaTeX)', () => {
+    it('renders inline math with KaTeX markup', () => {
+      const html = renderMarkdown('Formula $w(p, q) = |L(p) \\cap L(q)|$ inline.')
+      expect(html).toContain('class="katex"')
+      expect(html).toContain('class="katex-html"')
+      expect(html).not.toContain('$w(p, q)')
+    })
+
+    it('renders display block math with KaTeX display markup', () => {
+      const markdown = '$$\\sum_{\{p, q\}} w(p, q) = 71{,}869$$'
+      const html = renderMarkdown(markdown)
+      expect(html).toContain('class="katex-display"')
+      expect(html).toContain('class="katex"')
+      expect(html).not.toContain('<div class="katex-display">')
+    })
+
+    it('preserves code spans in backticks as code', () => {
+      const html = renderMarkdown('`regular_code_identifier` and `(prefix pair, shared label)`')
+      expect(html).toContain('<code>regular_code_identifier</code>')
+      expect(html).toContain('<code>(prefix pair, shared label)</code>')
+      expect(html).not.toContain('class="katex"')
+    })
+
+    it('renders math code blocks using ```math syntax', () => {
+      const block = '```math\n\\sum_{\{p, q\}} w(p, q) = 71{,}869\n```'
+      const html = renderMarkdown(block)
+      expect(html).toContain('class="katex-display"')
+    })
+
+    it('strips legacy metadata lines in cleanMarkdownBody', () => {
+      const body = 'Date: 2026-09-19\nAuthor: Alina\nStatus: PRELIMINARY\n\nActual report body.'
+      const cleaned = cleanMarkdownBody(body)
+      expect(cleaned).toBe('\nActual report body.')
+    })
+  })
 })
