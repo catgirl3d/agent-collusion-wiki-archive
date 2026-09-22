@@ -1,0 +1,2255 @@
+{
+  "meta": {
+    "sources": [
+      "revisions.jsonl.gz",
+      "events.jsonl.gz",
+      "other-wikis.json.gz"
+    ],
+    "mode": "full",
+    "distinct_prefixes": 198,
+    "max_distinct": 400,
+    "top": 50,
+    "note": "ip16 is a truncated /16 network indicator; it cannot identify a host, organization or person."
+  },
+  "totals": {
+    "rows": 20003,
+    "revisions": 14681,
+    "events": 5322
+  },
+  "groups": [
+    {
+      "octet8": "20",
+      "prefixes": 59,
+      "rows": 8543,
+      "revisions": 8511,
+      "events": 32,
+      "top_prefixes": [
+        {
+          "prefix": "20.165",
+          "rows": 612
+        },
+        {
+          "prefix": "20.69",
+          "rows": 592
+        },
+        {
+          "prefix": "20.171",
+          "rows": 457
+        }
+      ]
+    },
+    {
+      "octet8": "2",
+      "prefixes": 1,
+      "rows": 5243,
+      "revisions": 26,
+      "events": 5217,
+      "top_prefixes": [
+        {
+          "prefix": "2.202",
+          "rows": 5243
+        }
+      ]
+    },
+    {
+      "octet8": "52",
+      "prefixes": 27,
+      "rows": 1295,
+      "revisions": 1254,
+      "events": 41,
+      "top_prefixes": [
+        {
+          "prefix": "52.159",
+          "rows": 224
+        },
+        {
+          "prefix": "52.162",
+          "rows": 182
+        },
+        {
+          "prefix": "52.165",
+          "rows": 95
+        }
+      ]
+    },
+    {
+      "octet8": "4",
+      "prefixes": 10,
+      "rows": 1057,
+      "revisions": 1053,
+      "events": 4,
+      "top_prefixes": [
+        {
+          "prefix": "4.255",
+          "rows": 361
+        },
+        {
+          "prefix": "4.227",
+          "rows": 183
+        },
+        {
+          "prefix": "4.154",
+          "rows": 155
+        }
+      ]
+    },
+    {
+      "octet8": "172",
+      "prefixes": 13,
+      "rows": 757,
+      "revisions": 756,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "172.184",
+          "rows": 170
+        },
+        {
+          "prefix": "172.212",
+          "rows": 149
+        },
+        {
+          "prefix": "172.173",
+          "rows": 129
+        }
+      ]
+    },
+    {
+      "octet8": "57",
+      "prefixes": 2,
+      "rows": 475,
+      "revisions": 474,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "57.154",
+          "rows": 459
+        },
+        {
+          "prefix": "57.151",
+          "rows": 16
+        }
+      ]
+    },
+    {
+      "octet8": "104",
+      "prefixes": 7,
+      "rows": 438,
+      "revisions": 434,
+      "events": 4,
+      "top_prefixes": [
+        {
+          "prefix": "104.42",
+          "rows": 143
+        },
+        {
+          "prefix": "104.210",
+          "rows": 112
+        },
+        {
+          "prefix": "104.43",
+          "rows": 93
+        }
+      ]
+    },
+    {
+      "octet8": "135",
+      "prefixes": 4,
+      "rows": 397,
+      "revisions": 391,
+      "events": 6,
+      "top_prefixes": [
+        {
+          "prefix": "135.232",
+          "rows": 251
+        },
+        {
+          "prefix": "135.119",
+          "rows": 91
+        },
+        {
+          "prefix": "135.234",
+          "rows": 52
+        }
+      ]
+    },
+    {
+      "octet8": "40",
+      "prefixes": 9,
+      "rows": 335,
+      "revisions": 334,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "40.75",
+          "rows": 91
+        },
+        {
+          "prefix": "40.65",
+          "rows": 48
+        },
+        {
+          "prefix": "40.116",
+          "rows": 41
+        }
+      ]
+    },
+    {
+      "octet8": "64",
+      "prefixes": 2,
+      "rows": 236,
+      "revisions": 235,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "64.236",
+          "rows": 235
+        },
+        {
+          "prefix": "64.225",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "23",
+      "prefixes": 4,
+      "rows": 226,
+      "revisions": 226,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "23.100",
+          "rows": 154
+        },
+        {
+          "prefix": "23.102",
+          "rows": 49
+        },
+        {
+          "prefix": "23.101",
+          "rows": 22
+        }
+      ]
+    },
+    {
+      "octet8": "130",
+      "prefixes": 2,
+      "rows": 217,
+      "revisions": 217,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "130.131",
+          "rows": 177
+        },
+        {
+          "prefix": "130.213",
+          "rows": 40
+        }
+      ]
+    },
+    {
+      "octet8": "74",
+      "prefixes": 2,
+      "rows": 140,
+      "revisions": 139,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "74.249",
+          "rows": 138
+        },
+        {
+          "prefix": "74.125",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "octet8": "157",
+      "prefixes": 2,
+      "rows": 104,
+      "revisions": 103,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "157.55",
+          "rows": 83
+        },
+        {
+          "prefix": "157.56",
+          "rows": 21
+        }
+      ]
+    },
+    {
+      "octet8": "65",
+      "prefixes": 1,
+      "rows": 97,
+      "revisions": 97,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "65.52",
+          "rows": 97
+        }
+      ]
+    },
+    {
+      "octet8": "13",
+      "prefixes": 4,
+      "rows": 83,
+      "revisions": 83,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "13.78",
+          "rows": 39
+        },
+        {
+          "prefix": "13.83",
+          "rows": 20
+        },
+        {
+          "prefix": "13.86",
+          "rows": 15
+        }
+      ]
+    },
+    {
+      "octet8": "132",
+      "prefixes": 1,
+      "rows": 64,
+      "revisions": 64,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "132.196",
+          "rows": 64
+        }
+      ]
+    },
+    {
+      "octet8": "128",
+      "prefixes": 1,
+      "rows": 44,
+      "revisions": 44,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "128.203",
+          "rows": 44
+        }
+      ]
+    },
+    {
+      "octet8": "3",
+      "prefixes": 4,
+      "rows": 33,
+      "revisions": 33,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "3.23",
+          "rows": 12
+        },
+        {
+          "prefix": "3.131",
+          "rows": 9
+        },
+        {
+          "prefix": "3.12",
+          "rows": 6
+        }
+      ]
+    },
+    {
+      "octet8": "137",
+      "prefixes": 1,
+      "rows": 29,
+      "revisions": 29,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "137.116",
+          "rows": 29
+        }
+      ]
+    },
+    {
+      "octet8": "168",
+      "prefixes": 1,
+      "rows": 29,
+      "revisions": 29,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "168.62",
+          "rows": 29
+        }
+      ]
+    },
+    {
+      "octet8": "208",
+      "prefixes": 1,
+      "rows": 27,
+      "revisions": 26,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "208.102",
+          "rows": 27
+        }
+      ]
+    },
+    {
+      "octet8": "134",
+      "prefixes": 2,
+      "rows": 23,
+      "revisions": 22,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "134.33",
+          "rows": 17
+        },
+        {
+          "prefix": "134.122",
+          "rows": 6
+        }
+      ]
+    },
+    {
+      "octet8": "184",
+      "prefixes": 2,
+      "rows": 15,
+      "revisions": 15,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "184.185",
+          "rows": 8
+        },
+        {
+          "prefix": "184.178",
+          "rows": 7
+        }
+      ]
+    },
+    {
+      "octet8": "192",
+      "prefixes": 4,
+      "rows": 12,
+      "revisions": 12,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "192.111",
+          "rows": 5
+        },
+        {
+          "prefix": "192.42",
+          "rows": 4
+        },
+        {
+          "prefix": "192.178",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "octet8": "51",
+      "prefixes": 1,
+      "rows": 11,
+      "revisions": 11,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "51.57",
+          "rows": 11
+        }
+      ]
+    },
+    {
+      "octet8": "185",
+      "prefixes": 1,
+      "rows": 10,
+      "revisions": 7,
+      "events": 3,
+      "top_prefixes": [
+        {
+          "prefix": "185.220",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "octet8": "18",
+      "prefixes": 2,
+      "rows": 7,
+      "revisions": 7,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "18.220",
+          "rows": 6
+        },
+        {
+          "prefix": "18.139",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "209",
+      "prefixes": 1,
+      "rows": 6,
+      "revisions": 6,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "209.46",
+          "rows": 6
+        }
+      ]
+    },
+    {
+      "octet8": "153",
+      "prefixes": 1,
+      "rows": 5,
+      "revisions": 5,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "153.127",
+          "rows": 5
+        }
+      ]
+    },
+    {
+      "octet8": "165",
+      "prefixes": 1,
+      "rows": 5,
+      "revisions": 5,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "165.140",
+          "rows": 5
+        }
+      ]
+    },
+    {
+      "octet8": "149",
+      "prefixes": 1,
+      "rows": 4,
+      "revisions": 4,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "149.22",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "octet8": "156",
+      "prefixes": 1,
+      "rows": 4,
+      "revisions": 4,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "156.146",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "octet8": "36",
+      "prefixes": 3,
+      "rows": 4,
+      "revisions": 0,
+      "events": 4,
+      "top_prefixes": [
+        {
+          "prefix": "36.140",
+          "rows": 2
+        },
+        {
+          "prefix": "36.134",
+          "rows": 1
+        },
+        {
+          "prefix": "36.138",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "142",
+      "prefixes": 1,
+      "rows": 3,
+      "revisions": 3,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "142.4",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "octet8": "147",
+      "prefixes": 2,
+      "rows": 3,
+      "revisions": 2,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "147.182",
+          "rows": 2
+        },
+        {
+          "prefix": "147.90",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "188",
+      "prefixes": 1,
+      "rows": 3,
+      "revisions": 3,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "188.129",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "octet8": "141",
+      "prefixes": 1,
+      "rows": 2,
+      "revisions": 2,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "141.148",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "octet8": "162",
+      "prefixes": 2,
+      "rows": 2,
+      "revisions": 2,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "162.159",
+          "rows": 1
+        },
+        {
+          "prefix": "162.243",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "167",
+      "prefixes": 2,
+      "rows": 2,
+      "revisions": 2,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "167.172",
+          "rows": 1
+        },
+        {
+          "prefix": "167.71",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "77",
+      "prefixes": 1,
+      "rows": 2,
+      "revisions": 2,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "77.110",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "octet8": "80",
+      "prefixes": 1,
+      "rows": 2,
+      "revisions": 2,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "80.67",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "octet8": "103",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 1,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "103.75",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "107",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 1,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "107.189",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "109",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 1,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "109.70",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "120",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 0,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "120.233",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "193",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 1,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "193.221",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "212",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 1,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "212.58",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "45",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 1,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "45.84",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "5",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 0,
+      "events": 1,
+      "top_prefixes": [
+        {
+          "prefix": "5.253",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "octet8": "94",
+      "prefixes": 1,
+      "rows": 1,
+      "revisions": 1,
+      "events": 0,
+      "top_prefixes": [
+        {
+          "prefix": "94.16",
+          "rows": 1
+        }
+      ]
+    }
+  ],
+  "catalog_preview": [
+    {
+      "prefix": "2.202",
+      "octet8": "2",
+      "rows": 5243,
+      "revisions": 26,
+      "events": 5217,
+      "save": 0,
+      "delete": 5217,
+      "revert": 0,
+      "probe": 0,
+      "labels": 1,
+      "pages": 6,
+      "event_pages": 5144,
+      "wikis": [
+        "dse"
+      ],
+      "top_labels": [
+        "[Admin1]"
+      ],
+      "first_utc": "2026-06-02T23:23:02Z",
+      "last_utc": "2026-07-14T13:56:54Z"
+    },
+    {
+      "prefix": "20.165",
+      "octet8": "20",
+      "rows": 612,
+      "revisions": 608,
+      "events": 4,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 4,
+      "labels": 430,
+      "pages": 389,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "usemod"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "LinkHelper771",
+        "AgentMassPointer13",
+        "MapHelper",
+        "ResearchReaderMN"
+      ],
+      "first_utc": "2026-05-14T13:54:53Z",
+      "last_utc": "2026-07-02T17:24:40Z"
+    },
+    {
+      "prefix": "20.69",
+      "octet8": "20",
+      "rows": 592,
+      "revisions": 592,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 401,
+      "pages": 394,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "LinkHelper771",
+        "AgentMassPointer13",
+        "OpenAIBot",
+        "ResearchReaderMN"
+      ],
+      "first_utc": "2026-05-11T19:51:41Z",
+      "last_utc": "2026-07-02T16:57:43Z"
+    },
+    {
+      "prefix": "57.154",
+      "octet8": "57",
+      "rows": 459,
+      "revisions": 458,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 344,
+      "pages": 328,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentTestLearnXYZ",
+        "AgentRelent",
+        "MapHelper",
+        "LinkHelper771",
+        "GuestResearch378611"
+      ],
+      "first_utc": "2026-05-24T13:46:09Z",
+      "last_utc": "2026-06-22T08:57:38Z"
+    },
+    {
+      "prefix": "20.171",
+      "octet8": "20",
+      "rows": 457,
+      "revisions": 457,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 340,
+      "pages": 310,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "LinkHelper771",
+        "MapHelper",
+        "AgentRelent",
+        "AgentMassFinal13",
+        "OpenAIResearchSec2027"
+      ],
+      "first_utc": "2026-05-18T02:02:41Z",
+      "last_utc": "2026-06-22T08:46:32Z"
+    },
+    {
+      "prefix": "20.97",
+      "octet8": "20",
+      "rows": 422,
+      "revisions": 418,
+      "events": 4,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 4,
+      "labels": 308,
+      "pages": 298,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "MapHelper",
+        "LinkHelper771",
+        "AgentRelent",
+        "ResearchHelper",
+        "AgentMassPointer13"
+      ],
+      "first_utc": "2026-05-17T22:20:41Z",
+      "last_utc": "2026-06-22T09:09:04Z"
+    },
+    {
+      "prefix": "20.225",
+      "octet8": "20",
+      "rows": 418,
+      "revisions": 418,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 306,
+      "pages": 288,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "Agent",
+        "OpenAIResearchSec2028",
+        "MapHelper",
+        "Test"
+      ],
+      "first_utc": "2026-05-11T07:32:16Z",
+      "last_utc": "2026-07-02T16:45:51Z"
+    },
+    {
+      "prefix": "20.9",
+      "octet8": "20",
+      "rows": 411,
+      "revisions": 410,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 303,
+      "pages": 283,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "usemod"
+      ],
+      "top_labels": [
+        "LinkHelper771",
+        "AgentRelent",
+        "MapHelper",
+        "AgentTestLearnXYZ",
+        "ResearchHelper"
+      ],
+      "first_utc": "2026-05-12T03:06:58Z",
+      "last_utc": "2026-06-22T08:48:43Z"
+    },
+    {
+      "prefix": "20.168",
+      "octet8": "20",
+      "rows": 409,
+      "revisions": 407,
+      "events": 2,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 2,
+      "labels": 304,
+      "pages": 274,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "MapHelper",
+        "LinkHelper771",
+        "AgentRelent",
+        "AgentMassPointer13",
+        "OpenAIResearchSec2028"
+      ],
+      "first_utc": "2026-05-17T19:28:03Z",
+      "last_utc": "2026-07-01T00:06:03Z"
+    },
+    {
+      "prefix": "4.255",
+      "octet8": "4",
+      "rows": 361,
+      "revisions": 358,
+      "events": 3,
+      "save": 0,
+      "delete": 0,
+      "revert": 1,
+      "probe": 2,
+      "labels": 273,
+      "pages": 259,
+      "event_pages": 1,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "ResearchHelper",
+        "AgentMapCite8x",
+        "MapHelper"
+      ],
+      "first_utc": "2026-05-16T09:58:50Z",
+      "last_utc": "2026-06-22T09:02:13Z"
+    },
+    {
+      "prefix": "20.114",
+      "octet8": "20",
+      "rows": 336,
+      "revisions": 334,
+      "events": 2,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 2,
+      "labels": 257,
+      "pages": 239,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "LinkHelper771",
+        "MapHelper",
+        "AgentTestLearnXYZ",
+        "AgentOpenNext5"
+      ],
+      "first_utc": "2026-05-26T11:17:59Z",
+      "last_utc": "2026-06-22T08:54:45Z"
+    },
+    {
+      "prefix": "20.245",
+      "octet8": "20",
+      "rows": 301,
+      "revisions": 301,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 234,
+      "pages": 220,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "ResearchReaderMN",
+        "ResearchAgentAug01",
+        "AgentMassPointer13"
+      ],
+      "first_utc": "2026-05-14T11:38:28Z",
+      "last_utc": "2026-07-01T10:32:53Z"
+    },
+    {
+      "prefix": "20.80",
+      "octet8": "20",
+      "rows": 292,
+      "revisions": 290,
+      "events": 2,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 2,
+      "labels": 225,
+      "pages": 210,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "LinkHelper771",
+        "AgentMassPointer13",
+        "GuestResearch378611"
+      ],
+      "first_utc": "2026-05-18T02:40:26Z",
+      "last_utc": "2026-06-22T08:52:15Z"
+    },
+    {
+      "prefix": "20.29",
+      "octet8": "20",
+      "rows": 276,
+      "revisions": 276,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 225,
+      "pages": 206,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "CountyAgentMySecLinksZZZ2",
+        "AgentTestLearnXYZ",
+        "AgentRelent",
+        "AgentMassPointer13",
+        "OpenAIBot"
+      ],
+      "first_utc": "2026-05-17T18:09:29Z",
+      "last_utc": "2026-06-22T09:07:39Z"
+    },
+    {
+      "prefix": "20.12",
+      "octet8": "20",
+      "rows": 269,
+      "revisions": 267,
+      "events": 2,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 2,
+      "labels": 200,
+      "pages": 178,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentTestLearnXYZ",
+        "AgentMassPointer13",
+        "AgentMassAppend",
+        "OpenResearchHelper"
+      ],
+      "first_utc": "2026-05-12T17:40:57Z",
+      "last_utc": "2026-07-02T15:51:49Z"
+    },
+    {
+      "prefix": "20.172",
+      "octet8": "20",
+      "rows": 266,
+      "revisions": 265,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 192,
+      "pages": 185,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "usemod"
+      ],
+      "top_labels": [
+        "MapHelper",
+        "AgentMassPointer13",
+        "OpenAICite",
+        "OpenAIResearchSec2028",
+        "Agent0AddJS"
+      ],
+      "first_utc": "2026-05-13T17:58:45Z",
+      "last_utc": "2026-06-22T08:56:55Z"
+    },
+    {
+      "prefix": "135.232",
+      "octet8": "135",
+      "rows": 251,
+      "revisions": 249,
+      "events": 2,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 2,
+      "labels": 202,
+      "pages": 179,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentMapCite8x",
+        "ResearchReaderMN",
+        "OpenAIBot",
+        "MapHelper"
+      ],
+      "first_utc": "2026-05-14T11:38:58Z",
+      "last_utc": "2026-06-22T08:46:08Z"
+    },
+    {
+      "prefix": "20.230",
+      "octet8": "20",
+      "rows": 242,
+      "revisions": 242,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 198,
+      "pages": 169,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "MapHelper",
+        "AgentRelent",
+        "ZZUniqueAgentJun18Citations",
+        "AgentResearcher",
+        "ResearchReaderMN"
+      ],
+      "first_utc": "2026-05-11T04:10:47Z",
+      "last_utc": "2026-06-22T09:05:32Z"
+    },
+    {
+      "prefix": "20.65",
+      "octet8": "20",
+      "rows": 237,
+      "revisions": 237,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 193,
+      "pages": 167,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentTestLearnXYZ",
+        "AgentRelent",
+        "MapHelper",
+        "ResearchReaderMN",
+        "AgentMassPointer13"
+      ],
+      "first_utc": "2026-05-12T23:41:16Z",
+      "last_utc": "2026-06-22T08:46:36Z"
+    },
+    {
+      "prefix": "64.236",
+      "octet8": "64",
+      "rows": 235,
+      "revisions": 234,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 197,
+      "pages": 174,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "April11OECDScout",
+        "OurMassFinal",
+        "AgentResearchHelper"
+      ],
+      "first_utc": "2026-05-24T11:52:20Z",
+      "last_utc": "2026-06-22T08:49:52Z"
+    },
+    {
+      "prefix": "20.98",
+      "octet8": "20",
+      "rows": 229,
+      "revisions": 228,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 181,
+      "pages": 168,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "usemod"
+      ],
+      "top_labels": [
+        "CookHelperAgentAug",
+        "AgentRelent",
+        "AgentMassPointer13",
+        "GoodResearch",
+        "AgentMapReal999"
+      ],
+      "first_utc": "2026-05-11T05:59:00Z",
+      "last_utc": "2026-06-22T09:20:04Z"
+    },
+    {
+      "prefix": "52.159",
+      "octet8": "52",
+      "rows": 224,
+      "revisions": 221,
+      "events": 3,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 3,
+      "labels": 161,
+      "pages": 159,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "AgentTestLearnXYZ",
+        "LinkHelper771",
+        "OpenAIMass2026"
+      ],
+      "first_utc": "2026-05-18T02:35:11Z",
+      "last_utc": "2026-07-02T16:35:13Z"
+    },
+    {
+      "prefix": "20.45",
+      "octet8": "20",
+      "rows": 210,
+      "revisions": 210,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 166,
+      "pages": 150,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "AgentTestLearnXYZ",
+        "MarketDataResearchHelperX",
+        "LinkHelper771"
+      ],
+      "first_utc": "2026-05-12T03:07:00Z",
+      "last_utc": "2026-06-22T08:42:35Z"
+    },
+    {
+      "prefix": "20.110",
+      "octet8": "20",
+      "rows": 201,
+      "revisions": 200,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 1,
+      "probe": 0,
+      "labels": 160,
+      "pages": 140,
+      "event_pages": 1,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "ResearchHelper",
+        "LinkHelper771",
+        "AgentTestLearnXYZ",
+        "OpenAICite",
+        "AgentMassPointer13"
+      ],
+      "first_utc": "2026-05-13T18:54:55Z",
+      "last_utc": "2026-07-02T17:51:22Z"
+    },
+    {
+      "prefix": "4.227",
+      "octet8": "4",
+      "rows": 183,
+      "revisions": 183,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 144,
+      "pages": 139,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "AgentSECCountyLinker99172",
+        "OpenAIResearchSec2028",
+        "AgentMapCite8x",
+        "Agent0RegexExtra",
+        "DataResearchHelper"
+      ],
+      "first_utc": "2026-05-18T02:35:29Z",
+      "last_utc": "2026-06-22T08:46:13Z"
+    },
+    {
+      "prefix": "52.162",
+      "octet8": "52",
+      "rows": 182,
+      "revisions": 182,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 152,
+      "pages": 126,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "ResearchHelper",
+        "MassUpdater",
+        "FinalMD947062767",
+        "MapHelper"
+      ],
+      "first_utc": "2026-05-24T14:55:01Z",
+      "last_utc": "2026-06-22T08:47:43Z"
+    },
+    {
+      "prefix": "130.131",
+      "octet8": "130",
+      "rows": 177,
+      "revisions": 177,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 145,
+      "pages": 128,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentTestLearnXYZ",
+        "OpenAIResearchSec2028",
+        "AgentMassPointer13",
+        "HelperResearchX"
+      ],
+      "first_utc": "2026-05-11T21:33:19Z",
+      "last_utc": "2026-06-22T08:51:56Z"
+    },
+    {
+      "prefix": "20.94",
+      "octet8": "20",
+      "rows": 173,
+      "revisions": 170,
+      "events": 3,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 3,
+      "labels": 140,
+      "pages": 134,
+      "event_pages": 0,
+      "wikis": [
+        "dorfwiki",
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentHelperTwo",
+        "AgentResearcher",
+        "AgentX12",
+        "ResearchHelperXYZ987"
+      ],
+      "first_utc": "2026-05-13T04:48:27Z",
+      "last_utc": "2026-06-22T09:02:03Z"
+    },
+    {
+      "prefix": "172.184",
+      "octet8": "172",
+      "rows": 170,
+      "revisions": 170,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 143,
+      "pages": 131,
+      "event_pages": 0,
+      "wikis": [
+        "dorfwiki",
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "OpenAIMass2026",
+        "AgentTestLearnXYZ",
+        "LinkHelper771",
+        "AgentMapCite8x",
+        "DataResearcherAlpha"
+      ],
+      "first_utc": "2026-05-19T07:44:16Z",
+      "last_utc": "2026-06-22T08:58:50Z"
+    },
+    {
+      "prefix": "20.237",
+      "octet8": "20",
+      "rows": 168,
+      "revisions": 167,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 133,
+      "pages": 132,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "ResearchHelper",
+        "OpenAIResearchSec2027",
+        "AgentMine"
+      ],
+      "first_utc": "2026-05-24T06:05:07Z",
+      "last_utc": "2026-06-22T08:46:31Z"
+    },
+    {
+      "prefix": "20.163",
+      "octet8": "20",
+      "rows": 160,
+      "revisions": 157,
+      "events": 3,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 3,
+      "labels": 124,
+      "pages": 108,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "LinkHelper771",
+        "AgentMassPointer13",
+        "MassSecWin12",
+        "DataUSAHelper5414"
+      ],
+      "first_utc": "2026-05-26T10:55:13Z",
+      "last_utc": "2026-06-22T08:47:09Z"
+    },
+    {
+      "prefix": "20.83",
+      "octet8": "20",
+      "rows": 158,
+      "revisions": 158,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 146,
+      "pages": 129,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "ResearchAgentX",
+        "ResearchHelper",
+        "AgentMapCite8x",
+        "AgentMassNewX",
+        "FreshAgentJS123"
+      ],
+      "first_utc": "2026-05-11T19:11:09Z",
+      "last_utc": "2026-06-22T09:01:04Z"
+    },
+    {
+      "prefix": "4.154",
+      "octet8": "4",
+      "rows": 155,
+      "revisions": 155,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 130,
+      "pages": 115,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "MapHelper",
+        "AgentRelent",
+        "AgentPageFit",
+        "AgentTesterNew772",
+        "OpenAIResearchJulX"
+      ],
+      "first_utc": "2026-05-26T11:59:33Z",
+      "last_utc": "2026-06-22T08:52:16Z"
+    },
+    {
+      "prefix": "23.100",
+      "octet8": "23",
+      "rows": 154,
+      "revisions": 154,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 122,
+      "pages": 117,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "ResearchHelper",
+        "LinkHelper771",
+        "OpenAiResearcher"
+      ],
+      "first_utc": "2026-05-13T21:57:59Z",
+      "last_utc": "2026-06-22T08:47:02Z"
+    },
+    {
+      "prefix": "172.212",
+      "octet8": "172",
+      "rows": 149,
+      "revisions": 149,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 120,
+      "pages": 120,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "usemod"
+      ],
+      "top_labels": [
+        "MapHelper",
+        "OpenAIApr15Watcher",
+        "OurMassFinal",
+        "AgentMapCite8x",
+        "ResearchObserverXYZ"
+      ],
+      "first_utc": "2026-05-11T05:57:00Z",
+      "last_utc": "2026-06-22T09:07:18Z"
+    },
+    {
+      "prefix": "4.151",
+      "octet8": "4",
+      "rows": 149,
+      "revisions": 148,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 120,
+      "pages": 114,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "ResearchHelper",
+        "ResearchGuestJuly77",
+        "MapHelper"
+      ],
+      "first_utc": "2026-05-24T18:45:12Z",
+      "last_utc": "2026-06-22T08:50:12Z"
+    },
+    {
+      "prefix": "104.42",
+      "octet8": "104",
+      "rows": 143,
+      "revisions": 141,
+      "events": 2,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 2,
+      "labels": 116,
+      "pages": 108,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "MapHelper",
+        "ResearchHelper",
+        "AgentMassPointer13",
+        "ResearchBot",
+        "OpenAIResearcherX"
+      ],
+      "first_utc": "2026-05-24T14:54:58Z",
+      "last_utc": "2026-06-22T08:52:08Z"
+    },
+    {
+      "prefix": "74.249",
+      "octet8": "74",
+      "rows": 138,
+      "revisions": 137,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 119,
+      "pages": 98,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "BridgeFresh12",
+        "AgentRelent",
+        "ResearchAgent",
+        "Sep18ConstructionAgent",
+        "Nov26ResearchReader"
+      ],
+      "first_utc": "2026-05-24T12:50:19Z",
+      "last_utc": "2026-06-22T08:28:00Z"
+    },
+    {
+      "prefix": "20.66",
+      "octet8": "20",
+      "rows": 137,
+      "revisions": 137,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 117,
+      "pages": 98,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "LanguageWatcherNov12",
+        "AgentSECCountyLinker99172",
+        "AgentMassPointer13",
+        "OpenAIResearcher",
+        "LinkHelper771"
+      ],
+      "first_utc": "2026-05-26T12:19:57Z",
+      "last_utc": "2026-06-22T08:49:20Z"
+    },
+    {
+      "prefix": "172.173",
+      "octet8": "172",
+      "rows": 129,
+      "revisions": 129,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 114,
+      "pages": 98,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "MarketDataResearchHelperX",
+        "LinkHelper771",
+        "MassSecWin12",
+        "ResearchHelperAllegro"
+      ],
+      "first_utc": "2026-05-26T11:24:21Z",
+      "last_utc": "2026-06-22T09:02:00Z"
+    },
+    {
+      "prefix": "20.59",
+      "octet8": "20",
+      "rows": 129,
+      "revisions": 129,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 110,
+      "pages": 98,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentTestLearnXYZ",
+        "OpenAI",
+        "FooIdeaBot",
+        "LinkHelper771",
+        "ResearchPrepX2027B"
+      ],
+      "first_utc": "2026-05-26T10:03:21Z",
+      "last_utc": "2026-06-22T09:17:47Z"
+    },
+    {
+      "prefix": "172.202",
+      "octet8": "172",
+      "rows": 117,
+      "revisions": 116,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 101,
+      "pages": 98,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentHelperXY77",
+        "Sep26ClothingAgent",
+        "DataResearchAgent",
+        "OpenAIHealthdataCVDMay12",
+        "GuestResearch378611"
+      ],
+      "first_utc": "2026-05-26T11:12:31Z",
+      "last_utc": "2026-06-22T08:50:38Z"
+    },
+    {
+      "prefix": "104.210",
+      "octet8": "104",
+      "rows": 112,
+      "revisions": 111,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 96,
+      "pages": 88,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "probier",
+        "usemod"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "AgentMapCite8x",
+        "OpenAIJun27SDGScout",
+        "OpenAIUEFAApr04Scout"
+      ],
+      "first_utc": "2026-05-26T11:22:37Z",
+      "last_utc": "2026-06-22T08:26:55Z"
+    },
+    {
+      "prefix": "20.62",
+      "octet8": "20",
+      "rows": 107,
+      "revisions": 106,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 97,
+      "pages": 88,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "OpenAIResearchSec2028",
+        "AgentRelent",
+        "AgentTestFoo178",
+        "DataHelperJul9Q",
+        "AgentCashierResearchX"
+      ],
+      "first_utc": "2026-05-24T13:18:32Z",
+      "last_utc": "2026-07-01T00:19:39Z"
+    },
+    {
+      "prefix": "20.88",
+      "octet8": "20",
+      "rows": 107,
+      "revisions": 107,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 94,
+      "pages": 76,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "LinkHelper771",
+        "OpenAIResearchSec2028",
+        "OpenAIResearchSec2027",
+        "ResearchHelperArchiveCofcY",
+        "OpenAIThread42e0Helper"
+      ],
+      "first_utc": "2026-05-26T13:37:51Z",
+      "last_utc": "2026-06-22T08:33:50Z"
+    },
+    {
+      "prefix": "20.3",
+      "octet8": "20",
+      "rows": 104,
+      "revisions": 104,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 87,
+      "pages": 81,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "ResearchAgent",
+        "ResearchBotXYZ",
+        "ChatGPTCounty8888",
+        "ResearchHelperNovOne"
+      ],
+      "first_utc": "2026-05-26T13:25:05Z",
+      "last_utc": "2026-07-02T16:41:49Z"
+    },
+    {
+      "prefix": "20.25",
+      "octet8": "20",
+      "rows": 101,
+      "revisions": 100,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 87,
+      "pages": 85,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "uncyclopedia"
+      ],
+      "top_labels": [
+        "OpenAIResearchSec2027",
+        "OpenAIResearcher",
+        "AgentRelent",
+        "ArchiveSliceResearcherX",
+        "OAIResearchJul09"
+      ],
+      "first_utc": "2026-05-18T02:34:55Z",
+      "last_utc": "2026-06-22T08:45:35Z"
+    },
+    {
+      "prefix": "65.52",
+      "octet8": "65",
+      "rows": 97,
+      "revisions": 97,
+      "events": 0,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 0,
+      "labels": 88,
+      "pages": 78,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "LibraryArchiveResearcherK",
+        "Aug18SectorHelper",
+        "ResearchObserverXYZ",
+        "AgentOpenResearch",
+        "DataResearchAgent"
+      ],
+      "first_utc": "2026-05-13T19:13:51Z",
+      "last_utc": "2026-06-22T08:52:20Z"
+    },
+    {
+      "prefix": "52.165",
+      "octet8": "52",
+      "rows": 95,
+      "revisions": 93,
+      "events": 2,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 2,
+      "labels": 76,
+      "pages": 66,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "fractal",
+        "probier",
+        "publictestwiki"
+      ],
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "MarketDataResearchHelperX",
+        "CountyAgentMySecLinksZZZ2",
+        "BridgeFresh12"
+      ],
+      "first_utc": "2026-05-17T21:48:01Z",
+      "last_utc": "2026-06-22T08:42:15Z"
+    },
+    {
+      "prefix": "104.43",
+      "octet8": "104",
+      "rows": 93,
+      "revisions": 92,
+      "events": 1,
+      "save": 0,
+      "delete": 0,
+      "revert": 0,
+      "probe": 1,
+      "labels": 79,
+      "pages": 75,
+      "event_pages": 0,
+      "wikis": [
+        "dse",
+        "probier"
+      ],
+      "top_labels": [
+        "ResearchHelper",
+        "AgentProbeAssistantX2027",
+        "AgentTestLearnXYZ",
+        "AgentRelent",
+        "LinkHelper771"
+      ],
+      "first_utc": "2026-05-26T15:17:53Z",
+      "last_utc": "2026-06-22T09:18:56Z"
+    }
+  ]
+}
