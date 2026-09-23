@@ -1,4 +1,4 @@
-export const DEFAULT_API_URL = 'http://127.0.0.1:8787'
+export const DEFAULT_API_URL = 'https://agent-collusion.uk/api'
 const DEFAULT_TIMEOUT_MS = 15_000
 const MIN_TIMEOUT_MS = 100
 const MAX_TIMEOUT_MS = 120_000
@@ -113,7 +113,11 @@ export type ArchiveApiClientOptions = {
   timeoutMs?: number
 }
 
-export function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
+export function readApiBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
+  if (value.includes('?') || value.includes('#')) {
+    throw new Error(`${label} must not include credentials, query, or fragment`)
+  }
+
   let url: URL
   try {
     url = new URL(value)
@@ -127,11 +131,11 @@ export function readBaseUrl(value: string, label = 'ARCHIVE_API_URL'): URL {
   if (url.username || url.password || url.search || url.hash) {
     throw new Error(`${label} must not include credentials, query, or fragment`)
   }
-  if (url.pathname !== '/' && url.pathname !== '') {
-    throw new Error(`${label} must point to the Worker origin`)
+  if (url.pathname !== '/' && url.pathname !== '' && url.pathname !== '/api' && url.pathname !== '/api/') {
+    throw new Error(`${label} must point to the Worker API base (/api)`)
   }
 
-  url.pathname = '/'
+  url.pathname = '/api/'
   return url
 }
 
@@ -259,7 +263,7 @@ export class ArchiveApiClient implements ArchiveApi {
 
   constructor(options: ArchiveApiClientOptions = {}) {
     const baseUrlLabel = options.baseUrl === undefined ? 'ARCHIVE_API_URL' : 'baseUrl'
-    this.baseUrl = readBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL, baseUrlLabel)
+    this.baseUrl = readApiBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL, baseUrlLabel)
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
     this.timeoutMs = readTimeoutMs(options.timeoutMs)
   }

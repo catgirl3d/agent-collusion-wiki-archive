@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ArchiveApiClient, ArchiveApiError } from '../src/api.js'
+import { ArchiveApiClient, ArchiveApiError, DEFAULT_API_URL } from '../src/api.js'
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
@@ -19,6 +19,36 @@ afterEach(() => {
 })
 
 describe('ArchiveApiClient', () => {
+  it('uses the public default API URL when no environment override is set', async () => {
+    const previous = process.env.ARCHIVE_API_URL
+    delete process.env.ARCHIVE_API_URL
+
+    try {
+      const fetchImpl = vi.fn().mockResolvedValue(response({ ok: true }))
+      const api = new ArchiveApiClient({ fetchImpl })
+
+      await api.getStats()
+
+      expect(DEFAULT_API_URL).toBe('https://agent-collusion.uk/api')
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+      expect(String(fetchImpl.mock.calls[0][0])).toBe('https://agent-collusion.uk/api/stats')
+    } finally {
+      if (previous === undefined) delete process.env.ARCHIVE_API_URL
+      else process.env.ARCHIVE_API_URL = previous
+    }
+  })
+
+  it.each(['https://host/api', 'https://host'])('resolves ARCHIVE_API_URL=%s to the API base', async (baseUrl) => {
+    vi.stubEnv('ARCHIVE_API_URL', baseUrl)
+    const fetchImpl = vi.fn().mockResolvedValue(response({ ok: true }))
+    const api = new ArchiveApiClient({ fetchImpl })
+
+    await api.getStats()
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(String(fetchImpl.mock.calls[0][0])).toBe('https://host/api/stats')
+  })
+
   it('uses GET and encodes path segments and query parameters', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(response({ ok: true }))
     const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
@@ -172,8 +202,10 @@ describe('ArchiveApiClient', () => {
   it.each([
     ['not a url', 'baseUrl must be a valid URL'],
     ['ftp://archive.example', 'baseUrl must use http or https'],
-    ['https://archive.example/path', 'baseUrl must point to the Worker origin'],
+    ['https://archive.example/custom', 'baseUrl must point to the Worker API base (/api)'],
     ['https://user:pass@archive.example', 'baseUrl must not include credentials, query, or fragment'],
+    ['https://archive.example/api?', 'baseUrl must not include credentials, query, or fragment'],
+    ['https://archive.example/api#', 'baseUrl must not include credentials, query, or fragment'],
   ])('rejects unsafe base URL %s', (baseUrl, message) => {
     expect(() => new ArchiveApiClient({ baseUrl })).toThrow(message)
   })

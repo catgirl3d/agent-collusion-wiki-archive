@@ -18,6 +18,7 @@ __pycache__/
 
 # Local artifacts
 staged_diff_output.txt
+mcp/*.tgz
 
 # Wrangler local state (deploy cache/tmp, `wrangler dev` state)
 .wrangler/
@@ -33,5 +34,6 @@ data/validation/proxy-audit.md
 # Private full anna.fyi snapshot (all raw pastes incl. personal ones; never commit)
 data/external/anna-fyi-full-private/
 
-
+# Сst
 web/coverage/*
+mcp/RELEASE.md

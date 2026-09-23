@@ -1,66 +1,149 @@
 # Archive MCP
 
-This package is a read-only MCP adapter over the Worker API and its static data
-assets in `../worker/`. MCP clients run it over stdio.
+`@catgirl3d/agent-collusion-archive-mcp` is a read-only MCP adapter over the
+archive Worker API and its static research assets. MCP clients run it over
+stdio.
 
-Two kinds of work happen here:
+Point-query tools make `GET` requests. Local research tools fetch generated
+assets from the Worker: each research operation reads the current summary, and
+generation-matched indexes are cached in the MCP process. The compressed
+revision corpus is downloaded on the first literal corpus search for a
+generation. Nothing is written to disk.
 
-- **Point queries** are translated into `GET` requests to the configured Worker origin.
-- **Local research tools** (`list_revisions`, `search_corpus`, `get_activity`) download compact
-  published assets once and filter/scan them in the MCP process. The corpus is held only in an
-  in-memory cache for the session; nothing is written to disk and no second storage layer exists.
+## Public beta
 
-## Run
+The public beta requires Node.js 20 or newer and npm. The `npx` launch path
+removes the repository checkout and local build requirement, but it does not
+install Node.js or npm for you.
 
-Build and test the adapter:
-
-```bash
-cd mcp
-npm ci
-npm test
-npm run build
-```
-
-When the published archive assets change (data release or Worker deploy), rebuild
-the adapter and restart MCP clients in the same release: the timeline and
-combined-count consistency checks are bound to the asset generation, and older
-builds reject the combined timeline with `archive_data_invalid` instead of
-serving mixed data.
-
-Start the Worker first. Locally, its default origin is
-`http://127.0.0.1:8787`. Override it with `ARCHIVE_API_URL` when using a
-deployed Worker:
+By default, use the `latest` release:
 
 ```bash
-ARCHIVE_API_URL=https://archive.example.workers.dev npm start
+npx --yes @catgirl3d/agent-collusion-archive-mcp@latest
 ```
 
-On Windows PowerShell, use `$env:ARCHIVE_API_URL="https://archive.example.workers.dev"; npm start`.
-
-`ARCHIVE_API_URL` must be an `http` or `https` origin without credentials,
-query parameters, fragments, or a path prefix.
-
-`ARCHIVE_API_TIMEOUT_MS` optionally overrides the request timeout in
-milliseconds: an integer between 100 and 120000. The default is 15000.
+`npx` resolves `latest` when the MCP process starts. Restart the MCP client to
+pick up a newly published release. To pin a specific version instead, use
+`@0.1.1` or another exact version.
 
 ## MCP client configuration
 
-After `npm run build`, configure an MCP client with the Node command pointing
-at the compiled entrypoint:
+The ordinary production configuration needs no URL or environment variable:
+the package already uses `https://agent-collusion.uk/api`.
+
+### Kilo Code
+
+On Windows, use Kilo's documented `cmd /c npx` form:
+
+```jsonc
+{
+  "mcp": {
+    "agent-collusion-archive": {
+      "type": "local",
+      "command": [
+        "cmd",
+        "/c",
+        "npx",
+        "--yes",
+        "@catgirl3d/agent-collusion-archive-mcp@latest"
+      ],
+      "enabled": true
+    }
+  }
+}
+```
+
+On macOS and Linux, use `npx` as the first command-array entry and omit
+`cmd` and `/c`.
+
+### Claude Desktop
+
+Use its stdio `command`/`args` form:
 
 ```json
 {
   "mcpServers": {
     "agent-collusion-archive": {
-      "command": "node",
-      "args": ["/absolute/path/to/repository/mcp/dist/index.js"],
-      "env": {
-        "ARCHIVE_API_URL": "http://127.0.0.1:8787"
-      }
+      "command": "npx",
+      "args": ["--yes", "@catgirl3d/agent-collusion-archive-mcp@latest"]
     }
   }
 }
 ```
+
+This is the manual stdio configuration route. Claude Desktop also offers
+[Desktop Extensions](https://www.anthropic.com/engineering/desktop-extensions)
+as a packaged installation option.
+
+The [MCP project's Windows example](https://modelcontextprotocol.io/docs/develop/connect-local-servers)
+also uses `command: "npx"`. If a Windows installation reports that `npx` cannot
+be found, replace the `command` and `args` fields with:
+
+```json
+"command": "cmd.exe",
+"args": ["/c", "npx", "--yes", "@catgirl3d/agent-collusion-archive-mcp@latest"]
+```
+
+## API base and local mirrors
+
+No environment variable is required for production. For local or mirror
+development only, an optional `ARCHIVE_API_URL` override can use an API base
+such as `http://127.0.0.1:8787/api`.
+
+The following client-specific field fragments are not complete server entries.
+
+For Kilo Code, add this field to the server entry:
+
+```jsonc
+"environment": { "ARCHIVE_API_URL": "http://127.0.0.1:8787/api" }
+```
+
+For Claude Desktop, use `env` instead:
+
+```json
+"env": { "ARCHIVE_API_URL": "http://127.0.0.1:8787/api" }
+```
+
+Legacy bare origins such as `http://127.0.0.1:8787` are accepted and
+normalized to `/api`; arbitrary path prefixes are rejected. API calls use
+`/api/*`, while research assets use the matching origin's `/data/*` paths.
+
+## Development
+
+The checkout workflow below is for contributors and local Worker testing. It
+is not required for the published `npx` package:
+
+```bash
+cd mcp
+npm ci
+npm test
+npm run typecheck
+npm run build
+```
+
+Start the Worker first when testing against local data. Its default local
+origin is `http://127.0.0.1:8787`:
+
+```bash
+ARCHIVE_API_URL=http://127.0.0.1:8787/api npm start
+```
+
+On Windows PowerShell, use
+`$env:ARCHIVE_API_URL="http://127.0.0.1:8787/api"; npm start`.
+
+`ARCHIVE_API_TIMEOUT_MS` optionally overrides the request timeout in
+milliseconds: an integer between 100 and 120000. The default is 15000.
+
+The MCP package does not bundle archive data. Research operations read the
+current Worker summary; when its generation changes, the process loads matching
+assets and caches them in memory. The compressed revision corpus is fetched on
+the first `search_corpus` call for that generation. 
+
+## License
+
+The MCP package is licensed under the package-local [MIT license](LICENSE).
+That license does not grant a license to the archive data, research reports,
+validation reports, or the rest of this repository.
 
 ## Tools
 
