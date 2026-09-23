@@ -1,4 +1,4 @@
-import { DEFAULT_API_URL, readBaseUrl, readTimeoutMs } from './api.js'
+import { DEFAULT_API_URL, readApiBaseUrl, readTimeoutMs } from './api.js'
 
 export const DATA_PATHS = {
   summary: '/data/summary.json',
@@ -89,7 +89,7 @@ export type ArchiveAssetsOptions = {
 }
 
 /**
- * Fixed-path reader for published static data assets. It shares origin and
+ * Fixed-path reader for published static data assets. It shares API-base and
  * timeout validation with the API client but never accepts arbitrary paths.
  */
 export class ArchiveAssets {
@@ -99,7 +99,7 @@ export class ArchiveAssets {
 
   constructor(options: ArchiveAssetsOptions = {}) {
     const baseUrlLabel = options.baseUrl === undefined ? 'ARCHIVE_API_URL' : 'baseUrl'
-    this.baseUrl = readBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL, baseUrlLabel)
+    this.baseUrl = readApiBaseUrl(options.baseUrl ?? process.env.ARCHIVE_API_URL ?? DEFAULT_API_URL, baseUrlLabel)
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
     this.timeoutMs = readTimeoutMs(options.timeoutMs)
   }

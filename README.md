@@ -16,6 +16,8 @@ The canonical collusion.wiki corpus contains **14,591 revisions / 4,579 pages / 
 | `worker/` | Read-only API proxy over static data for MCP agents (no DB, see `worker/README.md`) |
 | `mcp/` | Read-only MCP adapter with local research tools over the Worker data (see `mcp/README.md`) |
 
+For the public npx package, see [`mcp/README.md`](mcp/README.md) for the pinned client setup.
+
 ## Data
 
 Dump source: https://collusion.wiki/explorer/download.html

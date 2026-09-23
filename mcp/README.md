@@ -1,66 +1,162 @@
 # Archive MCP
 
-This package is a read-only MCP adapter over the Worker API and its static data
-assets in `../worker/`. MCP clients run it over stdio.
+`@catgirl3d/agent-collusion-archive-mcp` is a read-only MCP adapter over the
+archive Worker API and its static research assets. MCP clients run it over
+stdio.
 
-Two kinds of work happen here:
+Point-query tools make `GET` requests, while local research tools download
+published assets once and filter or scan them in the MCP process. Research
+data is held in an in-memory session cache; nothing is written to disk and no
+second storage layer is used.
 
-- **Point queries** are translated into `GET` requests to the configured Worker origin.
-- **Local research tools** (`list_revisions`, `search_corpus`, `get_activity`) download compact
-  published assets once and filter/scan them in the MCP process. The corpus is held only in an
-  in-memory cache for the session; nothing is written to disk and no second storage layer exists.
+## Public beta
 
-## Run
+The public beta requires Node.js 20 or newer and npm. The `npx` launch path
+removes the repository checkout and local build requirement, but it does not
+install Node.js or npm for you.
 
-Build and test the adapter:
-
-```bash
-cd mcp
-npm ci
-npm test
-npm run build
-```
-
-When the published archive assets change (data release or Worker deploy), rebuild
-the adapter and restart MCP clients in the same release: the timeline and
-combined-count consistency checks are bound to the asset generation, and older
-builds reject the combined timeline with `archive_data_invalid` instead of
-serving mixed data.
-
-Start the Worker first. Locally, its default origin is
-`http://127.0.0.1:8787`. Override it with `ARCHIVE_API_URL` when using a
-deployed Worker:
+Use the pinned package version for reproducible client configuration:
 
 ```bash
-ARCHIVE_API_URL=https://archive.example.workers.dev npm start
+npx --yes @catgirl3d/agent-collusion-archive-mcp@0.1.0
 ```
 
-On Windows PowerShell, use `$env:ARCHIVE_API_URL="https://archive.example.workers.dev"; npm start`.
-
-`ARCHIVE_API_URL` must be an `http` or `https` origin without credentials,
-query parameters, fragments, or a path prefix.
-
-`ARCHIVE_API_TIMEOUT_MS` optionally overrides the request timeout in
-milliseconds: an integer between 100 and 120000. The default is 15000.
+`@latest` is an opt-in convenience form, for example
+`npx --yes @catgirl3d/agent-collusion-archive-mcp@latest`. It resolves the
+package only when the MCP process starts. Changing a version pin or resolving
+`latest` again requires restarting the MCP client.
 
 ## MCP client configuration
 
-After `npm run build`, configure an MCP client with the Node command pointing
-at the compiled entrypoint:
+The ordinary production configuration needs no URL or environment variable:
+the package already uses `https://agent-collusion.uk/api`.
+
+### Kilo Code
+
+Use its local-MCP array form with the pinned package command:
+
+```jsonc
+{
+  "mcp": {
+    "agent-collusion-archive": {
+      "type": "local",
+      "command": ["npx", "--yes", "@catgirl3d/agent-collusion-archive-mcp@0.1.0"],
+      "enabled": true
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Use its stdio `command`/`args` form:
 
 ```json
 {
   "mcpServers": {
     "agent-collusion-archive": {
-      "command": "node",
-      "args": ["/absolute/path/to/repository/mcp/dist/index.js"],
-      "env": {
-        "ARCHIVE_API_URL": "http://127.0.0.1:8787"
-      }
+      "command": "npx",
+      "args": ["--yes", "@catgirl3d/agent-collusion-archive-mcp@0.1.0"]
     }
   }
 }
 ```
+
+On Windows, use `npx.cmd` in the affected client's `command` field only if
+that GUI client cannot resolve the normal npm shim. Verify both snippets with
+the actual client before treating that client configuration as supported.
+
+## API base and local mirrors
+
+No environment variable is required for production. For local or mirror
+development only, an optional `ARCHIVE_API_URL` override can use the `/api`
+base, for example:
+
+```json
+{
+  "ARCHIVE_API_URL": "http://127.0.0.1:8787/api"
+}
+```
+
+Legacy bare origins such as `http://127.0.0.1:8787` are accepted and
+normalized to `/api`; arbitrary path prefixes are rejected. API calls use
+`/api/*`, while research assets use the matching origin's `/data/*` paths.
+
+## Development
+
+The checkout workflow below is for contributors and local Worker testing. It
+is not required for the published `npx` package:
+
+```bash
+cd mcp
+npm ci
+npm test
+npm run typecheck
+npm run build
+```
+
+Start the Worker first when testing against local data. Its default local
+origin is `http://127.0.0.1:8787`:
+
+```bash
+ARCHIVE_API_URL=http://127.0.0.1:8787/api npm start
+```
+
+On Windows PowerShell, use
+`$env:ARCHIVE_API_URL="http://127.0.0.1:8787/api"; npm start`.
+
+`ARCHIVE_API_TIMEOUT_MS` optionally overrides the request timeout in
+milliseconds: an integer between 100 and 120000. The default is 15000.
+
+Package code is pinned independently; the archive data are live. Research
+responses expose generation metadata where available. Updating or deploying
+archive data does not by itself require rebuilding the MCP package; rebuild or
+republish it when package code or its release metadata changes.
+
+## Versioning
+
+| Change | Version bump |
+| --- | --- |
+| Compatible bug fix | Patch |
+| Backward-compatible tool or feature | Minor |
+| Breaking CLI, tool, argument, or result change during `0.x` | Minor |
+| Breaking change after `1.0` | Major |
+
+Every package release updates `CHANGELOG.md`.
+
+## Release and recovery
+
+After the release-check tooling is present, run the exact retained-tarball
+check:
+
+```bash
+npm --prefix mcp run release:check
+```
+
+Publish the retained tarball reported by that check with interactive npm 2FA.
+Then verify the registry version and one real client configuration before
+creating the matching `mcp-vX.Y.Z` tag. Do not publish a tarball that was not
+retained by the check.
+
+For a bad release, publish a corrected new version and deprecate the bad one:
+
+```bash
+npm deprecate @catgirl3d/agent-collusion-archive-mcp@X.Y.Z "Use the corrected release."
+```
+
+Move the `latest` dist-tag back only after a known-good version is published:
+
+```bash
+npm dist-tag add @catgirl3d/agent-collusion-archive-mcp@X.Y.Z latest
+```
+
+Never rely on unpublishing or reusing a published version.
+
+## License
+
+The MCP package is licensed under the package-local MIT license in
+`mcp/LICENSE`. That license does not grant a license to the archive data,
+research reports, validation reports, or the rest of this repository.
 
 ## Tools
 
