@@ -80,6 +80,12 @@ export default function Layout() {
           >
             Download
           </NavLink>
+          <NavLink
+            to="/mcp"
+            className={({ isActive }) => (isActive ? 'navlink active' : 'navlink')}
+          >
+            MCP
+          </NavLink>
         </nav>
         <div className="topbar-actions">
           <SearchBar />

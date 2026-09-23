@@ -133,6 +133,14 @@ describe('Worker API default fetch handler', () => {
     expect(openapi.setup.calls).toEqual([])
   })
 
+  it('serves OpenAPI with or without a trailing slash', async () => {
+    const canonical = await request('/api/openapi')
+    const trailingSlash = await request('/api/openapi/')
+
+    expect(trailingSlash.response.status).toBe(200)
+    expect(await json(trailingSlash.response)).toEqual(await json(canonical.response))
+  })
+
   it('returns stats and caches the asset within an isolate', async () => {
     const worker = await handlerForTest()
     const setup = environment()

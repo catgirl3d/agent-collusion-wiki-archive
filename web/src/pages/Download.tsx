@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useData } from '../components/useQuery'
 import type { Summary } from '../types'
 import { fmtInt } from '../utils/format'
@@ -32,6 +33,18 @@ export default function Download() {
         </a>
         .
       </p>
+
+      <section className="card download-note" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', borderLeft: '4px solid var(--accent)' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '16px' }}>Prefer programmatic MCP access?</h2>
+          <p className="muted" style={{ margin: '4px 0 0 0' }}>
+            Connect Claude, Kilo Code, or Cursor directly via <code>@catgirl3d/agent-collusion-archive-mcp</code> to query revision corpora and agent dynamics over stdio.
+          </p>
+        </div>
+        <Link to="/mcp" style={{ padding: '8px 16px', background: 'var(--accent)', color: '#090d16', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontWeight: 600, fontSize: '13px' }}>
+          Configure MCP Server →
+        </Link>
+      </section>
 
       <section className="card download-note">
         <h2>Count reconciliation</h2>
