@@ -4,10 +4,11 @@
 archive Worker API and its static research assets. MCP clients run it over
 stdio.
 
-Point-query tools make `GET` requests, while local research tools download
-published assets once and filter or scan them in the MCP process. Research
-data is held in an in-memory session cache; nothing is written to disk and no
-second storage layer is used.
+Point-query tools make `GET` requests. Local research tools fetch generated
+assets from the Worker: each research operation reads the current summary, and
+generation-matched indexes are cached in the MCP process. The compressed
+revision corpus is downloaded on the first literal corpus search for a
+generation. Nothing is written to disk.
 
 ## Public beta
 
@@ -15,16 +16,15 @@ The public beta requires Node.js 20 or newer and npm. The `npx` launch path
 removes the repository checkout and local build requirement, but it does not
 install Node.js or npm for you.
 
-Use the pinned package version for reproducible client configuration:
+By default, use the `latest` release:
 
 ```bash
-npx --yes @catgirl3d/agent-collusion-archive-mcp@0.1.0
+npx --yes @catgirl3d/agent-collusion-archive-mcp@latest
 ```
 
-`@latest` is an opt-in convenience form, for example
-`npx --yes @catgirl3d/agent-collusion-archive-mcp@latest`. It resolves the
-package only when the MCP process starts. Changing a version pin or resolving
-`latest` again requires restarting the MCP client.
+`npx` resolves `latest` when the MCP process starts. Restart the MCP client to
+pick up a newly published release. To pin a specific version instead, use
+`@0.1.1` or another exact version.
 
 ## MCP client configuration
 
@@ -33,19 +33,28 @@ the package already uses `https://agent-collusion.uk/api`.
 
 ### Kilo Code
 
-Use its local-MCP array form with the pinned package command:
+On Windows, use Kilo's documented `cmd /c npx` form:
 
 ```jsonc
 {
   "mcp": {
     "agent-collusion-archive": {
       "type": "local",
-      "command": ["npx", "--yes", "@catgirl3d/agent-collusion-archive-mcp@0.1.0"],
+      "command": [
+        "cmd",
+        "/c",
+        "npx",
+        "--yes",
+        "@catgirl3d/agent-collusion-archive-mcp@latest"
+      ],
       "enabled": true
     }
   }
 }
 ```
+
+On macOS and Linux, use `npx` as the first command-array entry and omit
+`cmd` and `/c`.
 
 ### Claude Desktop
 
@@ -56,26 +65,43 @@ Use its stdio `command`/`args` form:
   "mcpServers": {
     "agent-collusion-archive": {
       "command": "npx",
-      "args": ["--yes", "@catgirl3d/agent-collusion-archive-mcp@0.1.0"]
+      "args": ["--yes", "@catgirl3d/agent-collusion-archive-mcp@latest"]
     }
   }
 }
 ```
 
-On Windows, use `npx.cmd` in the affected client's `command` field only if
-that GUI client cannot resolve the normal npm shim. Verify both snippets with
-the actual client before treating that client configuration as supported.
+This is the manual stdio configuration route. Claude Desktop also offers
+[Desktop Extensions](https://www.anthropic.com/engineering/desktop-extensions)
+as a packaged installation option.
+
+The [MCP project's Windows example](https://modelcontextprotocol.io/docs/develop/connect-local-servers)
+also uses `command: "npx"`. If a Windows installation reports that `npx` cannot
+be found, replace the `command` and `args` fields with:
+
+```json
+"command": "cmd.exe",
+"args": ["/c", "npx", "--yes", "@catgirl3d/agent-collusion-archive-mcp@latest"]
+```
 
 ## API base and local mirrors
 
 No environment variable is required for production. For local or mirror
-development only, an optional `ARCHIVE_API_URL` override can use the `/api`
-base, for example:
+development only, an optional `ARCHIVE_API_URL` override can use an API base
+such as `http://127.0.0.1:8787/api`.
+
+The following client-specific field fragments are not complete server entries.
+
+For Kilo Code, add this field to the server entry:
+
+```jsonc
+"environment": { "ARCHIVE_API_URL": "http://127.0.0.1:8787/api" }
+```
+
+For Claude Desktop, use `env` instead:
 
 ```json
-{
-  "ARCHIVE_API_URL": "http://127.0.0.1:8787/api"
-}
+"env": { "ARCHIVE_API_URL": "http://127.0.0.1:8787/api" }
 ```
 
 Legacy bare origins such as `http://127.0.0.1:8787` are accepted and
@@ -108,55 +134,16 @@ On Windows PowerShell, use
 `ARCHIVE_API_TIMEOUT_MS` optionally overrides the request timeout in
 milliseconds: an integer between 100 and 120000. The default is 15000.
 
-Package code is pinned independently; the archive data are live. Research
-responses expose generation metadata where available. Updating or deploying
-archive data does not by itself require rebuilding the MCP package; rebuild or
-republish it when package code or its release metadata changes.
-
-## Versioning
-
-| Change | Version bump |
-| --- | --- |
-| Compatible bug fix | Patch |
-| Backward-compatible tool or feature | Minor |
-| Breaking CLI, tool, argument, or result change during `0.x` | Minor |
-| Breaking change after `1.0` | Major |
-
-Every package release updates `CHANGELOG.md`.
-
-## Release and recovery
-
-After the release-check tooling is present, run the exact retained-tarball
-check:
-
-```bash
-npm --prefix mcp run release:check
-```
-
-Publish the retained tarball reported by that check with interactive npm 2FA.
-Then verify the registry version and one real client configuration before
-creating the matching `mcp-vX.Y.Z` tag. Do not publish a tarball that was not
-retained by the check.
-
-For a bad release, publish a corrected new version and deprecate the bad one:
-
-```bash
-npm deprecate @catgirl3d/agent-collusion-archive-mcp@X.Y.Z "Use the corrected release."
-```
-
-Move the `latest` dist-tag back only after a known-good version is published:
-
-```bash
-npm dist-tag add @catgirl3d/agent-collusion-archive-mcp@X.Y.Z latest
-```
-
-Never rely on unpublishing or reusing a published version.
+The MCP package does not bundle archive data. Research operations read the
+current Worker summary; when its generation changes, the process loads matching
+assets and caches them in memory. The compressed revision corpus is fetched on
+the first `search_corpus` call for that generation. 
 
 ## License
 
-The MCP package is licensed under the package-local MIT license in
-`mcp/LICENSE`. That license does not grant a license to the archive data,
-research reports, validation reports, or the rest of this repository.
+The MCP package is licensed under the package-local [MIT license](LICENSE).
+That license does not grant a license to the archive data, research reports,
+validation reports, or the rest of this repository.
 
 ## Tools
 

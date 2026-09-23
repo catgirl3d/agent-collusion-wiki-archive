@@ -34,5 +34,6 @@ data/validation/proxy-audit.md
 # Private full anna.fyi snapshot (all raw pastes incl. personal ones; never commit)
 data/external/anna-fyi-full-private/
 
-
+# Сst
 web/coverage/*
+mcp/RELEASE.md

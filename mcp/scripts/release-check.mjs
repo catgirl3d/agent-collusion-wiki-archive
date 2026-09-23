@@ -10,7 +10,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 
 const packageRoot = resolve(fileURLToPath(new URL('../', import.meta.url)))
 const npmExecPath = process.env.npm_execpath
-const expectedTarballName = 'catgirl3d-agent-collusion-archive-mcp-0.1.0.tgz'
 const requiredPackFiles = ['package.json', 'README.md', 'CHANGELOG.md', 'LICENSE', 'dist/index.js']
 const handshakeTimeoutMs = 15_000
 
@@ -107,11 +106,13 @@ async function inspectPackResult(packResult) {
   assertCondition(Array.isArray(packResult) && packResult.length === 1, 'npm pack --json must return exactly one package result')
   const result = packResult[0]
   assertCondition(typeof result.filename === 'string', 'npm pack result is missing filename')
-  assertCondition(result.filename === expectedTarballName, `unexpected tarball filename: ${result.filename}`)
   assertCondition(typeof result.integrity === 'string' && result.integrity.startsWith('sha512-'), 'npm pack result is missing sha512 integrity')
   assertCondition(Array.isArray(result.files), 'npm pack result is missing its file list')
 
   const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'))
+  assertCondition(typeof manifest.name === 'string' && typeof manifest.version === 'string', 'package.json must define name and version')
+  const expectedTarballName = `${manifest.name.replace(/^@/, '').replace('/', '-')}-${manifest.version}.tgz`
+  assertCondition(result.filename === expectedTarballName, `unexpected tarball filename: ${result.filename}`)
   assertCondition(Array.isArray(manifest.files), 'package.json must define a files allowlist')
   const manifestFiles = manifest.files.map((entry) => normalizePackPath(String(entry)))
   const packFiles = result.files.map((entry) => normalizePackPath(String(entry.path)))
@@ -135,7 +136,7 @@ async function inspectPackResult(packResult) {
   const localIntegrity = `sha512-${createHash('sha512').update(tarball).digest('base64')}`
   assertCondition(localIntegrity === result.integrity, 'local tarball integrity does not match npm pack result')
 
-  return { tarballPath, integrity: result.integrity, files: packFiles }
+  return { tarballPath, integrity: result.integrity, files: packFiles, version: manifest.version }
 }
 
 function withoutArchiveApiUrl() {
@@ -164,8 +165,8 @@ function handshakeFailure(error, transportError, stderr) {
   return new Error(`installed-bin MCP handshake failed\n${diagnostics.join('\n')}`)
 }
 
-async function verifyInstalledBinary(consumerRoot) {
-  const client = new Client({ name: 'release-check-client', version: '0.1.0' })
+async function verifyInstalledBinary(consumerRoot, version) {
+  const client = new Client({ name: 'release-check-client', version })
   const invocation = npmInvocation(['exec', '--prefix', consumerRoot, '--', 'agent-collusion-archive-mcp'])
   const transport = new StdioClientTransport({
     command: invocation.command,
@@ -259,7 +260,7 @@ async function main() {
       cwd: consumerRoot,
       printOutput: true,
     })
-    await verifyInstalledBinary(consumerRoot)
+    await verifyInstalledBinary(consumerRoot, artifact.version)
   } catch (error) {
     failure = error
   } finally {
