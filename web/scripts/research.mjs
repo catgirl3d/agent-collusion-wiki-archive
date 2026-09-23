@@ -15,9 +15,6 @@ const RESEARCH_GROUPS = [
     label: 'Research Reports',
     docs: [
       { slug: 'coordination-topology', path: 'coordination-topology-assessment.md' },
-      { slug: 'coordination-topology-ru', path: 'coordination-topology-assessment.ru.md' },
-      { slug: 'coordination-topology-uk', path: 'coordination-topology-assessment.uk.md' },
-      { slug: 'coordination-topology-de', path: 'coordination-topology-assessment.de.md' },
       { slug: 'ip16-network-catalog', path: 'ip16-network-catalog.md' },
       { slug: 'openai-wiki-incident-acknowledgment', path: 'openai-wiki-incident-acknowledgment.md' },
     ],
@@ -48,6 +45,9 @@ export function resolveDocLanguage(slug) {
 // Publication is staged: files listed here stay in the repository but are withheld from the site.
 // Move an entry into RESEARCH_GROUPS to publish it in the next stage.
 const EXCLUDED_FILES = [
+  'coordination-topology-assessment.ru.md',
+  'coordination-topology-assessment.uk.md',
+  'coordination-topology-assessment.de.md',
   'proxy-audit.md',
   'security-incident-evidence.md',
   'relay-scenarios.md',
@@ -231,7 +231,7 @@ export function enhanceHtml(html, { summaryHeading } = {}) {
   const escaped = summaryHeading ? summaryHeading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : null
   const summaryRegex = escaped
     ? new RegExp(`<h3 id="[^"]*">\\s*(?:${escaped})`, 'i')
-    : /<h3 id="[^"]*">\s*(?:Bottom line|Главный вывод|Головний висновок|Fazit)/i
+    : /<h3 id="[^"]*">\s*(?:Key findings|Bottom line|Главный вывод|Головний висновок|Fazit)/i
 
   const match = result.match(summaryRegex)
   if (match && match.index !== undefined) {
@@ -244,7 +244,7 @@ export function enhanceHtml(html, { summaryHeading } = {}) {
     const calloutContent = result.slice(startIndex, endIndex)
     const after = result.slice(endIndex)
 
-    result = `${before}<div class="research-callout-summary">\n<div class="callout-badge">KEY FINDING / EXECUTIVE SUMMARY</div>\n${calloutContent}</div>\n${after}`
+    result = `${before}<div class="research-callout-summary">\n<div class="callout-badge">EXECUTIVE SUMMARY</div>\n${calloutContent}</div>\n${after}`
   }
 
   return result
