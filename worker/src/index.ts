@@ -157,7 +157,7 @@ export default {
       }
 
       // GET /api/openapi — machine-readable contract for agents.
-      if (url.pathname === '/api/openapi') {
+      if (url.pathname === '/api/openapi' || url.pathname === '/api/openapi/') {
         return json(
           {
             openapi: '3.0.0',

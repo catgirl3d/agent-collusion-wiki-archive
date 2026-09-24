@@ -162,6 +162,13 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
             >
               <span className="mobile-nav-link-title">Download</span>
             </NavLink>
+            <NavLink
+              to="/mcp"
+              className={({ isActive }) => `mobile-nav-link ${isActive ? 'active' : ''}`}
+              onClick={onClose}
+            >
+              <span className="mobile-nav-link-title">MCP Server & Tools</span>
+            </NavLink>
             <a
               className="mobile-nav-link"
               href="https://collusion.wiki"
