@@ -1,7 +1,6 @@
 /* Pair Evidence Panel */
 .pair-evidence-panel {
   margin-top: 20px;
-  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -77,11 +76,11 @@
   margin: 0;
 }
 
-.pair-signatures-section { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; background: var(--bg-subtle); }
+.pair-signatures-section { padding: 12px; background: var(--bg-subtle); }
 .pair-signature-definition, .pair-signature-scope { margin: 0; }
 .pair-signature-definition { color: var(--text-dim); font-size: 12px; }
 .pair-signature-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.pair-signature-chip, .pair-technique-chip { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 5px 8px; border: 1px solid var(--border-accent); border-radius: var(--radius-sm); background: var(--bg-elevated); font-size: 11px; }
+.pair-signature-chip, .pair-technique-chip { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; margin-left: 0; padding: 5px 8px; border: 1px solid var(--border-accent); border-radius: var(--radius-sm); background: var(--bg-elevated); font-size: 11px; }
 .pair-signature-kind, .pair-technique-chip > span { text-transform: uppercase; letter-spacing: .04em; color: var(--accent); font-size: 10px; }
 .pair-signature-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pair-signature-count { color: var(--muted-text); white-space: nowrap; }
@@ -97,7 +96,7 @@
 .pair-sequence-observations { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 .pair-status-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); }
 .pair-signature-refs { color: var(--muted-text); font-size: 10px; }
-.pair-action-badge, .pair-round-badge { font-size: 10.5px; text-transform: lowercase; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); }
+.pair-action-badge, .pair-round-badge { font-size: 10.5px; text-transform: lowercase; }
 .pair-truncated-note { font-style: italic; }
 .pair-open-page-btn { white-space: nowrap; }
 
@@ -109,15 +108,7 @@
 }
 
 .pair-signal-chip {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
 }
 
 .pair-signal-chip .mono {
@@ -132,8 +123,6 @@
   gap: 4px;
   max-height: 320px;
   overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
   padding: 6px;
   background: var(--bg-subtle);
 }
@@ -217,9 +206,7 @@
 .pair-timeline-error,
 .pair-timeline-empty {
   padding: 16px;
-  border-radius: var(--radius-md);
   background: var(--bg-subtle);
-  border: 1px solid var(--border);
   text-align: center;
 }
 
@@ -317,8 +304,6 @@
 .pair-op-badge {
   font-size: 10.5px;
   text-transform: lowercase;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
 }
 
 .pair-intervening {
