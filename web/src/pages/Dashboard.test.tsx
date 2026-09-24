@@ -110,6 +110,21 @@ describe('Dashboard', () => {
     }
   })
 
+  it('wraps dashboard tables in horizontal scroll containers', async () => {
+    mockData(summary)
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    )
+
+    const tables = await screen.findAllByRole('table')
+    for (const table of tables) {
+      expect(table.closest('.table-wrap')).not.toBeNull()
+    }
+  })
+
   it('loads the events head instead of the full event set', async () => {
     mockData(summary)
 
