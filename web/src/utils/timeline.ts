@@ -11,10 +11,28 @@ import { compareCanonicalRevisionOrder } from './revision'
 export type TimelineFilters = {
   label?: string
   wiki?: string
+  ip?: string
   day?: string
   from?: string
   to?: string
   src?: SourceFilter
+}
+
+export interface TimelineLabelStat {
+  x: string
+  n: number
+}
+
+export interface TimelineSummary {
+  total: number
+  labels: number
+  anon: number
+  recovered: number
+  pages: number
+  wikis: string[]
+  first: string | null
+  last: string | null
+  topLabels: TimelineLabelStat[]
 }
 
 export const TIMELINE_PAGE_SIZE = 100
@@ -42,6 +60,7 @@ export function getTimelinePageName(id: string): string {
 export function filterTimeline(rows: TimelineEntry[], filters: TimelineFilters): TimelineEntry[] {
   const label = filters.label?.trim() ?? ''
   const wiki = filters.wiki ?? ''
+  const ip = filters.ip?.trim() ?? ''
   const day = filters.day ?? ''
   const from = filters.from ?? ''
   const to = filters.to ?? ''
@@ -49,6 +68,7 @@ export function filterTimeline(rows: TimelineEntry[], filters: TimelineFilters):
   return rows.filter((row) => {
     if (label && row.x !== label) return false
     if (wiki && row.w !== wiki) return false
+    if (ip && !(row.ip ?? '').includes(ip)) return false
     if (!matchesSource(row.partial, filters.src)) return false
     const eventDay = row.t.slice(0, 10)
     if (day && eventDay !== day) return false
@@ -56,6 +76,45 @@ export function filterTimeline(rows: TimelineEntry[], filters: TimelineFilters):
     if (to && eventDay > to) return false
     return true
   })
+}
+
+/** Aggregates a timeline slice: totals, distinct labels, wikis, and the label ranking. */
+export function summarizeTimeline(rows: TimelineEntry[]): TimelineSummary {
+  const labelCounts = new Map<string, number>()
+  const pages = new Set<string>()
+  const wikis = new Set<string>()
+  let anon = 0
+  let recovered = 0
+  let first: string | null = null
+  let last: string | null = null
+
+  for (const row of rows) {
+    if (row.x) labelCounts.set(row.x, (labelCounts.get(row.x) ?? 0) + 1)
+    else if (row.partial) recovered += 1
+    else anon += 1
+    pages.add(row.id)
+    wikis.add(row.w)
+    if (row.t) {
+      if (first === null || row.t < first) first = row.t
+      if (last === null || row.t > last) last = row.t
+    }
+  }
+
+  const topLabels = [...labelCounts]
+    .map(([x, n]) => ({ x, n }))
+    .sort((a, b) => b.n - a.n || (a.x < b.x ? -1 : a.x > b.x ? 1 : 0))
+
+  return {
+    total: rows.length,
+    labels: labelCounts.size,
+    anon,
+    recovered,
+    pages: pages.size,
+    wikis: [...wikis].sort(),
+    first,
+    last,
+    topLabels,
+  }
 }
 
 function comparePrimary(a: TimelineEntry, b: TimelineEntry, sort: TimelineSortKey, dir: SortDir): number {

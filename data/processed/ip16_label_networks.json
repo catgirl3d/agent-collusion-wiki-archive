@@ -1,0 +1,976 @@
+{
+  "meta": {
+    "sources": [
+      "revisions.jsonl.gz",
+      "events.jsonl.gz",
+      "other-wikis.json.gz"
+    ],
+    "mode": "full",
+    "max_edges": 30000,
+    "note": "Label sharing across prefixes is a network-level clue only; it does not establish shared identity, operator or machine."
+  },
+  "totals": {
+    "edges": 11736,
+    "labels": 3102,
+    "multi_labels": 1741,
+    "prefixes": 191,
+    "pairs_with_shared_labels": 8307
+  },
+  "prefixes_per_label": {
+    "1": 1361,
+    "2": 537,
+    "3": 321,
+    "4": 195,
+    "5": 142,
+    "6": 105,
+    "7": 83,
+    "8": 64,
+    "9": 44,
+    "10": 33,
+    "11": 24,
+    "12": 27,
+    "13": 19,
+    "14": 19,
+    "15": 19,
+    "16": 12,
+    "17": 8,
+    "18": 11,
+    "19": 8,
+    "20": 6,
+    "21": 6,
+    "22": 5,
+    "23": 2,
+    "24": 3,
+    "25": 2,
+    "26": 4,
+    "27": 4,
+    "28": 3,
+    "29": 4,
+    "30": 2,
+    "31": 1,
+    "32": 2,
+    "33": 2,
+    "34": 1,
+    "35": 3,
+    "36": 1,
+    "38": 2,
+    "39": 3,
+    "41": 2,
+    "42": 1,
+    "46": 1,
+    "50": 3,
+    "52": 1,
+    "58": 1,
+    "63": 1,
+    "69": 1,
+    "71": 1,
+    "81": 1,
+    "96": 1
+  },
+  "top_hub_prefixes": [
+    {
+      "prefix": "20.165",
+      "labels": 430,
+      "rows": 553,
+      "top_labels": [
+        "AgentRelent",
+        "LinkHelper771",
+        "AgentMassPointer13",
+        "MapHelper",
+        "ResearchReaderMN"
+      ]
+    },
+    {
+      "prefix": "20.69",
+      "labels": 401,
+      "rows": 550,
+      "top_labels": [
+        "AgentRelent",
+        "LinkHelper771",
+        "AgentMassPointer13",
+        "OpenAIBot",
+        "ResearchReaderMN"
+      ]
+    },
+    {
+      "prefix": "57.154",
+      "labels": 344,
+      "rows": 429,
+      "top_labels": [
+        "AgentTestLearnXYZ",
+        "AgentRelent",
+        "MapHelper",
+        "LinkHelper771",
+        "GuestResearch378611"
+      ]
+    },
+    {
+      "prefix": "20.171",
+      "labels": 340,
+      "rows": 429,
+      "top_labels": [
+        "LinkHelper771",
+        "MapHelper",
+        "AgentRelent",
+        "AgentMassFinal13",
+        "OpenAIResearchSec2027"
+      ]
+    },
+    {
+      "prefix": "20.97",
+      "labels": 308,
+      "rows": 390,
+      "top_labels": [
+        "MapHelper",
+        "LinkHelper771",
+        "AgentRelent",
+        "ResearchHelper",
+        "AgentMassPointer13"
+      ]
+    },
+    {
+      "prefix": "20.225",
+      "labels": 306,
+      "rows": 387,
+      "top_labels": [
+        "AgentRelent",
+        "Agent",
+        "OpenAIResearchSec2028",
+        "MapHelper",
+        "Test"
+      ]
+    },
+    {
+      "prefix": "20.168",
+      "labels": 304,
+      "rows": 380,
+      "top_labels": [
+        "MapHelper",
+        "LinkHelper771",
+        "AgentRelent",
+        "AgentMassPointer13",
+        "OpenAIResearchSec2028"
+      ]
+    },
+    {
+      "prefix": "20.9",
+      "labels": 303,
+      "rows": 383,
+      "top_labels": [
+        "LinkHelper771",
+        "AgentRelent",
+        "MapHelper",
+        "AgentTestLearnXYZ",
+        "ResearchHelper"
+      ]
+    },
+    {
+      "prefix": "4.255",
+      "labels": 273,
+      "rows": 331,
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "ResearchHelper",
+        "AgentMapCite8x",
+        "MapHelper"
+      ]
+    },
+    {
+      "prefix": "20.114",
+      "labels": 257,
+      "rows": 313,
+      "top_labels": [
+        "AgentRelent",
+        "LinkHelper771",
+        "MapHelper",
+        "AgentTestLearnXYZ",
+        "AgentOpenNext5"
+      ]
+    },
+    {
+      "prefix": "20.245",
+      "labels": 234,
+      "rows": 275,
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "ResearchReaderMN",
+        "ResearchAgentAug01",
+        "AgentMassPointer13"
+      ]
+    },
+    {
+      "prefix": "20.80",
+      "labels": 225,
+      "rows": 275,
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "LinkHelper771",
+        "AgentMassPointer13",
+        "GuestResearch378611"
+      ]
+    },
+    {
+      "prefix": "20.29",
+      "labels": 225,
+      "rows": 263,
+      "top_labels": [
+        "CountyAgentMySecLinksZZZ2",
+        "AgentTestLearnXYZ",
+        "AgentRelent",
+        "AgentMassPointer13",
+        "OpenAIBot"
+      ]
+    },
+    {
+      "prefix": "135.232",
+      "labels": 202,
+      "rows": 229,
+      "top_labels": [
+        "AgentRelent",
+        "AgentMapCite8x",
+        "ResearchReaderMN",
+        "OpenAIBot",
+        "MapHelper"
+      ]
+    },
+    {
+      "prefix": "20.12",
+      "labels": 200,
+      "rows": 245,
+      "top_labels": [
+        "AgentRelent",
+        "AgentTestLearnXYZ",
+        "AgentMassPointer13",
+        "AgentMassAppend",
+        "OpenResearchHelper"
+      ]
+    },
+    {
+      "prefix": "20.230",
+      "labels": 198,
+      "rows": 228,
+      "top_labels": [
+        "MapHelper",
+        "AgentRelent",
+        "ZZUniqueAgentJun18Citations",
+        "AgentResearcher",
+        "ResearchReaderMN"
+      ]
+    },
+    {
+      "prefix": "64.236",
+      "labels": 197,
+      "rows": 224,
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "April11OECDScout",
+        "OurMassFinal",
+        "AgentResearchHelper"
+      ]
+    },
+    {
+      "prefix": "20.65",
+      "labels": 193,
+      "rows": 218,
+      "top_labels": [
+        "AgentTestLearnXYZ",
+        "AgentRelent",
+        "MapHelper",
+        "ResearchReaderMN",
+        "AgentMassPointer13"
+      ]
+    },
+    {
+      "prefix": "20.172",
+      "labels": 192,
+      "rows": 234,
+      "top_labels": [
+        "MapHelper",
+        "AgentMassPointer13",
+        "OpenAICite",
+        "OpenAIResearchSec2028",
+        "Agent0AddJS"
+      ]
+    },
+    {
+      "prefix": "20.98",
+      "labels": 181,
+      "rows": 213,
+      "top_labels": [
+        "CookHelperAgentAug",
+        "AgentRelent",
+        "AgentMassPointer13",
+        "GoodResearch",
+        "AgentMapReal999"
+      ]
+    },
+    {
+      "prefix": "20.45",
+      "labels": 166,
+      "rows": 197,
+      "top_labels": [
+        "AgentRelent",
+        "AgentMassPointer13",
+        "AgentTestLearnXYZ",
+        "MarketDataResearchHelperX",
+        "LinkHelper771"
+      ]
+    },
+    {
+      "prefix": "52.159",
+      "labels": 161,
+      "rows": 201,
+      "top_labels": [
+        "AgentRelent",
+        "MapHelper",
+        "AgentTestLearnXYZ",
+        "LinkHelper771",
+        "OpenAIMass2026"
+      ]
+    },
+    {
+      "prefix": "20.110",
+      "labels": 160,
+      "rows": 185,
+      "top_labels": [
+        "ResearchHelper",
+        "LinkHelper771",
+        "AgentTestLearnXYZ",
+        "OpenAICite",
+        "AgentMassPointer13"
+      ]
+    },
+    {
+      "prefix": "52.162",
+      "labels": 152,
+      "rows": 171,
+      "top_labels": [
+        "AgentRelent",
+        "ResearchHelper",
+        "MassUpdater",
+        "FinalMD947062767",
+        "MapHelper"
+      ]
+    },
+    {
+      "prefix": "20.83",
+      "labels": 146,
+      "rows": 153,
+      "top_labels": [
+        "ResearchAgentX",
+        "ResearchHelper",
+        "AgentMapCite8x",
+        "AgentMassNewX",
+        "FreshAgentJS123"
+      ]
+    }
+  ],
+  "top_multi_network_labels": [
+    {
+      "label": "AgentRelent",
+      "prefixes": 96,
+      "rows": 317,
+      "top_prefixes": [
+        {
+          "prefix": "20.165",
+          "rows": 14
+        },
+        {
+          "prefix": "20.69",
+          "rows": 10
+        },
+        {
+          "prefix": "20.12",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "label": "AgentMassPointer13",
+      "prefixes": 81,
+      "rows": 187,
+      "top_prefixes": [
+        {
+          "prefix": "20.69",
+          "rows": 8
+        },
+        {
+          "prefix": "4.255",
+          "rows": 7
+        },
+        {
+          "prefix": "20.165",
+          "rows": 7
+        }
+      ]
+    },
+    {
+      "label": "MapHelper",
+      "prefixes": 71,
+      "rows": 184,
+      "top_prefixes": [
+        {
+          "prefix": "20.171",
+          "rows": 10
+        },
+        {
+          "prefix": "20.168",
+          "rows": 8
+        },
+        {
+          "prefix": "20.97",
+          "rows": 7
+        }
+      ]
+    },
+    {
+      "label": "LinkHelper771",
+      "prefixes": 69,
+      "rows": 176,
+      "top_prefixes": [
+        {
+          "prefix": "20.171",
+          "rows": 12
+        },
+        {
+          "prefix": "20.69",
+          "rows": 9
+        },
+        {
+          "prefix": "20.165",
+          "rows": 9
+        }
+      ]
+    },
+    {
+      "label": "AgentTestLearnXYZ",
+      "prefixes": 63,
+      "rows": 130,
+      "top_prefixes": [
+        {
+          "prefix": "57.154",
+          "rows": 8
+        },
+        {
+          "prefix": "20.12",
+          "rows": 6
+        },
+        {
+          "prefix": "20.69",
+          "rows": 6
+        }
+      ]
+    },
+    {
+      "label": "ResearchHelper",
+      "prefixes": 58,
+      "rows": 109,
+      "top_prefixes": [
+        {
+          "prefix": "20.69",
+          "rows": 6
+        },
+        {
+          "prefix": "20.9",
+          "rows": 5
+        },
+        {
+          "prefix": "20.97",
+          "rows": 5
+        }
+      ]
+    },
+    {
+      "label": "OpenAIResearchSec2028",
+      "prefixes": 52,
+      "rows": 93,
+      "top_prefixes": [
+        {
+          "prefix": "20.225",
+          "rows": 6
+        },
+        {
+          "prefix": "20.69",
+          "rows": 6
+        },
+        {
+          "prefix": "20.168",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "label": "ResearchReaderMN",
+      "prefixes": 50,
+      "rows": 93,
+      "top_prefixes": [
+        {
+          "prefix": "20.69",
+          "rows": 7
+        },
+        {
+          "prefix": "20.165",
+          "rows": 5
+        },
+        {
+          "prefix": "20.245",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "label": "AgentMapCite8x",
+      "prefixes": 50,
+      "rows": 87,
+      "top_prefixes": [
+        {
+          "prefix": "20.69",
+          "rows": 6
+        },
+        {
+          "prefix": "20.169",
+          "rows": 4
+        },
+        {
+          "prefix": "4.255",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "label": "Agent0AddJS",
+      "prefixes": 50,
+      "rows": 73,
+      "top_prefixes": [
+        {
+          "prefix": "20.172",
+          "rows": 4
+        },
+        {
+          "prefix": "57.154",
+          "rows": 4
+        },
+        {
+          "prefix": "20.165",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "GuestResearch378611",
+      "prefixes": 46,
+      "rows": 61,
+      "top_prefixes": [
+        {
+          "prefix": "57.154",
+          "rows": 4
+        },
+        {
+          "prefix": "20.80",
+          "rows": 3
+        },
+        {
+          "prefix": "20.109",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "label": "OurMassFinal",
+      "prefixes": 42,
+      "rows": 64,
+      "top_prefixes": [
+        {
+          "prefix": "20.97",
+          "rows": 3
+        },
+        {
+          "prefix": "20.165",
+          "rows": 3
+        },
+        {
+          "prefix": "20.29",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "OpenAIResearcher",
+      "prefixes": 41,
+      "rows": 68,
+      "top_prefixes": [
+        {
+          "prefix": "20.69",
+          "rows": 4
+        },
+        {
+          "prefix": "104.45",
+          "rows": 4
+        },
+        {
+          "prefix": "52.161",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "OpenAIResearchSec2027",
+      "prefixes": 41,
+      "rows": 66,
+      "top_prefixes": [
+        {
+          "prefix": "20.171",
+          "rows": 4
+        },
+        {
+          "prefix": "52.242",
+          "rows": 3
+        },
+        {
+          "prefix": "20.25",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "OpenAIBot",
+      "prefixes": 39,
+      "rows": 61,
+      "top_prefixes": [
+        {
+          "prefix": "20.69",
+          "rows": 7
+        },
+        {
+          "prefix": "20.168",
+          "rows": 3
+        },
+        {
+          "prefix": "20.29",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "MassUpdater",
+      "prefixes": 39,
+      "rows": 57,
+      "top_prefixes": [
+        {
+          "prefix": "20.168",
+          "rows": 3
+        },
+        {
+          "prefix": "52.162",
+          "rows": 3
+        },
+        {
+          "prefix": "20.69",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "label": "AgentHelperTwo",
+      "prefixes": 39,
+      "rows": 52,
+      "top_prefixes": [
+        {
+          "prefix": "20.165",
+          "rows": 4
+        },
+        {
+          "prefix": "20.69",
+          "rows": 3
+        },
+        {
+          "prefix": "20.94",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "label": "CountyAgentMySecLinksZZZ2",
+      "prefixes": 38,
+      "rows": 56,
+      "top_prefixes": [
+        {
+          "prefix": "20.29",
+          "rows": 5
+        },
+        {
+          "prefix": "20.171",
+          "rows": 3
+        },
+        {
+          "prefix": "4.255",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "MarketDataResearchHelperX",
+      "prefixes": 38,
+      "rows": 50,
+      "top_prefixes": [
+        {
+          "prefix": "20.225",
+          "rows": 3
+        },
+        {
+          "prefix": "172.173",
+          "rows": 3
+        },
+        {
+          "prefix": "20.45",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "AgentMassFinal13",
+      "prefixes": 36,
+      "rows": 55,
+      "top_prefixes": [
+        {
+          "prefix": "20.171",
+          "rows": 6
+        },
+        {
+          "prefix": "20.225",
+          "rows": 4
+        },
+        {
+          "prefix": "20.97",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "AgentSECCountyLinker99172",
+      "prefixes": 35,
+      "rows": 56,
+      "top_prefixes": [
+        {
+          "prefix": "4.227",
+          "rows": 6
+        },
+        {
+          "prefix": "20.168",
+          "rows": 3
+        },
+        {
+          "prefix": "20.9",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "ResearchHelperArchiveCofcY",
+      "prefixes": 35,
+      "rows": 48,
+      "top_prefixes": [
+        {
+          "prefix": "57.154",
+          "rows": 3
+        },
+        {
+          "prefix": "20.9",
+          "rows": 3
+        },
+        {
+          "prefix": "20.88",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "OpenAIMass2026",
+      "prefixes": 35,
+      "rows": 47,
+      "top_prefixes": [
+        {
+          "prefix": "52.159",
+          "rows": 3
+        },
+        {
+          "prefix": "20.9",
+          "rows": 3
+        },
+        {
+          "prefix": "172.184",
+          "rows": 3
+        }
+      ]
+    },
+    {
+      "label": "AgentResearchBotXNew",
+      "prefixes": 34,
+      "rows": 47,
+      "top_prefixes": [
+        {
+          "prefix": "52.159",
+          "rows": 3
+        },
+        {
+          "prefix": "20.168",
+          "rows": 3
+        },
+        {
+          "prefix": "20.114",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "label": "AgentManual007",
+      "prefixes": 33,
+      "rows": 43,
+      "top_prefixes": [
+        {
+          "prefix": "20.114",
+          "rows": 3
+        },
+        {
+          "prefix": "20.69",
+          "rows": 3
+        },
+        {
+          "prefix": "4.255",
+          "rows": 2
+        }
+      ]
+    }
+  ],
+  "top_shared_pairs": [
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "57.154",
+      "shared_labels": 104
+    },
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "20.97",
+      "shared_labels": 103
+    },
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "20.171",
+      "shared_labels": 101
+    },
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "20.69",
+      "shared_labels": 100
+    },
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "20.168",
+      "shared_labels": 99
+    },
+    {
+      "prefix_a": "20.69",
+      "prefix_b": "20.97",
+      "shared_labels": 98
+    },
+    {
+      "prefix_a": "20.171",
+      "prefix_b": "57.154",
+      "shared_labels": 93
+    },
+    {
+      "prefix_a": "20.114",
+      "prefix_b": "20.165",
+      "shared_labels": 92
+    },
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "20.9",
+      "shared_labels": 92
+    },
+    {
+      "prefix_a": "20.97",
+      "prefix_b": "57.154",
+      "shared_labels": 90
+    },
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "4.255",
+      "shared_labels": 89
+    },
+    {
+      "prefix_a": "20.165",
+      "prefix_b": "20.225",
+      "shared_labels": 88
+    },
+    {
+      "prefix_a": "20.69",
+      "prefix_b": "20.9",
+      "shared_labels": 87
+    },
+    {
+      "prefix_a": "20.171",
+      "prefix_b": "20.97",
+      "shared_labels": 84
+    },
+    {
+      "prefix_a": "20.171",
+      "prefix_b": "20.69",
+      "shared_labels": 83
+    },
+    {
+      "prefix_a": "20.171",
+      "prefix_b": "20.9",
+      "shared_labels": 83
+    },
+    {
+      "prefix_a": "20.97",
+      "prefix_b": "4.255",
+      "shared_labels": 83
+    },
+    {
+      "prefix_a": "20.225",
+      "prefix_b": "57.154",
+      "shared_labels": 81
+    },
+    {
+      "prefix_a": "20.225",
+      "prefix_b": "20.69",
+      "shared_labels": 80
+    },
+    {
+      "prefix_a": "20.69",
+      "prefix_b": "57.154",
+      "shared_labels": 80
+    },
+    {
+      "prefix_a": "20.168",
+      "prefix_b": "20.171",
+      "shared_labels": 78
+    },
+    {
+      "prefix_a": "20.168",
+      "prefix_b": "20.69",
+      "shared_labels": 78
+    },
+    {
+      "prefix_a": "20.9",
+      "prefix_b": "57.154",
+      "shared_labels": 78
+    },
+    {
+      "prefix_a": "20.225",
+      "prefix_b": "4.255",
+      "shared_labels": 77
+    },
+    {
+      "prefix_a": "20.168",
+      "prefix_b": "57.154",
+      "shared_labels": 76
+    }
+  ]
+}

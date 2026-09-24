@@ -1,6 +1,8 @@
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
+import katex from 'katex'
 import { Marked } from 'marked'
+import markedKatex from 'marked-katex-extension'
 
 const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -16,6 +18,7 @@ const RESEARCH_GROUPS = [
       { slug: 'coordination-topology-ru', path: 'coordination-topology-assessment.ru.md' },
       { slug: 'coordination-topology-uk', path: 'coordination-topology-assessment.uk.md' },
       { slug: 'coordination-topology-de', path: 'coordination-topology-assessment.de.md' },
+      { slug: 'ip16-network-catalog', path: 'ip16-network-catalog.md' },
     ],
     files: [],
   },
@@ -264,6 +267,7 @@ const ALERT_TITLES = {
 
 export function createEngine({ onHeading, onCodeSpan } = {}) {
   const engine = new Marked({ gfm: true })
+  engine.use(markedKatex({ throwOnError: false, nonStandard: true }))
   let linkCaptionDepth = 0
   engine.use({
     renderer: {
@@ -286,6 +290,13 @@ export function createEngine({ onHeading, onCodeSpan } = {}) {
           if (custom !== undefined) return custom
         }
         return `<code>${escapeHtml(token.text)}</code>`
+      },
+      code(token) {
+        if (token.lang === 'math') {
+          return `${katex.renderToString(token.text.trim(), { displayMode: true, throwOnError: false })}\n`
+        }
+        const langClass = token.lang ? ` class="language-${escapeHtml(token.lang)}"` : ''
+        return `<pre><code${langClass}>${escapeHtml(token.text)}</code></pre>\n`
       },
       // Only relative and known-safe URL schemes survive; javascript:/data: render as plain text.
       link({ href, title, tokens }) {

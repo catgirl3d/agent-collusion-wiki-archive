@@ -1244,6 +1244,99 @@ a:hover {
   margin-left: auto;
 }
 
+/* IP16 prefix dossier */
+.ip16-dossier {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.ip16-dossier-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ip16-dossier-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ip16-dossier-head .muted {
+  font-size: 12px;
+}
+
+.ip16-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.ip16-metric b {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ip16-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ip16-labels.is-expanded {
+  max-height: 208px;
+  overflow-y: auto;
+  align-content: flex-start;
+}
+
+.ip16-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.ip16-label:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.ip16-label.active {
+  border-color: var(--accent);
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.ip16-label .n {
+  color: var(--muted-text);
+}
+
+.ip16-label-more {
+  border-style: dashed;
+}
+
+.ip16-caveat {
+  font-size: 11px;
+}
+
 /* Buttons */
 .btn {
   background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
@@ -1480,6 +1573,31 @@ a:hover {
 
 .research-layout.has-toc {
   grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) minmax(240px, 290px);
+}
+
+.research-layout.is-nav-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.research-layout.is-nav-collapsed.has-toc {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 290px);
+}
+
+.research-layout.is-toc-collapsed.has-toc {
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+}
+
+.research-layout.is-nav-collapsed.is-toc-collapsed,
+.research-layout.is-nav-collapsed.is-toc-collapsed.has-toc {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.research-layout.is-nav-collapsed .research-nav {
+  display: none;
+}
+
+.research-layout.is-toc-collapsed .research-toc {
+  display: none;
 }
 
 .research-nav {
@@ -1756,6 +1874,13 @@ a:hover {
   background: var(--ok-bg);
 }
 
+.action-icon-btn.is-active,
+.action-icon-btn[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: rgba(99, 102, 241, 0.4);
+  background: var(--accent-subtle, rgba(99, 102, 241, 0.12));
+}
+
 /* Table of contents (TOC) - Forensic Stepper */
 .research-toc {
   margin: 0;
@@ -1909,6 +2034,23 @@ a:hover {
   opacity: 0.5;
   pointer-events: none;
   transition: opacity 0.15s ease;
+}
+
+.research-toc-drawer {
+  width: min(340px, 86vw);
+}
+
+.research-toc-drawer .research-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 1201px) {
+  .research-toc-drawer,
+  .research-toc-backdrop {
+    display: none !important;
+  }
 }
 
 /* Research Skeleton */
@@ -2141,6 +2283,19 @@ a:hover {
   white-space: pre;
 }
 
+.markdown-body .katex-display {
+  margin: 10px 0;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.markdown-body .katex {
+  font-size: 1.05em;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
 .markdown-body blockquote {
   margin: 16px 0;
   padding: 8px 18px;
@@ -2262,8 +2417,16 @@ a:hover {
 }
 
 @media (max-width: 1200px) {
-  .research-layout.has-toc {
+  .research-layout.has-toc,
+  .research-layout.is-toc-collapsed.has-toc {
     grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+
+  .research-layout.is-nav-collapsed,
+  .research-layout.is-nav-collapsed.has-toc,
+  .research-layout.is-nav-collapsed.is-toc-collapsed,
+  .research-layout.is-nav-collapsed.is-toc-collapsed.has-toc {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .research-toc {
@@ -2273,7 +2436,12 @@ a:hover {
 
 @media (max-width: 960px) {
   .research-layout,
-  .research-layout.has-toc {
+  .research-layout.has-toc,
+  .research-layout.is-nav-collapsed,
+  .research-layout.is-nav-collapsed.has-toc,
+  .research-layout.is-toc-collapsed.has-toc,
+  .research-layout.is-nav-collapsed.is-toc-collapsed,
+  .research-layout.is-nav-collapsed.is-toc-collapsed.has-toc {
     grid-template-columns: 1fr;
   }
 

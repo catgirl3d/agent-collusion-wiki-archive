@@ -461,6 +461,7 @@ describe('published research package', () => {
       'coordination-topology-ru',
       'coordination-topology-uk',
       'coordination-topology-de',
+      'ip16-network-catalog',
     ])
     expect(docs[0].lang).toBe('en')
     expect(docs[0].base).toBe('coordination-topology')
@@ -472,6 +473,14 @@ describe('published research package', () => {
     ])
     expect(docs[1]).toMatchObject({ lang: 'ru', base: 'coordination-topology' })
     expect(docs[0].title).toBe('Coordination topology assessment: scheduler, cohorts, relays, and hierarchy claims')
+    expect(docs[4]).toMatchObject({ lang: 'en', base: 'ip16-network-catalog' })
+    expect(docs[4].title).toBe('IP16 network catalog and label–prefix associations')
+    expect(docs[4].translations).toEqual([{ lang: 'en', slug: 'ip16-network-catalog' }])
+    expect(docs[4].meta).toEqual({
+      date: '2026-09-22',
+      author: 'Alina Lisova',
+      status: 'PRELIMINARY',
+    })
     expect(files).toHaveLength(0)
     expect(docs.map((doc) => doc.slug)).not.toContain('proxy-audit')
     expect(docs[0].meta).toEqual({
@@ -485,12 +494,14 @@ describe('published research package', () => {
       'coordination-topology-ru.html',
       'coordination-topology-uk.html',
       'coordination-topology.html',
+      'ip16-network-catalog.html',
     ])
     expect(readdirSync(join(outDir, 'files')).sort()).toEqual([
       'coordination-topology-assessment.de.md',
       'coordination-topology-assessment.md',
       'coordination-topology-assessment.ru.md',
       'coordination-topology-assessment.uk.md',
+      'ip16-network-catalog.md',
     ])
 
     for (const doc of docs) {
@@ -528,6 +539,42 @@ describe('published research package', () => {
       const html = renderMarkdown('> Regular blockquote text.')
       expect(html).toContain('<blockquote>')
       expect(html).not.toContain('markdown-alert')
+    })
+  })
+
+  describe('renderMarkdown math formulas (KaTeX)', () => {
+    it('renders inline math with KaTeX markup', () => {
+      const html = renderMarkdown('Formula $w(p, q) = |L(p) \\cap L(q)|$ inline.')
+      expect(html).toContain('class="katex"')
+      expect(html).toContain('class="katex-html"')
+      expect(html).not.toContain('$w(p, q)')
+    })
+
+    it('renders display block math with KaTeX display markup', () => {
+      const markdown = '$$\\sum_{\{p, q\}} w(p, q) = 71{,}869$$'
+      const html = renderMarkdown(markdown)
+      expect(html).toContain('class="katex-display"')
+      expect(html).toContain('class="katex"')
+      expect(html).not.toContain('<div class="katex-display">')
+    })
+
+    it('preserves code spans in backticks as code', () => {
+      const html = renderMarkdown('`regular_code_identifier` and `(prefix pair, shared label)`')
+      expect(html).toContain('<code>regular_code_identifier</code>')
+      expect(html).toContain('<code>(prefix pair, shared label)</code>')
+      expect(html).not.toContain('class="katex"')
+    })
+
+    it('renders math code blocks using ```math syntax', () => {
+      const block = '```math\n\\sum_{\{p, q\}} w(p, q) = 71{,}869\n```'
+      const html = renderMarkdown(block)
+      expect(html).toContain('class="katex-display"')
+    })
+
+    it('strips legacy metadata lines in cleanMarkdownBody', () => {
+      const body = 'Date: 2026-09-19\nAuthor: Alina\nStatus: PRELIMINARY\n\nActual report body.'
+      const cleaned = cleanMarkdownBody(body)
+      expect(cleaned).toBe('\nActual report body.')
     })
   })
 })

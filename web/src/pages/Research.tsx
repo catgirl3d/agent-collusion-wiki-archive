@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, Download, Languages, Link2, Microscope } from 'lucide-react'
+import {
+  Check,
+  Download,
+  Languages,
+  Link2,
+  Microscope,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  X,
+} from 'lucide-react'
 import { loadText } from '../api'
 import { Dropdown } from '../components/Dropdown'
 import { SelectionPopup } from '../components/SelectionPopup'
@@ -102,8 +113,24 @@ export default function Research() {
 
   const [activeId, setActiveId] = useState<string>('')
   const [copied, setCopied] = useState(false)
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false)
+  const [isTocCollapsed, setIsTocCollapsed] = useState(false)
+  const [isMobileTocOpen, setIsMobileTocOpen] = useState(false)
   const isClickScrollingRef = useRef(false)
   const clickScrollTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    setIsMobileTocOpen(false)
+  }, [active?.slug])
+
+  useEffect(() => {
+    if (!isMobileTocOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileTocOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isMobileTocOpen])
 
   const metaInfo = active?.meta ?? null
   const toc = active?.toc ?? NO_TOC
@@ -227,7 +254,9 @@ export default function Research() {
         </h1>
       </div>
 
-      <div className={`research-layout${hasToc ? ' has-toc' : ''}`}>
+      <div
+        className={`research-layout${hasToc ? ' has-toc' : ''}${isNavCollapsed ? ' is-nav-collapsed' : ''}${isTocCollapsed ? ' is-toc-collapsed' : ''}`}
+      >
         <nav className="card research-nav" aria-label="Research documents">
           {data.groups.map((group) => (
             <section className="research-group" key={group.id}>
@@ -326,6 +355,31 @@ export default function Research() {
                 >
                   <Download size={14} />
                 </a>
+                <button
+                  type="button"
+                  className={`action-icon-btn${isNavCollapsed ? ' is-active' : ''}`}
+                  onClick={() => setIsNavCollapsed((prev) => !prev)}
+                  title={isNavCollapsed ? 'Expand reports list' : 'Collapse reports list'}
+                  aria-label={isNavCollapsed ? 'Expand reports list' : 'Collapse reports list'}
+                  aria-pressed={isNavCollapsed}
+                >
+                  {isNavCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+                </button>
+                {hasToc && (
+                  <button
+                    type="button"
+                    className={`action-icon-btn toc-toggle-btn${isTocCollapsed || isMobileTocOpen ? ' is-active' : ''}`}
+                    onClick={() => {
+                      setIsTocCollapsed((prev) => !prev)
+                      setIsMobileTocOpen((prev) => !prev)
+                    }}
+                    title={isTocCollapsed ? 'Expand table of contents' : 'Collapse table of contents'}
+                    aria-label={isTocCollapsed ? 'Expand table of contents' : 'Collapse table of contents'}
+                    aria-pressed={isTocCollapsed || isMobileTocOpen}
+                  >
+                    {isTocCollapsed || isMobileTocOpen ? <PanelRightOpen size={14} /> : <PanelRightClose size={14} />}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -381,6 +435,72 @@ export default function Research() {
               </button>
             </div>
           </aside>
+        )}
+
+        {hasToc && isMobileTocOpen && (
+          <>
+            <div
+              className="mobile-drawer-backdrop research-toc-backdrop"
+              onClick={() => setIsMobileTocOpen(false)}
+              aria-hidden="true"
+            />
+            <aside
+              className="mobile-drawer research-toc-drawer"
+              role="dialog"
+              aria-label="Table of contents"
+              aria-modal="true"
+            >
+              <div className="mobile-drawer-header">
+                <span className="mobile-drawer-title">On this page</span>
+                <button
+                  type="button"
+                  className="mobile-drawer-close"
+                  aria-label="Close table of contents"
+                  onClick={() => setIsMobileTocOpen(false)}
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="mobile-drawer-body">
+                <ul className="research-toc-list">
+                  {toc.map((item) => {
+                    const isActive = activeId === item.id
+
+                    return (
+                      <li key={item.id} className={`research-toc-item level-${item.level}`}>
+                        <a
+                          href={`#${item.id}`}
+                          aria-label={`Jump to ${item.text}`}
+                          className={isActive ? 'active' : undefined}
+                          onClick={(e) => {
+                            scrollToHeading(e, item.id)
+                            setIsMobileTocOpen(false)
+                          }}
+                        >
+                          <span className="toc-node" aria-hidden="true">
+                            <span className="toc-node-dot" />
+                          </span>
+                          <span className="toc-item-text">{item.text}</span>
+                        </a>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <div className="research-toc-footer">
+                  <button
+                    type="button"
+                    className="btn-back-top"
+                    onClick={() => {
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                      setIsMobileTocOpen(false)
+                    }}
+                  >
+                    <span>Back to top ↑</span>
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </>
         )}
       </div>
     </div>

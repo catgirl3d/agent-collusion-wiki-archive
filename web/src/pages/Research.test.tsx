@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Research from './Research'
@@ -190,13 +190,11 @@ describe('Research', () => {
 
   it('marks the table of contents as loading until the document body resolves', async () => {
     loadJsonMock.mockResolvedValue(index)
-    let resolveText: (value: string) => void = () => {}
-    loadTextMock.mockImplementation(
-      () =>
-        new Promise<string>((resolve) => {
-          resolveText = resolve
-        }),
-    )
+    let resolveText!: (value: string) => void
+    const textPromise = new Promise<string>((resolve) => {
+      resolveText = resolve
+    })
+    loadTextMock.mockReturnValue(textPromise)
     render(
       <MemoryRouter initialEntries={['/research']}>
         <Research />
@@ -207,7 +205,10 @@ describe('Research', () => {
     expect(toc).toHaveClass('is-loading')
     expect(screen.getByLabelText('Loading document content')).toBeInTheDocument()
 
-    resolveText(bodies['research/docs/coordination-topology.html'])
+    await act(async () => {
+      resolveText(bodies['research/docs/coordination-topology.html'])
+      await textPromise
+    })
 
     expect(await screen.findByText('First body')).toBeInTheDocument()
     expect(screen.getByLabelText('Table of contents')).not.toHaveClass('is-loading')
@@ -307,5 +308,98 @@ describe('Research', () => {
     expect(await screen.findByText('Legacy text')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Legacy document' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Legacy RU document' })).toBeInTheDocument()
+  })
+
+  it('toggles left nav panel and right toc panel collapse', async () => {
+    loadJsonMock.mockResolvedValue(index)
+    loadTextMock.mockResolvedValue('<h2>Section 1</h2><p>Section 1 body</p>')
+    const { container } = render(
+      <MemoryRouter initialEntries={['/research?doc=coordination-topology']}>
+        <Research />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Section 1 body')
+
+    const layout = container.querySelector('.research-layout')!
+    expect(layout).toHaveClass('has-toc')
+    expect(layout).not.toHaveClass('is-nav-collapsed')
+    expect(layout).not.toHaveClass('is-toc-collapsed')
+
+    // Nav collapse button
+    const collapseNavBtn = screen.getByRole('button', { name: 'Collapse reports list' })
+    fireEvent.click(collapseNavBtn)
+
+    expect(layout).toHaveClass('is-nav-collapsed')
+    const expandNavBtn = screen.getByRole('button', { name: 'Expand reports list' })
+    expect(expandNavBtn).toBeInTheDocument()
+
+    // TOC collapse button
+    const collapseTocBtn = screen.getByRole('button', { name: 'Collapse table of contents' })
+    expect(collapseTocBtn).toHaveClass('toc-toggle-btn')
+    fireEvent.click(collapseTocBtn)
+
+    expect(layout).toHaveClass('is-toc-collapsed')
+    const expandTocBtn = screen.getByRole('button', { name: 'Expand table of contents' })
+    expect(expandTocBtn).toBeInTheDocument()
+
+    // Re-expand nav
+    fireEvent.click(expandNavBtn)
+    expect(layout).not.toHaveClass('is-nav-collapsed')
+
+    // Re-expand TOC
+    fireEvent.click(expandTocBtn)
+    expect(layout).not.toHaveClass('is-toc-collapsed')
+  })
+
+  it('does not render toc toggle button when document has no toc', async () => {
+    loadJsonMock.mockResolvedValue(index)
+    loadTextMock.mockResolvedValue('<p>No TOC body</p>')
+    render(
+      <MemoryRouter initialEntries={['/research?doc=broken-doc']}>
+        <Research />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('No TOC body')
+    expect(screen.getByRole('button', { name: 'Collapse reports list' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /table of contents/i })).not.toBeInTheDocument()
+  })
+
+  it('opens mobile toc drawer, navigates on item click, and closes on escape or close button', async () => {
+    loadJsonMock.mockResolvedValue(index)
+    loadTextMock.mockResolvedValue('<h2>Section 1</h2><p>Section 1 body</p>')
+    render(
+      <MemoryRouter initialEntries={['/research?doc=coordination-topology']}>
+        <Research />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Section 1 body')
+
+    // Open drawer via TOC button
+    const tocBtn = screen.getByRole('button', { name: 'Collapse table of contents' })
+    fireEvent.click(tocBtn)
+
+    const drawer = screen.getByRole('dialog', { name: 'Table of contents' })
+    expect(drawer).toBeInTheDocument()
+
+    // Close via close button
+    const closeBtn = within(drawer).getByRole('button', { name: 'Close table of contents' })
+    fireEvent.click(closeBtn)
+    expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
+
+    // Reopen and close via escape
+    fireEvent.click(screen.getByRole('button', { name: 'Expand table of contents' }))
+    expect(screen.getByRole('dialog', { name: 'Table of contents' })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
+
+    // Reopen and click item
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse table of contents' }))
+    const itemDrawer = screen.getByRole('dialog', { name: 'Table of contents' })
+    const drawerItem = within(itemDrawer).getByRole('link', { name: 'Jump to Section 1' })
+    fireEvent.click(drawerItem)
+    expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
   })
 })

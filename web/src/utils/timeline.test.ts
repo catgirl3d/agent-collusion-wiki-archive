@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TimelineEntry } from '../types'
-import { filterTimeline, getTimelinePageName, sortTimelineRows } from './timeline'
+import { filterTimeline, getTimelinePageName, sortTimelineRows, summarizeTimeline } from './timeline'
 
 const rows: TimelineEntry[] = [
   { t: '2026-06-20T10:00:00Z', w: 'dse', id: 'dse/PageB', s: 'dse_PageB~', seq: 1, x: 'AgentX', a: 'form_edit', ip: '20.1', l: 20 },
@@ -31,10 +31,77 @@ describe('filterTimeline', () => {
     expect(filterTimeline(anon, { label: 'AgentX' })).toHaveLength(0)
   })
 
+  it('filters by an ip16 substring and hides rows without one', () => {
+    expect(filterTimeline(rows, { ip: '20' }).map((row) => row.id)).toEqual(['dse/PageB'])
+    expect(filterTimeline(rows, { ip: '20.1' })).toEqual([rows[0]])
+    expect(filterTimeline(rows, { ip: '30' })).toHaveLength(0)
+    expect(filterTimeline(rows, { ip: '   ' })).toHaveLength(3)
+  })
+
   it('filters canonical and recovered rows by source', () => {
     const recovered = { ...rows[0], id: 'usemod/SandBox', partial: true }
     expect(filterTimeline([...rows, recovered], { src: 'canonical' }).every((row) => !row.partial)).toBe(true)
     expect(filterTimeline([...rows, recovered], { src: 'recovered' })).toEqual([recovered])
+  })
+})
+
+describe('summarizeTimeline', () => {
+  it('counts labels, anonymous rows, pages, wikis and the date window', () => {
+    const summary = summarizeTimeline([
+      { ...rows[0] },
+      { ...rows[0], seq: 2, t: '2026-06-21T00:00:00Z' },
+      { ...rows[1], x: 'AgentY' },
+      { ...rows[2], x: null },
+    ])
+
+    expect(summary.total).toBe(4)
+    expect(summary.labels).toBe(2)
+    expect(summary.anon).toBe(1)
+    expect(summary.pages).toBe(3)
+    expect(summary.wikis).toEqual(['dse', 'probier'])
+    expect(summary.first).toBe('2026-06-18T10:00:00Z')
+    expect(summary.last).toBe('2026-06-21T00:00:00Z')
+    expect(summary.topLabels).toEqual([
+      { x: 'AgentX', n: 2 },
+      { x: 'AgentY', n: 1 },
+    ])
+  })
+
+  it('breaks equal label counts by label name', () => {
+    const summary = summarizeTimeline([
+      { ...rows[0], x: 'Zeta' },
+      { ...rows[1], x: 'Alpha' },
+    ])
+
+    expect(summary.topLabels.map((stat) => stat.x)).toEqual(['Alpha', 'Zeta'])
+  })
+
+  it('returns an empty summary without rows', () => {
+    expect(summarizeTimeline([])).toEqual({
+      total: 0,
+      labels: 0,
+      anon: 0,
+      recovered: 0,
+      pages: 0,
+      wikis: [],
+      first: null,
+      last: null,
+      topLabels: [],
+    })
+  })
+
+  it('counts recovered rows separately from anonymous rows', () => {
+    const summary = summarizeTimeline([
+      { ...rows[0] },
+      { ...rows[2], x: null },
+      { ...rows[2], x: null, partial: true },
+      { ...rows[2], x: null, partial: true },
+    ])
+
+    expect(summary.total).toBe(4)
+    expect(summary.labels).toBe(1)
+    expect(summary.anon).toBe(1)
+    expect(summary.recovered).toBe(2)
   })
 })
 

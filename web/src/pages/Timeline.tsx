@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
@@ -11,16 +11,87 @@ import {
   filterTimeline,
   getTimelinePageName,
   sortTimelineRows,
+  summarizeTimeline,
   TIMELINE_PAGE_SIZE,
   TIMELINE_SORT_DEFAULT,
   TIMELINE_SORT_DEFAULTS,
   TIMELINE_SORT_KEYS,
   type TimelineSortKey,
+  type TimelineSummary,
 } from '../utils/timeline'
 import { resolveSort, updateSortSearchParams, writeSortParams } from '../utils/sort'
 import { applyDateBound } from '../utils/dateRange'
 
 const MAX_PAGE = 5_000
+const IP16_TOP_LABELS = 12
+
+function Ip16Dossier({
+  ip,
+  summary,
+  activeLabel,
+  onPickLabel,
+}: {
+  ip: string
+  summary: TimelineSummary
+  activeLabel: string
+  onPickLabel: (value: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? summary.topLabels : summary.topLabels.slice(0, IP16_TOP_LABELS)
+  const hidden = summary.topLabels.length - shown.length
+
+  return (
+    <section className="ip16-dossier" aria-label={`IP16 ${ip} dossier`}>
+      <div className="ip16-dossier-head">
+        <h2 className="ip16-dossier-title">IP16 <span className="mono">{ip}</span></h2>
+        <span className="muted">aggregated over the prefix slice; the label filter is excluded</span>
+      </div>
+
+      <div className="ip16-metrics">
+        <span className="ip16-metric"><b>{fmtInt(summary.total)}</b> revisions</span>
+        <span className="ip16-metric"><b>{fmtInt(summary.labels)}</b> labels</span>
+        {summary.anon > 0 && <span className="ip16-metric"><b>{fmtInt(summary.anon)}</b> anonymous</span>}
+        {summary.recovered > 0 && <span className="ip16-metric"><b>{fmtInt(summary.recovered)}</b> recovered</span>}
+        <span className="ip16-metric"><b>{fmtInt(summary.pages)}</b> pages</span>
+        <span className="ip16-metric" title={summary.wikis.join(', ')}><b>{fmtInt(summary.wikis.length)}</b> wikis</span>
+        {summary.first && summary.last && (
+          <span className="ip16-metric"><b>{summary.first.slice(0, 10)}</b> → <b>{summary.last.slice(0, 10)}</b></span>
+        )}
+      </div>
+
+      <div className={`ip16-labels${expanded ? ' is-expanded' : ''}`} role="group" aria-label="Top labels for this prefix">
+        {shown.map((stat) => {
+          const active = stat.x === activeLabel
+          return (
+            <button
+              key={stat.x}
+              type="button"
+              className={`ip16-label${active ? ' active' : ''}`}
+              aria-pressed={active}
+              title={active ? 'Clear the label filter' : `Filter the table by ${stat.x}`}
+              onClick={() => onPickLabel(stat.x)}
+            >
+              <span>{stat.x}</span>
+              <span className="n">{fmtInt(stat.n)}</span>
+            </button>
+          )
+        })}
+        {hidden > 0 && (
+          <button type="button" className="ip16-label ip16-label-more" onClick={() => setExpanded(true)}>
+            +{fmtInt(hidden)} more
+          </button>
+        )}
+        {expanded && summary.topLabels.length > IP16_TOP_LABELS && (
+          <button type="button" className="ip16-label ip16-label-more" onClick={() => setExpanded(false)}>
+            show top {IP16_TOP_LABELS}
+          </button>
+        )}
+      </div>
+
+      <span className="muted ip16-caveat">ip16 is a truncated /16 network indicator; it cannot identify a host, organization, or person.</span>
+    </section>
+  )
+}
 
 export default function Timeline() {
   const { data, error } = useData<TimelineFile>('timeline.json')
@@ -28,6 +99,8 @@ export default function Timeline() {
 
   const label = searchParams.get('label') ?? ''
   const wiki = searchParams.get('wiki') ?? ''
+  const rawIp = searchParams.get('ip')
+  const ip = rawIp?.trim() ?? ''
   const day = searchParams.get('day') ?? ''
   const from = searchParams.get('from') ?? ''
   const to = searchParams.get('to') ?? ''
@@ -76,6 +149,11 @@ export default function Timeline() {
       next.delete('src')
       changed = true
     }
+    if (rawIp !== null && rawIp !== ip) {
+      if (ip) next.set('ip', ip)
+      else next.delete('ip')
+      changed = true
+    }
     if (day && (from || to)) {
       next.delete('from')
       next.delete('to')
@@ -102,15 +180,25 @@ export default function Timeline() {
       if (resetPage) next.delete('page')
       setSearchParams(next, { replace: true })
     }
-  }, [searchParams, setSearchParams, day, from, to, sortState, rawSrc, src, rawPage, page])
+  }, [searchParams, setSearchParams, day, from, to, sortState, rawSrc, src, rawPage, page, rawIp, ip])
 
   const wikis = useMemo(() => [...new Set((data?.r ?? []).map((row) => row.w))].sort(), [data])
 
   const filtered = useMemo(() => {
     if (!data) return []
-    const rows = filterTimeline(data.r, { label, wiki, day, from, to, src })
+    const rows = filterTimeline(data.r, { label, wiki, ip, day, from, to, src })
     return sortTimelineRows(rows, sortState.sort, sortState.dir)
-  }, [data, label, wiki, day, from, to, sortState, src])
+  }, [data, label, wiki, ip, day, from, to, sortState, src])
+
+  // The dossier describes the whole prefix slice under the non-label filters, so its label
+  // ranking stays a navigation list while the table narrows to one label.
+  const ipSlice = useMemo(
+    () => (data && ip ? filterTimeline(data.r, { wiki, ip, day, from, to, src }) : []),
+    [data, wiki, ip, day, from, to, src],
+  )
+  const ipSummary = useMemo(() => (ip ? summarizeTimeline(ipSlice) : null), [ip, ipSlice])
+
+  const pickIpLabel = (value: string) => update({ label: value === label ? null : value })
 
   const toggleSort = (key: TimelineSortKey) => {
     const next = updateSortSearchParams(searchParams, sortState, key, TIMELINE_SORT_DEFAULTS, TIMELINE_SORT_DEFAULT)
@@ -135,6 +223,13 @@ export default function Timeline() {
           value={label}
           onChange={(event) => update({ label: event.target.value || null })}
         />
+        <input
+          className="input"
+          aria-label="Filter by IP16"
+          placeholder="IP16…"
+          value={ip}
+          onChange={(event) => update({ ip: event.target.value || null })}
+        />
         <Dropdown<SourceFilter>
           value={src}
           ariaLabel="Filter by source"
@@ -152,6 +247,10 @@ export default function Timeline() {
         <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={to} onChange={pickTo} />
         <span className="muted result-count">{filtered.length === 0 ? 'no matches' : `showing ${fmtInt(shownRows.length)} of ${fmtInt(filtered.length)} revisions`}</span>
       </div>
+
+      {ipSummary && ipSummary.total > 0 && (
+        <Ip16Dossier key={ip} ip={ip} summary={ipSummary} activeLabel={label} onPickLabel={pickIpLabel} />
+      )}
 
       <div className="table-wrap">
         <table className="tbl">
