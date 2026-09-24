@@ -95,10 +95,12 @@ describe('MCP tool catalog synchronization', () => {
       await readFile(join(repositoryRoot, 'web/src/data/mcp-tool-catalog.generated.json'), 'utf8'),
     ) as {
       packageName: string
+      packageVersion: string
       tools: Array<Record<string, unknown>>
     }
     const packageJson = JSON.parse(await readFile(join(repositoryRoot, 'mcp/package.json'), 'utf8')) as {
       name: string
+      version: string
     }
     const listedTools = await listServerTools()
     const expectedTools = listedTools.map(({ name, title, description, inputSchema }) => ({
@@ -109,6 +111,7 @@ describe('MCP tool catalog synchronization', () => {
     }))
 
     expect(catalog.packageName).toBe(packageJson.name)
+    expect(catalog.packageVersion).toBe(packageJson.version)
     expect(catalog.tools).toEqual(expectedTools)
     expect(catalog.tools.every((tool) => !('annotations' in tool))).toBe(true)
   })
@@ -120,6 +123,7 @@ describe('MCP tool catalog synchronization', () => {
 
     const catalog = JSON.parse(await readFile(join(root, generatedFiles[4]!), 'utf8')) as {
       packageName: string
+      packageVersion: string
       tools: Array<{ name: string }>
     }
     const readme = await readFile(join(root, generatedFiles[1]!), 'utf8')
@@ -127,6 +131,7 @@ describe('MCP tool catalog synchronization', () => {
     const index = await readFile(join(root, generatedFiles[3]!), 'utf8')
 
     expect(catalog.packageName).toBe('@example/archive-mcp')
+    expect(catalog.packageVersion).toBe('0.0.0')
     expect(catalog.tools[0]?.name).toBe('get_stats')
     expect(readme).toContain('`@example/archive-mcp`')
     expect(readme).toContain('npx --yes @example/archive-mcp@latest\n```')

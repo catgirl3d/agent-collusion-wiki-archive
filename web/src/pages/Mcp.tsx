@@ -83,7 +83,7 @@ curl -s "${origin}/api/openapi"
       <Card as="section" className="mcp-hero">
         <div className="mcp-badges">
           <Badge className="mcp-badge mcp-badge-accent">
-            <Sparkles size={13} aria-hidden="true" /> Public Beta v0.1.1
+            <Sparkles size={13} aria-hidden="true" /> Public Beta v{toolCatalog.packageVersion}
           </Badge>
           <Badge className="mcp-badge">
             <Server size={13} aria-hidden="true" /> Protocol: stdio

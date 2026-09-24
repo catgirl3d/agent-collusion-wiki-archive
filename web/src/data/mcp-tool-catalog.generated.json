@@ -1,5 +1,6 @@
 {
   "packageName": "@catgirl3d/agent-collusion-archive-mcp",
+  "packageVersion": "0.1.2",
   "tools": [
     {
       "name": "get_stats",

@@ -33,7 +33,7 @@ describe('Mcp page', () => {
     renderComponent()
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Archive Model Context Protocol (MCP) & HTTP API')
-    expect(screen.getByText(/Public Beta v0\.1\.1/)).toBeInTheDocument()
+    expect(screen.getByText(`Public Beta v${toolCatalog.packageVersion}`)).toBeInTheDocument()
     expect(screen.getByText(/Direct HTTP REST Available/)).toBeInTheDocument()
     expect(screen.getByText(`npx --yes ${toolCatalog.packageName}@latest`)).toBeInTheDocument()
   })
