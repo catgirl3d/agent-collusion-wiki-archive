@@ -163,23 +163,6 @@ body::before {
   color: var(--text);
 }
 
-.mobile-drawer-close {
-  background: transparent;
-  border: none;
-  color: var(--muted-text);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s ease;
-}
-
-.mobile-drawer-close:hover {
-  color: var(--text);
-}
-
 .mobile-drawer-body {
   display: flex;
   flex-direction: column;
@@ -938,8 +921,6 @@ a:hover {
   overflow-y: auto;
   padding: 6px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-hover);
-  border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
 }
 
