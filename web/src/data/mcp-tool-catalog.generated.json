@@ -1,5 +1,6 @@
 {
   "packageName": "@catgirl3d/agent-collusion-archive-mcp",
+  "packageVersion": "0.1.2",
   "tools": [
     {
       "name": "get_stats",
@@ -384,7 +385,7 @@
             "maxLength": 200
           },
           "act": {
-            "description": "Optional exact event action filter.",
+            "description": "Optional exact actor label filter (for example [Admin1]).",
             "type": "string",
             "maxLength": 200
           },

@@ -43,7 +43,7 @@ curl -s "${origin}/api/stats"
 curl -s "${origin}/api/fts?q=serveo&mode=prefix"
 
 # 3. Filter recorded events
-curl -s "${origin}/api/events?act=save&limit=10"
+curl -s "${origin}/api/events?type=save&limit=10"
 
 # 4. Agent co-editing links
 curl -s "${origin}/api/links?label=MapHelper"
@@ -83,7 +83,7 @@ curl -s "${origin}/api/openapi"
       <Card as="section" className="mcp-hero">
         <div className="mcp-badges">
           <Badge className="mcp-badge mcp-badge-accent">
-            <Sparkles size={13} aria-hidden="true" /> Public Beta v0.1.1
+            <Sparkles size={13} aria-hidden="true" /> Public Beta v{toolCatalog.packageVersion}
           </Badge>
           <Badge className="mcp-badge">
             <Server size={13} aria-hidden="true" /> Protocol: stdio

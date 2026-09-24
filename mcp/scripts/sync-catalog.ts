@@ -164,14 +164,19 @@ async function readToolCatalog() {
 async function expectedFiles(root: string): Promise<Map<string, string>> {
   const packageJson = JSON.parse(await readFile(resolve(root, packagePath), 'utf8')) as {
     name?: unknown
+    version?: unknown
   }
   if (typeof packageJson.name !== 'string' || packageJson.name.length === 0) {
     throw new Error(`${packagePath} must define a non-empty package name`)
   }
+  if (typeof packageJson.version !== 'string' || packageJson.version.length === 0) {
+    throw new Error(`${packagePath} must define a non-empty package version`)
+  }
 
   const packageName = packageJson.name
+  const packageVersion = packageJson.version
   const tools = await readToolCatalog()
-  const catalog = `${JSON.stringify({ packageName, tools }, null, 2)}\n`
+  const catalog = `${JSON.stringify({ packageName, packageVersion, tools }, null, 2)}\n`
 
   const [readme, llms, index] = await Promise.all([
     readFile(resolve(root, readmePath), 'utf8'),

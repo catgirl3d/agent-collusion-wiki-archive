@@ -93,10 +93,10 @@ export const MCP_TOOL_PRESENTATION: Record<string, McpToolPresentation> = {
   },
   list_events: {
     category: 'Forensics & Stats',
-    httpEndpoint: '/api/events?act=save&limit=25',
+    httpEndpoint: '/api/events?type=save&limit=25',
     webPath: '/events',
     webLabel: 'View Events log →',
-    exampleArguments: { act: 'save', limit: 25 },
+    exampleArguments: { type: 'save', limit: 25 },
   },
   search_artifacts: {
     category: 'Forensics & Stats',

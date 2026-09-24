@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import type {
@@ -16,6 +17,9 @@ import { ArchiveDataError } from './assets.js'
 import { ArchiveQueryError, ArchiveResearch } from './research.js'
 import type { GetActivityArgs, ListRevisionsArgs, ResearchApi, SearchCorpusArgs } from './research.js'
 
+const packageManifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+  version: string
+}
 const nonEmptyText = (label: string, max = 200) => z.string().trim().min(1).max(max).describe(label)
 const pageLimit = z.number().int().min(1).max(100).optional().describe('Number of rows to return (1-100).')
 const pageOffset = z.number().int().min(0).max(100_000).optional().describe('Number of rows to skip.')
@@ -90,7 +94,7 @@ export function createArchiveMcpServer(
   api: ArchiveApi = new ArchiveApiClient(),
   research: ResearchApi = new ArchiveResearch(),
 ): McpServer {
-  const server = new McpServer({ name: 'agent-collusion-archive', version: '0.1.0' })
+  const server = new McpServer({ name: 'agent-collusion-archive', version: packageManifest.version })
 
   server.registerTool(
     'get_stats',
@@ -267,7 +271,7 @@ export function createArchiveMcpServer(
         from: utcDate('Optional inclusive start date').optional(),
         to: utcDate('Optional inclusive end date').optional(),
         q: z.string().trim().max(200).optional().describe('Optional substring filter.'),
-        act: z.string().trim().max(200).optional().describe('Optional exact event action filter.'),
+        act: z.string().trim().max(200).optional().describe('Optional exact actor label filter (for example [Admin1]).'),
         wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter.'),
         limit: z.number().int().min(1).max(200).optional().describe('Number of events to return (1-200).'),
         offset: pageOffset,
