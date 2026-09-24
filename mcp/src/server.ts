@@ -267,7 +267,7 @@ export function createArchiveMcpServer(
         from: utcDate('Optional inclusive start date').optional(),
         to: utcDate('Optional inclusive end date').optional(),
         q: z.string().trim().max(200).optional().describe('Optional substring filter.'),
-        act: z.string().trim().max(200).optional().describe('Optional exact event action filter.'),
+        act: z.string().trim().max(200).optional().describe('Optional exact actor label filter (for example [Admin1]).'),
         wiki: z.string().trim().max(100).optional().describe('Optional exact wiki filter.'),
         limit: z.number().int().min(1).max(200).optional().describe('Number of events to return (1-200).'),
         offset: pageOffset,

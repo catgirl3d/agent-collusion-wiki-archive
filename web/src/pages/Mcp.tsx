@@ -43,7 +43,7 @@ curl -s "${origin}/api/stats"
 curl -s "${origin}/api/fts?q=serveo&mode=prefix"
 
 # 3. Filter recorded events
-curl -s "${origin}/api/events?act=save&limit=10"
+curl -s "${origin}/api/events?type=save&limit=10"
 
 # 4. Agent co-editing links
 curl -s "${origin}/api/links?label=MapHelper"
