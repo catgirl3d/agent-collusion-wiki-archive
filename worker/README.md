@@ -30,13 +30,13 @@ adapter and the browser) over the published assets.
 
 ## API
 
-`GET /api/openapi` returns the machine-readable route manifest. The available
-routes are:
+`GET /api/openapi` returns the machine-readable OpenAPI 3.1 contract. The
+available API routes are:
 
 | Method and route | Purpose |
 |---|---|
 | `GET /api/health` | Health check |
-| `GET /api/openapi` | Route manifest and v1 limitations |
+| `GET /api/openapi` | OpenAPI 3.1 API contract |
 | `GET /api/stats` | Passthrough of `summary.json` |
 | `GET /api/pages?q=&wiki=&fam=&deleted=1&minRevs=&sort=revs%7Clabels&limit=&offset=` | Filtered page index with `total` |
 | `GET /api/pages/by-id?id=<page_id>` | Page lookup by exact ID; IDs may contain `/` |
@@ -65,8 +65,9 @@ paths beyond the requested data asset name.
 
 ## Static data assets
 
-`GET /api/openapi` advertises these assets under `dataAssets`. The Worker serves
-them byte-for-byte from `web/dist/data/`:
+`GET /api/openapi` lists these origin-relative files under `x-data-assets`.
+They remain static resources, separate from the API operations, and the Worker
+serves them byte-for-byte from `web/dist/data/`:
 
 | Asset | Purpose |
 |---|---|

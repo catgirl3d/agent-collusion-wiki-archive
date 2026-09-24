@@ -1,3 +1,5 @@
+import openApiDocument from './openapi.json'
+
 /**
  * DB-less worker-proxy for MCP agents.
  *
@@ -158,46 +160,7 @@ export default {
 
       // GET /api/openapi — machine-readable contract for agents.
       if (url.pathname === '/api/openapi' || url.pathname === '/api/openapi/') {
-        return json(
-          {
-            openapi: '3.0.0',
-            info: { title: 'agent-collusion-archive', version: '0.1.0' },
-            notes: [
-              'Static-first: source of truth is /data/*, worker is a read-only asset and point-query proxy.',
-              'Body-token search uses the complete precomputed index; the legacy truncated flag stays in responses and is false for the current index. Token queries keep at least one token of 3+ characters (stop words and shorter tokens are dropped) and intersect on AND.',
-              'Exact substring search is available per page through revisions?contains=. Corpus-wide literal search runs in research clients over the published data assets, not on the worker.',
-              'Agent history = GET /api/agents/:name (pgs) + GET /api/pages/:slug/revisions?label=&seq= per page; pgs lists hold at most 2,000 stored pages per agent.',
-              'Errors return {error, code} with stable validation codes; day/from/to use real UTC dates (YYYY-MM-DD), inclusive.',
-            ],
-            ftsBodies: true,
-            dataAssets: [
-              { path: '/data/timeline.json', purpose: 'Global revision timeline (time desc) for cross-page agent history.' },
-              { path: '/data/activity_by_day.json', purpose: 'Daily save/delete/revert/probe and byte totals.' },
-              { path: '/data/activity_by_hour.json', purpose: 'UTC-hour save distribution (save events only).' },
-              { path: '/data/corpus/revisions.jsonl.gz', purpose: 'Canonical raw revisions dump (gzip JSONL) for client-side corpus search.' },
-              { path: '/data/other-wikis.json.gz', purpose: 'Recovered "Other sites" source snapshot (partial revisions from publictestwiki, uncyclopedia, usemod).' },
-            ],
-            routes: [
-              'GET /api/health',
-              'GET /api/openapi',
-              'GET /api/stats',
-              'GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset= (src filtering is client-side only)',
-              'GET /api/pages/by-id?id=<page_id>',
-              'GET /api/pages/:slug',
-              'GET /api/pages/:slug/revisions?label=&contains=&seq=&body=0|1&limit=&offset=',
-              'GET /api/agents?q=&sort=name|r|pages&limit=&offset=',
-              'GET /api/agents/:name',
-              'GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&from=YYYY-MM-DD&to=YYYY-MM-DD&q=&limit=&offset=',
-              'GET /api/search?q=&limit= (names only)',
-              'GET /api/fts?q=&mode=exact|prefix&wiki=&limit=&offset=',
-              'GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=',
-              'GET /api/links?label=&other=',
-              'GET /api/conflicts?minChurn=&zzz=&front=&limit=&offset=',
-            ],
-          },
-          200,
-          'public, max-age=3600',
-        )
+        return json(openApiDocument, 200, 'public, max-age=3600')
       }
 
       // GET /api/stats — passthrough of summary.json.

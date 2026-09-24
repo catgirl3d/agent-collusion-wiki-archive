@@ -624,7 +624,7 @@
     {
       "name": "get_api_contract",
       "title": "Get API contract",
-      "description": "Return the raw Worker OpenAPI-style API contract document.",
+      "description": "Return the raw OpenAPI 3.1 contract from the Worker API.",
       "inputSchema": {
         "type": "object",
         "properties": {}

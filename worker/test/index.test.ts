@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import Ajv2020 from 'ajv/dist/2020'
+import addFormats from 'ajv-formats'
 import { PAYLOAD_FLAGS, tokenizeBody } from '../src/index'
 
 type AssetValue = unknown | Response
@@ -41,6 +47,78 @@ const events = [
   { type: 'edit', act: '[Admin1]', wiki: 'other', t: '2026-01-05T10:00:00Z', page: 'Notes', action: 'update', ip16: 'eeff' },
 ]
 const partialEvent = { type: 'save', wiki: 'publictestwiki', t: '2026-05-11T10:00:00Z', page: 'Recovered', ip16: '1122', partial: true }
+
+const expectedOpenApiPaths = [
+  '/api/health',
+  '/api/openapi',
+  '/api/stats',
+  '/api/pages',
+  '/api/pages/by-id',
+  '/api/pages/{slug}',
+  '/api/pages/{slug}/revisions',
+  '/api/agents',
+  '/api/agents/{name}',
+  '/api/events',
+  '/api/search',
+  '/api/fts',
+  '/api/artifacts',
+  '/api/links',
+  '/api/conflicts',
+]
+
+const expectedOperationIds = {
+  '/api/health': 'getHealth',
+  '/api/openapi': 'getOpenApiContract',
+  '/api/stats': 'getStats',
+  '/api/pages': 'listPages',
+  '/api/pages/by-id': 'getPageById',
+  '/api/pages/{slug}': 'getPage',
+  '/api/pages/{slug}/revisions': 'listPageRevisions',
+  '/api/agents': 'listAgents',
+  '/api/agents/{name}': 'getAgent',
+  '/api/events': 'listEvents',
+  '/api/search': 'searchNames',
+  '/api/fts': 'searchBodyTokens',
+  '/api/artifacts': 'listArtifacts',
+  '/api/links': 'getAgentLinks',
+  '/api/conflicts': 'listConflictPages',
+}
+
+const responseAjv = new Ajv2020({
+  allErrors: true,
+  strict: false,
+  coerceTypes: false,
+  useDefaults: false,
+  removeAdditional: false,
+})
+addFormats(responseAjv)
+
+function responseSchema(document: Record<string, any>, path: string, status: number) {
+  let response = document.paths[path]?.get?.responses?.[status]
+  const responsePrefix = '#/components/responses/'
+  if (typeof response?.$ref === 'string' && response.$ref.startsWith(responsePrefix)) {
+    response = document.components.responses[response.$ref.slice(responsePrefix.length)]
+  }
+  const schema = response?.content?.['application/json']?.schema
+  if (!schema) throw new Error(`missing documented JSON response schema for ${path} ${status}`)
+
+  const rewriteComponentRefs = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(rewriteComponentRefs)
+    if (value === null || typeof value !== 'object') return value
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
+      key,
+      key === '$ref' && typeof entry === 'string'
+        ? entry.replace(/^#\/components\/schemas\//, '#/$defs/')
+        : rewriteComponentRefs(entry),
+    ]))
+  }
+
+  return responseAjv.compile(rewriteComponentRefs({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $defs: document.components.schemas,
+    ...schema,
+  }))
+}
 
 const fts = {
   tokens: { alpha: [0, 2], alphabet: [1], beta: [0], capped: [0] },
@@ -119,17 +197,73 @@ describe('Worker API default fetch handler', () => {
     expect(setup.fetch).toHaveBeenCalledWith(req)
   })
 
-  it('serves health and openapi without assets', async () => {
+  it('serves health and a complete OpenAPI 3.1 contract without assets', async () => {
     const health = await request('/api/health')
     expect(await json(health.response)).toEqual({ status: 'ok' })
     expect(health.response.headers.get('cache-control')).toBe('no-store')
 
     const openapi = await request('/api/openapi')
     const body = await json(openapi.response)
-    expect(body.openapi).toBe('3.0.0')
-    expect(body.routes).toContain('GET /api/pages?q=&wiki=&fam=&deleted=&minRevs=&sort=&limit=&offset= (src filtering is client-side only)')
-    expect(body.routes).toContain('GET /api/events?type=&act=&wiki=&day=YYYY-MM-DD&from=YYYY-MM-DD&to=YYYY-MM-DD&q=&limit=&offset=')
-    expect(body.dataAssets.map((asset: { path: string }) => asset.path)).toContain('/data/corpus/revisions.jsonl.gz')
+    expect(body.openapi).toBe('3.1.0')
+    expect(body.info).toMatchObject({ title: 'agent-collusion-archive', version: '0.1.0' })
+    expect(body.servers).toEqual([{ url: 'https://agent-collusion.uk' }])
+    expect(Object.keys(body.paths).sort()).toEqual([...expectedOpenApiPaths].sort())
+
+    const operationIds = Object.fromEntries(
+      expectedOpenApiPaths.map((path) => [path, body.paths[path]?.get?.operationId]),
+    )
+    expect(operationIds).toEqual(expectedOperationIds)
+    expect(new Set(Object.values(operationIds)).size).toBe(expectedOpenApiPaths.length)
+    const httpMethods = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']
+    expect(Object.fromEntries(expectedOpenApiPaths.map((path) => [
+      path,
+      Object.keys(body.paths[path]).filter((method) => httpMethods.includes(method)).sort(),
+    ]))).toEqual(Object.fromEntries(expectedOpenApiPaths.map((path) => [path, ['get']])))
+
+    const resolveParameter = (parameter: { $ref?: string }) => {
+      const prefix = '#/components/parameters/'
+      return parameter.$ref?.startsWith(prefix)
+        ? body.components.parameters[parameter.$ref.slice(prefix.length)]
+        : parameter
+    }
+    const parametersFor = (path: string) => (body.paths[path].get.parameters ?? []).map(resolveParameter)
+    const requiredParameters = Object.fromEntries(expectedOpenApiPaths.map((path) => {
+      return [path, parametersFor(path)
+        .filter((parameter: { required?: boolean }) => parameter.required)
+        .map((parameter: { in: string; name: string }) => `${parameter.in}:${parameter.name}`)
+        .sort()]
+    }))
+    expect(requiredParameters).toEqual({
+      '/api/health': [],
+      '/api/openapi': [],
+      '/api/stats': [],
+      '/api/pages': [],
+      '/api/pages/by-id': ['query:id'],
+      '/api/pages/{slug}': ['path:slug'],
+      '/api/pages/{slug}/revisions': ['path:slug'],
+      '/api/agents': [],
+      '/api/agents/{name}': ['path:name'],
+      '/api/events': [],
+      '/api/search': ['query:q'],
+      '/api/fts': ['query:q'],
+      '/api/artifacts': [],
+      '/api/links': ['query:label'],
+      '/api/conflicts': [],
+    })
+    const otherParameter = parametersFor('/api/links').find((parameter: { name: string }) => parameter.name === 'other')
+    expect(otherParameter).toMatchObject({ name: 'other', in: 'query' })
+    expect(otherParameter.required).not.toBe(true)
+    expect(body).not.toHaveProperty('routes')
+    expect(body).not.toHaveProperty('notes')
+    expect(body).not.toHaveProperty('ftsBodies')
+    expect(body).not.toHaveProperty('dataAssets')
+    expect(body['x-data-assets'].map((asset: { path: string }) => asset.path)).toEqual([
+      '/data/timeline.json',
+      '/data/activity_by_day.json',
+      '/data/activity_by_hour.json',
+      '/data/corpus/revisions.jsonl.gz',
+      '/data/other-wikis.json.gz',
+    ])
     expect(openapi.setup.calls).toEqual([])
   })
 
@@ -137,9 +271,127 @@ describe('Worker API default fetch handler', () => {
     const canonical = await request('/api/openapi')
     const trailingSlash = await request('/api/openapi/')
 
+    expect(canonical.response.status).toBe(200)
     expect(trailingSlash.response.status).toBe(200)
     expect(await json(trailingSlash.response)).toEqual(await json(canonical.response))
+    for (const response of [canonical.response, trailingSlash.response]) {
+      expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8')
+      expect(response.headers.get('cache-control')).toBe('public, max-age=3600')
+      expect(response.headers.get('access-control-allow-origin')).toBe('*')
+    }
+    expect(canonical.setup.calls).toEqual([])
+    expect(trailingSlash.setup.calls).toEqual([])
   })
+
+  it('validates real success responses for every documented operation', async () => {
+    const contract = await json((await request('/api/openapi')).response)
+    const publishedSummary = JSON.parse(readFileSync(new URL('../../data/processed/summary.json', import.meta.url), 'utf8'))
+    const fixtures = [
+      { path: '/api/health', url: '/api/health' },
+      { path: '/api/openapi', url: '/api/openapi' },
+      { path: '/api/stats', url: '/api/stats', assets: { '/data/summary.json': publishedSummary } },
+      { path: '/api/pages', url: '/api/pages' },
+      { path: '/api/pages/by-id', url: '/api/pages/by-id?id=wiki%2FPage%20One' },
+      { path: '/api/pages/{slug}', url: '/api/pages/Page_One~_h12345678' },
+      { path: '/api/pages/{slug}/revisions', url: '/api/pages/Recovered~/revisions?body=0' },
+      { path: '/api/agents', url: '/api/agents?limit=1' },
+      { path: '/api/agents/{name}', url: '/api/agents/Alice' },
+      { path: '/api/events', url: '/api/events' },
+      { path: '/api/search', url: '/api/search?q=recovered' },
+      { path: '/api/fts', url: '/api/fts?q=alpha' },
+      { path: '/api/artifacts', url: '/api/artifacts?flag=tunnel' },
+      { path: '/api/links', url: '/api/links?label=Alice' },
+      { path: '/api/conflicts', url: '/api/conflicts?minChurn=0&zzz=true' },
+    ]
+    expect(fixtures.map(({ path }) => path).sort()).toEqual([...expectedOpenApiPaths].sort())
+
+    for (const fixture of fixtures) {
+      const result = await request(fixture.url, undefined, fixture.assets)
+      expect(result.response.status, fixture.path).toBe(200)
+      expect(result.response.headers.get('content-type'), fixture.path).toContain('application/json')
+      const body = await json(result.response)
+      const validate = responseSchema(contract, fixture.path, result.response.status)
+      expect(validate(body), `${fixture.path}: ${JSON.stringify(validate.errors)}`).toBe(true)
+
+      if (fixture.path === '/api/pages/{slug}/revisions') {
+        expect(body.withBody).toBe(false)
+        expect(body.revisions[0]).toMatchObject({ partial: true, added: ['recovered line'], removed: ['old line'] })
+        expect(body.revisions[0]).not.toHaveProperty('body')
+      }
+    }
+
+    const pairLinks = await request('/api/links?label=Alice&other=Bob')
+    expect(pairLinks.response.status).toBe(200)
+    const pairLinksBody = await json(pairLinks.response)
+    const validatePairLinks = responseSchema(contract, '/api/links', pairLinks.response.status)
+    expect(validatePairLinks(pairLinksBody), JSON.stringify(validatePairLinks.errors)).toBe(true)
+    expect(pairLinksBody).toMatchObject({ other: 'Bob', sharedCount: 1, sharedPages: [pageOne.s] })
+
+    const emptyResults = await request('/api/fts?q=zzzmissingtoken')
+    expect(emptyResults.response.status).toBe(200)
+    const emptyResultsBody = await json(emptyResults.response)
+    const validateEmptyResults = responseSchema(contract, '/api/fts', emptyResults.response.status)
+    expect(validateEmptyResults(emptyResultsBody), JSON.stringify(validateEmptyResults.errors)).toBe(true)
+    expect(emptyResultsBody).toMatchObject({ total: 0, pages: [] })
+
+    expect(responseSchema(contract, '/api/health', 200)({})).toBe(false)
+    expect(responseSchema(contract, '/api/health', 200)({ status: 42 })).toBe(false)
+  })
+
+  it('validates declared 400, 404, and asset-failure 500 responses', async () => {
+    const contract = await json((await request('/api/openapi')).response)
+    const badRequest = await request('/api/search')
+    expect(badRequest.response.status).toBe(400)
+    const badRequestBody = await json(badRequest.response)
+    expect(badRequestBody).toMatchObject({ error: 'missing ?q=', code: 'missing_param' })
+    const validateBadRequest = responseSchema(contract, '/api/search', badRequest.response.status)
+    expect(validateBadRequest(badRequestBody), JSON.stringify(validateBadRequest.errors)).toBe(true)
+
+    const notFound = await request('/api/pages/by-id?id=wiki%2Fmissing')
+    expect(notFound.response.status).toBe(404)
+    const notFoundBody = await json(notFound.response)
+    expect(notFoundBody).toMatchObject({ error: 'page not found', code: 'not_found' })
+    const validateNotFound = responseSchema(contract, '/api/pages/by-id', notFound.response.status)
+    expect(validateNotFound(notFoundBody), JSON.stringify(validateNotFound.errors)).toBe(true)
+
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const failure = await request('/api/stats', undefined, {
+        '/data/summary.json': new Response('unavailable', { status: 503 }),
+      })
+      expect(failure.response.status).toBe(500)
+      const failureBody = await json(failure.response)
+      expect(failureBody).toEqual({ error: 'internal error', code: 'internal_error' })
+      const validateFailure = responseSchema(contract, '/api/stats', failure.response.status)
+      expect(validateFailure(failureBody), JSON.stringify(validateFailure.errors)).toBe(true)
+    } finally {
+      logged.mockRestore()
+    }
+  })
+
+  it('rejects OAS documents missing required root structures or a valid operation', () => {
+    const fixtureDirectory = mkdtempSync(join(tmpdir(), 'worker-openapi-lint-'))
+    const redoclyCli = fileURLToPath(new URL('../node_modules/@redocly/cli/bin/cli.js', import.meta.url))
+    const invalidDocuments = [
+      { openapi: '3.1.0', info: { title: 'Missing root structures', version: '1.0.0' } },
+      { openapi: '3.1.0', info: { title: 'Invalid path operation', version: '1.0.0' }, paths: { '/items': { get: 'invalid' } } },
+    ]
+
+    try {
+      invalidDocuments.forEach((document, index) => {
+        const filePath = join(fixtureDirectory, `invalid-${index}.json`)
+        writeFileSync(filePath, JSON.stringify(document))
+        const result = spawnSync(process.execPath, [redoclyCli, 'lint', filePath, '--extends=spec'], {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+        })
+        expect(result.error).toBeUndefined()
+        expect(result.status, result.stdout + result.stderr).not.toBe(0)
+      })
+    } finally {
+      rmSync(fixtureDirectory, { recursive: true, force: true })
+    }
+  }, 15_000)
 
   it('returns stats and caches the asset within an isolate', async () => {
     const worker = await handlerForTest()
@@ -436,19 +688,6 @@ describe('Worker API default fetch handler', () => {
   it('matches tokenizer golden fixture and advertises new routes', async () => {
     const fixture = JSON.parse(readFileSync(new URL('../../data/validation/token_golden.json', import.meta.url), 'utf8'))
     for (const testCase of fixture.cases) expect(tokenizeBody(testCase.text).sort()).toEqual(testCase.tokens.sort())
-    const body = await json((await request('/api/openapi')).response)
-    expect(body.ftsBodies).toBe(true)
-    expect(body.routes).toContain('GET /api/fts?q=&mode=exact|prefix&wiki=&limit=&offset=')
-    expect(body.routes).toContain('GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=')
-    expect(body.routes).toContain('GET /api/pages/:slug/revisions?label=&contains=&seq=&body=0|1&limit=&offset=')
-    expect(body.dataAssets.map((asset: { path: string }) => asset.path)).toEqual([
-      '/data/timeline.json',
-      '/data/activity_by_day.json',
-      '/data/activity_by_hour.json',
-      '/data/corpus/revisions.jsonl.gz',
-      '/data/other-wikis.json.gz',
-    ])
-
     const buildSource = readFileSync(new URL('../../data/scripts/build.py', import.meta.url), 'utf8')
     const flagsLiteral = buildSource.match(/PAYLOAD_FLAGS = \(([^)]*)\)/)
     expect(flagsLiteral).not.toBeNull()
