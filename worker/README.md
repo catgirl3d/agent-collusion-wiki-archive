@@ -49,7 +49,7 @@ available API routes are:
 | `GET /api/fts?q=&mode=exact%7Cprefix&wiki=&limit=&offset=` | Body-token search using the complete precomputed index; the legacy `truncated` field stays `false` for the current index; `q` is limited to 200 characters and 16 usable tokens (tokens need 3+ characters, stop words are dropped, tokens are intersected with AND) |
 | `GET /api/artifacts?flag=&host=&slug=&id=&wiki=&limit=&offset=` | Payload artifact and host search |
 | `GET /api/links?label=&other=` | `{label, links}` for one agent, or the pair page intersection across indexed `pgs` (up to 2,000 stored pages per agent) |
-| `GET /api/conflicts?minChurn=&zzz=&front=&limit=&offset=` | Filter the complete label-churn list; `minChurn` defaults to 0 and `minChurn>=2` selects shared pages only |
+| `GET /api/conflicts?minChurn=&zzz=&front=&limit=&offset=` | Filter the complete label-churn list; `minChurn` defaults to 0 and `minChurn>=2` selects shared pages only. Sorted by churn descending, then deletions descending. |
 
 Paginated list routes accept `limit` and `offset` where shown and return a
 `total` field; `/api/search` is capped by `limit` and does not paginate. The

@@ -286,7 +286,7 @@
       "get": {
         "operationId": "listConflictPages",
         "summary": "List conflict pages",
-        "description": "minChurn is floored and clamped. zzz and front filter only when their value is 1 or true; false and other values do not filter.",
+        "description": "minChurn is floored and clamped. zzz and front filter only when their value is 1 or true; false and other values do not filter. Sorted by churn descending, then deletions descending.",
         "parameters": [
           { "$ref": "#/components/parameters/MinChurn" },
           { "$ref": "#/components/parameters/Zzz" },
@@ -623,8 +623,8 @@
           "wiki": { "type": "string" },
           "t": { "type": "string" },
           "page": { "type": "string" },
-          "action": { "type": "string" },
-          "ip16": { "type": "string" },
+          "action": { "type": ["string", "null"] },
+          "ip16": { "type": ["string", "null"] },
           "partial": { "type": "boolean" }
         },
         "additionalProperties": true
@@ -718,7 +718,15 @@
         },
         "additionalProperties": false
       },
-      "AgentLink": { "type": "object", "additionalProperties": true },
+      "AgentLink": {
+        "type": "object",
+        "required": ["o", "c"],
+        "properties": {
+          "o": { "type": "string" },
+          "c": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
       "AgentLinksByLabel": {
         "type": "object",
         "required": ["label", "links"],
