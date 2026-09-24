@@ -46,7 +46,14 @@ npm test           # utility unit tests
 
 Beyond the existing dashboards, the viewer includes a cross-page **Timeline** page (`/timeline`, filters by agent label, wiki, and date; `?label=` links are shareable) and a **Text search** page (`/search`) that performs literal substring search over all revision bodies. Text search runs entirely in a browser Web Worker: the first search downloads the published `revisions.jsonl.gz` (~3.2 MB) and scans it locally, so the Worker API never scans revision bodies.
 
-A **Research** page (`/research`) publishes a staged selection of the preliminary reports from `data/validation/`. Stage 1 publishes only the coordination topology assessment (`coordination-topology-assessment.md`); the other reports and the domain-infrastructure package (Markdown and CSV files) stay in the repository but are held back in `web/scripts/research.mjs` until their stage is enabled. The converter turns published documents into HTML at build time; raw HTML inside report bodies is escaped so quoted hostile markup renders as text. The superseded `proxy-audit.md` draft and the golden test fixtures are not published.
+A **Research** page (`/research`) publishes a staged selection of the
+preliminary reports from `data/validation/`. The current stage publishes the
+coordination topology assessment in four languages and the IP16 network
+catalog; other reports and the domain-infrastructure package remain withheld
+in `web/scripts/research.mjs`. The converter turns published documents into
+HTML at build time; raw HTML inside report bodies is escaped so quoted hostile
+markup renders as text. The superseded `proxy-audit.md` draft and golden test
+fixtures are not published.
 
 Viewer data (`web/public/data/`) is generated via the `prebuild` hook from `data/processed/` (`web/scripts/sync-data.mjs`), which also copies `data/raw/revisions.jsonl.gz` to `public/data/corpus/` and verifies it against the SHA-256/size metadata in `summary.json`. The generated directory is **not committed** (listed in `.gitignore`). Git source of truth: `data/raw/` + `data/processed/`.
 

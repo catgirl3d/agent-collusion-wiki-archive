@@ -37,3 +37,4 @@ data/external/anna-fyi-full-private/
 # Сst
 web/coverage/*
 mcp/RELEASE.md
+.mcp-brain/*

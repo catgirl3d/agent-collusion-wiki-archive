@@ -2376,6 +2376,24 @@ a:hover {
   margin: 26px 0;
 }
 
+.markdown-body .footnotes {
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+
+.markdown-body .footnotes ol {
+  margin-top: 0;
+}
+
+.markdown-body .footnotes li {
+  color: var(--muted-text);
+}
+
+.markdown-body .footnote-backref {
+  margin-left: 3px;
+  color: var(--muted-text);
+}
+
 .markdown-body table {
   width: 100%;
   border-collapse: collapse;
