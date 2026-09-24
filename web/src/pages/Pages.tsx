@@ -1,9 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, Button, Chip, LoadMore, PageLink } from '../components/ui'
+import { Badge, Button, Chip, LoadMore, PageLink, TextLink } from '../components/ui'
 import type { DayActivity, PagesIndex, PayloadRecord, SearchIndex } from '../types'
 import {
   WIKIS,
@@ -13,7 +13,6 @@ import {
   fmtInt,
   SOURCE_FILTER_OPTIONS,
   toCsv,
-  wikiColor,
 } from '../utils/format'
 import type { SourceFilter } from '../utils/format'
 import { downloadBlob } from '../utils/download'
@@ -163,9 +162,9 @@ export default function Pages() {
         <span className="muted result-count">{fmtInt(filtered.length)} of {fmtInt(data.p.length)}{tokenSlugs !== null && ` · full-text: ${tokenSlugs.length} pages`}</span>
       </div>
       {day && filtered.length === 0 && dayStats && (
-        <div className="day-empty">
+        <div className="day-empty surface-panel">
           {dayStats.deletes > 0
-            ? <>No revisions saved on this date. <Link className="link" to={`/events?day=${day}`}>View {fmtInt(dayStats.deletes)} deletion{dayStats.deletes === 1 ? '' : 's'} in Events →</Link></>
+            ? <>No revisions saved on this date. <TextLink to={`/events?day=${day}`}>View {fmtInt(dayStats.deletes)} deletion{dayStats.deletes === 1 ? '' : 's'} in Events →</TextLink></>
             : <span className="muted">No activity on this date.</span>}
         </div>
       )}
@@ -202,7 +201,7 @@ export default function Pages() {
                    {p.partial && <Chip>recovered</Chip>}
                 </td>
                 <td>
-                  <Chip tone="wiki" ><span style={{ color: wikiColor(p.w) }}>{p.w}</span></Chip>
+                  <Chip tone="wiki">{p.w}</Chip>
                 </td>
                 <td className="num">{p.r}</td>
                 <td className="num muted">{p.del || ''}</td>

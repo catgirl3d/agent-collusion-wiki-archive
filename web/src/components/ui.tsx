@@ -1,36 +1,61 @@
+import { createElement } from 'react'
 import { Link, type LinkProps } from 'react-router-dom'
 import type { SortState } from '../utils/sort'
 import { fmtInt } from '../utils/format'
 
+type TextLinkProps = LinkProps & { className?: string }
+
+export function TextLink({ className, ...props }: TextLinkProps) {
+  const classes = ['link', className].filter(Boolean).join(' ')
+  return <Link {...props} className={classes} />
+}
+
 export function PageLink({ id, name, max }: { id: string; name: string; max?: number }) {
   const short = max && name.length > max ? `${name.slice(0, max)}…` : name
   return (
-    <Link className="link" to={`/page/${encodeURIComponent(id)}`} title={name}>
+    <TextLink to={`/page/${encodeURIComponent(id)}`} title={name}>
       {short}
-    </Link>
+    </TextLink>
   )
 }
 
-export function Chip({ children, tone = 'plain' }: { children: React.ReactNode; tone?: 'plain' | 'del' | 'wiki' }) {
-  return <span className={`chip chip-${tone}`}>{children}</span>
+type ChipProps = React.HTMLAttributes<HTMLSpanElement> & {
+  children: React.ReactNode
+  tone?: 'plain' | 'del' | 'wiki'
 }
 
-export function Badge({
-  color,
-  className,
-  title,
-  children,
-}: {
+export function Chip({ children, tone = 'plain', className, ...props }: ChipProps) {
+  const classes = ['chip', `chip-${tone}`, className].filter(Boolean).join(' ')
+  return <span {...props} className={classes}>{children}</span>
+}
+
+type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & {
   color?: string
-  className?: string
-  title?: string
   children: React.ReactNode
-}) {
+}
+
+export function Badge({ color, className, style, children, ...props }: BadgeProps) {
+  const classes = ['badge', className].filter(Boolean).join(' ')
+  const colorStyle = color ? { background: `${color}22`, color } : undefined
   return (
-    <span className={`badge${className ? ` ${className}` : ''}`} title={title} style={color ? { background: `${color}22`, color } : undefined}>
+    <span {...props} className={classes} style={colorStyle || style ? { ...colorStyle, ...style } : undefined}>
       {children}
     </span>
   )
+}
+
+type CardTag = 'div' | 'section' | 'article' | 'nav' | 'aside'
+
+type CardProps = React.HTMLAttributes<HTMLElement> & {
+  as?: CardTag
+  className?: string
+  ref?: React.Ref<HTMLElement>
+  variant?: 'default' | 'compact'
+}
+
+export function Card({ as: Element = 'div', className, ref, variant = 'default', ...props }: CardProps) {
+  const classes = ['card', variant === 'compact' && 'card-compact', className].filter(Boolean).join(' ')
+  return createElement(Element, { ...props, className: classes, ref })
 }
 
 export function SortHeader<K extends string>({
@@ -62,45 +87,62 @@ export function SortHeader<K extends string>({
 
 type ButtonCommonProps = {
   variant?: 'primary' | 'ghost'
-  size?: 'md' | 'sm'
+  size?: 'md' | 'sm' | 'xs' | 'icon'
   className?: string
   children: React.ReactNode
 }
 
 type ButtonNativeProps = ButtonCommonProps &
-  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'>
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'> &
+  { ref?: React.Ref<HTMLButtonElement> }
 
 type ButtonLinkProps = ButtonCommonProps & { to: string } & Omit<LinkProps, 'to' | 'className' | 'children'>
+type ButtonAnchorProps = ButtonCommonProps & { href: string } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'className' | 'children'>
 
 export function Button(props: ButtonLinkProps): React.ReactElement
+export function Button(props: ButtonAnchorProps): React.ReactElement
 export function Button(props: ButtonNativeProps): React.ReactElement
-export function Button({ variant = 'primary', size = 'md', className, children, ...rest }: ButtonLinkProps | ButtonNativeProps) {
-  const classes = ['btn', variant === 'ghost' && 'ghost', size === 'sm' && 'sm', className].filter(Boolean).join(' ')
+export function Button({ variant = 'primary', size = 'md', className, children, ...rest }: ButtonLinkProps | ButtonAnchorProps | ButtonNativeProps) {
+  const classes = ['btn', variant === 'ghost' && 'ghost', size !== 'md' && size, className].filter(Boolean).join(' ')
   if ('to' in rest) {
     const { to, ...linkProps } = rest
     return <Link to={to} className={classes} {...linkProps}>{children}</Link>
+  }
+  if ('href' in rest) {
+    const { href, ...anchorProps } = rest
+    return <a href={href} className={classes} {...anchorProps}>{children}</a>
   }
   return <button type="button" className={classes} {...rest}>{children}</button>
 }
 
 const SCROLL_TOP_LABEL = 'Scroll to top'
 
+type ScrollTopButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'className' | 'onClick' | 'size' | 'type'> & {
+  children?: React.ReactNode
+  className?: string
+  onClick?: React.MouseEventHandler<HTMLButtonElement>
+  size?: ButtonCommonProps['size']
+}
+
 export function ScrollTopButton({
   children,
   className,
+  onClick,
+  size = 'md',
   ...rest
-}: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'className' | 'onClick' | 'type'> & {
-  children?: React.ReactNode
-  className?: string
-}) {
+}: ScrollTopButtonProps) {
   // The accessible label is pinned only to the default content: custom children
   // keep their own accessible name so the visible text and the name never diverge.
   return (
     <Button
       variant="ghost"
+      size={size}
       className={className}
       aria-label={children === undefined ? SCROLL_TOP_LABEL : undefined}
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      onClick={(event) => {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        onClick?.(event)
+      }}
       {...rest}
     >
       {children ?? (<><span aria-hidden="true">↑ </span>top</>)}

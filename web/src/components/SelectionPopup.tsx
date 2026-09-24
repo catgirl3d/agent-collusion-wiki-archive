@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ExternalLink, FileText, Search } from 'lucide-react'
+import { Button } from './ui'
 
 interface SelectionPopupProps {
   containerRef: React.RefObject<HTMLElement | null>
@@ -146,8 +147,10 @@ export function SelectionPopup({ containerRef }: SelectionPopupProps) {
       role="toolbar"
       aria-label="Selection actions"
     >
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         className="selection-popup-btn"
         onClick={handleSearchText}
         title="Search text in corpus (opens in new tab)"
@@ -155,10 +158,12 @@ export function SelectionPopup({ containerRef }: SelectionPopupProps) {
         <Search size={13} aria-hidden="true" />
         <span>Search text</span>
         <ExternalLink size={11} className="selection-popup-ext" aria-hidden="true" />
-      </button>
+      </Button>
       <span className="selection-popup-divider" aria-hidden="true" />
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         className="selection-popup-btn"
         onClick={handleSearchPage}
         title="Search page in catalog (opens in new tab)"
@@ -166,7 +171,7 @@ export function SelectionPopup({ containerRef }: SelectionPopupProps) {
         <FileText size={13} aria-hidden="true" />
         <span>Search page</span>
         <ExternalLink size={11} className="selection-popup-ext" aria-hidden="true" />
-      </button>
+      </Button>
     </div>,
     document.body,
   )

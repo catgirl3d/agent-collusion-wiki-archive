@@ -4,7 +4,7 @@ import { loadJson, revisionFile } from '../api'
 import { Dropdown } from '../components/Dropdown'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import NetworkCanvas, { type NetworkCanvasHandle } from '../components/NetworkCanvas'
-import { Badge, Button, Chip } from '../components/ui'
+import { Badge, Button, Card, Chip } from '../components/ui'
 import { useData } from '../components/useQuery'
 import type { AgentLinks, LabelsIndex, PagesIndex, Revision } from '../types'
 import { fmtInt, wikiColor } from '../utils/format'
@@ -268,19 +268,22 @@ export default function Network() {
         <div className="network-preset-chips">
           <span className="muted text-xs uppercase tracking-wider">Top linked labels:</span>
           {presets.map((agent) => (
-            <button
+            <Button
               key={agent}
               type="button"
-              className={`preset-chip mono ${activeAgent === agent ? 'active' : ''}`}
+              variant="ghost"
+              size="sm"
+              className="mono"
+              aria-pressed={activeAgent === agent}
               onClick={() => setFocalAgent(agent)}
             >
               {agent.length > 18 ? `${agent.slice(0, 16)}…` : agent}
-            </button>
+            </Button>
           ))}
         </div>
       </header>
 
-      <div className="network-controls-bar">
+      <div className="network-controls-bar surface-panel">
         {/* Search Input with Suggestions */}
         <div
           ref={searchWrapRef}
@@ -454,7 +457,7 @@ export default function Network() {
 
       <div className="network-workspace">
         {/* Main Cytoscape Canvas */}
-        <div className="network-canvas-container">
+        <Card className="network-canvas-container">
           <NetworkCanvas
             ref={canvasRef}
             networkData={networkData}
@@ -477,10 +480,10 @@ export default function Network() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Inspector Sidebar */}
-        <aside className="network-inspector-sidebar">
+        <Card as="aside" className="network-inspector-sidebar">
           {validatedPair ? (
             <PairEvidencePanel
               leftLabel={validatedPair.a}
@@ -605,7 +608,7 @@ export default function Network() {
               </section>
             </>
           )}
-        </aside>
+        </Card>
       </div>
     </div>
   )

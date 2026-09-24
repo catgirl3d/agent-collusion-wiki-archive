@@ -386,6 +386,7 @@ describe('Research', () => {
 
     // Close via close button
     const closeBtn = within(drawer).getByRole('button', { name: 'Close table of contents' })
+    expect(closeBtn).toHaveClass('btn', 'ghost', 'icon')
     fireEvent.click(closeBtn)
     expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
 
@@ -401,5 +402,19 @@ describe('Research', () => {
     const drawerItem = within(itemDrawer).getByRole('link', { name: 'Jump to Section 1' })
     fireEvent.click(drawerItem)
     expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
+  })
+
+  it('scrolls to the top and closes the mobile toc from its back-to-top action', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    renderResearch('/research?doc=coordination-topology')
+    await screen.findByText('First body')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse table of contents' }))
+    const drawer = screen.getByRole('dialog', { name: 'Table of contents' })
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Back to top ↑' }))
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+    expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
+    scrollTo.mockRestore()
   })
 })

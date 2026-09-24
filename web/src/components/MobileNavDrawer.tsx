@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { X } from 'lucide-react'
+import { Button } from './ui'
 import { dynamicsItems, exploreItems, isNavItemActive, isResearchActive } from './nav-items'
 import type { NavDropdownItem } from './nav-items'
 
@@ -96,15 +97,16 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
       >
         <div className="mobile-drawer-header">
           <span className="mobile-drawer-title">Navigation</span>
-          <button
+          <Button
             ref={closeBtnRef}
             type="button"
-            className="mobile-drawer-close"
+            variant="ghost"
+            size="icon"
             aria-label="Close navigation menu"
             onClick={onClose}
           >
             <X size={18} aria-hidden="true" />
-          </button>
+          </Button>
         </div>
         <div className="mobile-drawer-body">
           <div className="mobile-nav-group-links">

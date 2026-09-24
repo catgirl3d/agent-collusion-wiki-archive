@@ -4,7 +4,7 @@ import { derivePairEvidence, derivePatternSignals, formatPatternSignals, getPayl
 import { fmtDuration, fmtTimeSeconds, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS } from '../utils/payload'
 import { DiffView } from './DiffView'
-import { Button } from './ui'
+import { Badge, Button, Card, Chip } from './ui'
 
 
 /** Timeline rows shown per render window; "Load older" extends by the same amount. */
@@ -73,26 +73,25 @@ function EventRow({
       >
         <span className="pair-seq">#{event.seq ?? event.revIndex + 1}</span>
         <span className="pair-time">{fmtTimeSeconds(event.time)}</span>
-        <span
-          className="badge mono pair-actor-badge"
+        <Badge
+          className="mono pair-actor-badge"
           style={{
             color: event.label === leftLabel ? 'var(--accent)' : 'var(--text)',
             borderColor: event.label === leftLabel ? 'var(--border-accent)' : 'var(--border)',
           }}
         >
           {event.label}
-        </span>
-        {event.action && <span className="badge pair-action-badge">{event.action}</span>}
-        {event.round && <span className="badge pair-round-badge">r{event.round}</span>}
+        </Badge>
+        {event.action && <Badge className="pair-action-badge">{event.action}</Badge>}
+        {event.round && <Badge className="pair-round-badge">r{event.round}</Badge>}
         <span className={deltaClass}>delta {deltaFormatted} chars</span>
-        <span className="badge pair-op-badge">{event.analysis.op}</span>
+        <Badge className="pair-op-badge">{event.analysis.op}</Badge>
         {event.analysis.truncated && (
           <span className="muted text-xs pair-truncated-note">large diff approximated</span>
         )}
         {event.payloadFlags.map((flag) => (
-          <span
+          <Badge
             key={flag}
-            className="badge"
             style={{
               background: `${PAYLOAD_FLAG_COLORS[flag] ?? '#f59e0b'}22`,
               color: PAYLOAD_FLAG_COLORS[flag] ?? '#f59e0b',
@@ -100,7 +99,7 @@ function EventRow({
             }}
           >
             {flag}
-          </span>
+          </Badge>
         ))}
         {(event.interveningOther > 0 || isThirdPartyBaseline) && (
           <span className="pair-intervening text-xs">
@@ -138,8 +137,7 @@ function EventRow({
               <div className="pair-snippets-title uppercase">Observed payload snippets:</div>
               {payloadEvidence.snippets.map((snip, idx) => (
                 <pre key={idx} className="pair-snippet" data-flag={snip.flag}>
-                  <span
-                    className="badge"
+                  <Badge
                     style={{
                       background: `${PAYLOAD_FLAG_COLORS[snip.flag] ?? '#f59e0b'}22`,
                       color: PAYLOAD_FLAG_COLORS[snip.flag] ?? '#f59e0b',
@@ -148,7 +146,7 @@ function EventRow({
                     }}
                   >
                     {snip.flag}
-                  </span>{' '}
+                  </Badge>{' '}
                   {snip.text}
                 </pre>
               ))}
@@ -227,24 +225,24 @@ export function PairEvidencePanel({
   )
 
   const signatureChip = (item: NonNullable<typeof signatures>['artifacts'][number], key: string) => (
-    <span key={key} className="pair-signature-chip" title={item.canonicalValue}>
+    <Chip key={key} className="pair-signature-chip" title={item.canonicalValue}>
       <span className="pair-signature-kind">{item.payloadClass ?? item.artifactType}</span>
       <span className="mono pair-signature-value">{item.canonicalValue}</span>
       <span className="pair-signature-count">{leftLabel} {item.counts[leftLabel] ?? 0} · {rightLabel} {item.counts[rightLabel] ?? 0}</span>
       <span className="pair-signature-refs">{item.refs.slice(0, 2).map((ref) => `${ref.label} · rev #${ref.seq ?? ref.revIndex + 1}`).join(' · ')}</span>
-    </span>
+    </Chip>
   )
 
   const techniqueChip = (technique: NonNullable<typeof signatures>['techniques'][number]) => (
-    <span key={technique.key} className="pair-technique-chip"><span>technique</span> {technique.key}</span>
+    <Chip key={technique.key} className="pair-technique-chip"><span>technique</span> {technique.key}</Chip>
   )
 
   const lineChip = (item: NonNullable<typeof signatures>['coordinationLines'][number], truncate: boolean) => (
-    <span key={item.canonicalValue} className="pair-technique-chip"><span>line</span> <span className="mono">{truncate ? `${item.canonicalValue.slice(0, 80)}${item.canonicalValue.length > 80 ? '…' : ''}` : item.canonicalValue}</span></span>
+    <Chip key={item.canonicalValue} className="pair-technique-chip"><span>line</span> <span className="mono">{truncate ? `${item.canonicalValue.slice(0, 80)}${item.canonicalValue.length > 80 ? '…' : ''}` : item.canonicalValue}</span></Chip>
   )
 
   const retainedChip = (domain: NonNullable<typeof signatures>['retainedDomains'][number], truncate: boolean) => (
-    <span key={domain.canonicalValue} className="pair-technique-chip"><span>retained</span> {truncate ? `${domain.canonicalValue.slice(0, 60)}${domain.canonicalValue.length > 60 ? '…' : ''}` : domain.canonicalValue} <span className="muted">kept by {domain.labels.join(', ')}</span></span>
+    <Chip key={domain.canonicalValue} className="pair-technique-chip"><span>retained</span> {truncate ? `${domain.canonicalValue.slice(0, 60)}${domain.canonicalValue.length > 60 ? '…' : ''}` : domain.canonicalValue} <span className="muted">kept by {domain.labels.join(', ')}</span></Chip>
   )
 
   const observationRow = (observation: NonNullable<typeof signatures>['pairObservations'][number]) => (
@@ -258,7 +256,7 @@ export function PairEvidencePanel({
   const hasSharedEvidence = signatures !== null && (signatures.artifacts.length > 0 || signatures.techniques.length > 0 || signatures.coordinationLines.length > 0 || signatures.retainedDomains.length > 0 || signatures.commonHosts.length > 0)
 
   return (
-    <section className="card pair-evidence-panel" aria-label="Shared pair evidence">
+    <Card as="section" className="pair-evidence-panel" aria-label="Shared pair evidence">
       {/* 1. Header */}
       <div className="pair-header">
         <div className="pair-header-main">
@@ -304,7 +302,7 @@ export function PairEvidencePanel({
       </div>
 
       {/* 2. Shared technical signatures */}
-      <div className="pair-section pair-signatures-section">
+      <div className="pair-section pair-signatures-section surface-panel">
         <div className="pair-section-head">
           <h3 className="section-subtitle">Shared technical signatures</h3>
           <p className="pair-signature-definition">Shared means observed in new additions by both selected labels; it does not establish information transfer.</p>
@@ -337,19 +335,19 @@ export function PairEvidencePanel({
         {signals ? (
           <div className="pair-patterns">
             {formatPatternSignals(signals).map((chip) => (
-              <span key={chip.key} className="pair-signal-chip chip">
+              <Chip key={chip.key} className="pair-signal-chip">
                 {chip.label} <span className="mono">({chip.count})</span>
-              </span>
+              </Chip>
             ))}
             {signals.additive === 0 &&
               signals.destructive === 0 &&
               signals.alternating === 0 &&
               signals.mixed === 0 &&
               (timeline as PairTimeline).events.length > 0 && (
-                <span className="pair-signal-chip chip muted">no operation signals</span>
+                <Chip className="pair-signal-chip muted">no operation signals</Chip>
               )}
             {(timeline as PairTimeline).events.length === 0 && (
-              <span className="pair-signal-chip chip muted">no pair events on this page</span>
+              <Chip className="pair-signal-chip muted">no pair events on this page</Chip>
             )}
           </div>
         ) : timeline === 'loading' ? (
@@ -366,7 +364,7 @@ export function PairEvidencePanel({
         <div className="pair-section-head">
           <h3 className="section-subtitle">Shared pages ({sharedPages.length})</h3>
         </div>
-        <div className="pair-page-list" role="list">
+        <div className="pair-page-list surface-panel" role="list">
           {sharedPages.length === 0 ? (
             <div className="muted text-xs p-2">No shared pages recorded for this pair.</div>
           ) : (
@@ -409,8 +407,7 @@ export function PairEvidencePanel({
                 >
                   <div className="pair-page-row-main">
                     <span className="pair-page-name">{page.n || entry.id}</span>
-                    <span
-                      className="badge"
+                    <Badge
                       style={{
                         background: `${wikiColor(page.w)}22`,
                         color: wikiColor(page.w),
@@ -418,7 +415,7 @@ export function PairEvidencePanel({
                       }}
                     >
                       {page.w}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="pair-page-row-meta text-xs muted">
                     <span>
@@ -426,13 +423,12 @@ export function PairEvidencePanel({
                       {page.f && page.l ? ` · page activity ${page.f}..${page.l}` : ''}
                     </span>
                     {isTimelineForThis && (
-                      <span
-                        className="badge"
+                      <Badge
                         style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
                       >
                         {timeline.events.length} pair{' '}
                         {timeline.events.length === 1 ? 'event' : 'events'}
-                      </span>
+                      </Badge>
                     )}
                   </div>
                 </button>
@@ -444,13 +440,13 @@ export function PairEvidencePanel({
 
       {/* 5. Timeline section */}
       {timeline === 'loading' && (
-        <div className="pair-timeline-loading muted text-sm">
+        <div className="pair-timeline-loading surface-panel muted text-sm">
           Loading revisions for {selectedPageName ?? 'selected page'}…
         </div>
       )}
 
       {timeline === 'error' && (
-        <div className="pair-timeline-error text-sm">
+        <div className="pair-timeline-error surface-panel text-sm">
           Could not load revisions for this page. Try the full page history.
         </div>
       )}
@@ -468,7 +464,7 @@ export function PairEvidencePanel({
           </div>
 
           {reversedEvents.length === 0 ? (
-            <div className="pair-timeline-empty muted text-sm">
+            <div className="pair-timeline-empty surface-panel muted text-sm">
               No pair events observed on this page for these labels.
             </div>
           ) : (
@@ -510,6 +506,6 @@ export function PairEvidencePanel({
           open a page to see its full revision history
         </footer>
       )}
-    </section>
+    </Card>
   )
 }

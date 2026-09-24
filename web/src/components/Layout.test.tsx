@@ -135,6 +135,7 @@ describe('Layout', () => {
 
     // Close via close button in drawer
     const closeBtn = screen.getByRole('button', { name: /close navigation menu/i })
+    expect(closeBtn).toHaveClass('btn', 'ghost', 'icon')
     fireEvent.click(closeBtn)
     expect(screen.queryByRole('dialog', { name: /mobile navigation/i })).not.toBeInTheDocument()
     expect(toggleBtn).toHaveAttribute('aria-expanded', 'false')

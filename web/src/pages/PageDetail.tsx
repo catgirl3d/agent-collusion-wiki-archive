@@ -3,12 +3,12 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { buildPairTimeline, collectPayloadEvidence, derivePatternSignals, formatPatternSignals, getSharedPages, getSharedPagesForAll, type SharedPageEntry } from '../utils/pairEvidence'
 import { loadJson, revisionFile } from '../api'
 import { Dropdown } from '../components/Dropdown'
-import { Badge, Button, Chip, LoadMore, PageLink } from '../components/ui'
+import { Badge, Button, Card, Chip, LoadMore, PageLink, TextLink } from '../components/ui'
 import { DiffView } from '../components/DiffView'
 import { PairEvidencePanel } from '../components/PairEvidencePanel'
 import { useData, useJson } from '../components/useQuery'
 import type { AgentLinks, LabelsIndex, PageRecord, PagesIndex, PayloadRecord, Revision } from '../types'
-import { fmtInt, fmtTime, wikiColor } from '../utils/format'
+import { fmtInt, fmtTime } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS, detectPayloadFlags, highlightMatches } from '../utils/payload'
 import { clearPair, parsePair, setPair } from '../utils/pairSelection'
 
@@ -102,7 +102,7 @@ function AgentGraph({
   if (!coAgents.length && !allLabelPages.length) return null
 
   return (
-    <section className="card agent-dossier-card">
+    <Card as="section" className="agent-dossier-card">
       <div className="agent-dossier-header-bar">
         <div>
           <div className="agent-title-row">
@@ -110,9 +110,9 @@ function AgentGraph({
             <Badge color="#38bdf8">focused label</Badge>
           </div>
           <h2 className="mono agent-dominant-name">
-            <Link to={`/agents?q=${encodeURIComponent(label)}`} className="link">
+            <TextLink to={`/agents?q=${encodeURIComponent(label)}`}>
               {label}
-            </Link>
+            </TextLink>
           </h2>
         </div>
         <div className="agent-cluster-metrics">
@@ -161,7 +161,7 @@ function AgentGraph({
           <div className="dossier-page-list">
             {displayLabelPages.map((page) => (
               <div key={page.id} className="dossier-page-item">
-                <Chip tone="wiki"><span style={{ color: wikiColor(page.w) }}>{page.w}</span></Chip>
+                <Chip tone="wiki">{page.w}</Chip>
                 <div className="dossier-page-name">
                   <PageLink id={page.id} name={page.n || page.id} max={38} />
                 </div>
@@ -187,7 +187,7 @@ function AgentGraph({
                 const evidence = cardEvidenceMap?.get(agent.o)
 
                 return (
-                  <article key={agent.o} className={`syndicate-card${isSelected ? ' selected' : ''}`}>
+                  <Card as="article" variant="compact" key={agent.o} className={`syndicate-card${isSelected ? ' selected' : ''}`}>
                     <header className="syndicate-card-head">
                       <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="syndicate-agent-name mono">
                         {agent.o}
@@ -234,9 +234,9 @@ function AgentGraph({
                     {evidence && evidence.chips.length > 0 && (
                       <div className="syndicate-card-chips">
                         {evidence.chips.map((chipText) => (
-                          <span key={chipText} className="chip-mini mono">
+                          <Chip key={chipText} className="chip-mini mono">
                             {chipText}
-                          </span>
+                          </Chip>
                         ))}
                       </div>
                     )}
@@ -254,14 +254,14 @@ function AgentGraph({
                         Agent dossier
                       </Button>
                     </div>
-                  </article>
+                  </Card>
                 )
               })}
             </div>
           </div>
         )}
       </div>
-    </section>
+    </Card>
   )
 }
 
@@ -426,7 +426,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         {notFound ? (
           <>
             Page <code className="mono">{decoded}</code> not found in the archive index.{' '}
-            <Link to="/pages" className="link">Browse all pages</Link>
+            <TextLink to="/pages">Browse all pages</TextLink>
           </>
         ) : (
           <>Error loading: {error}</>
@@ -466,7 +466,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
       <h1 className="mono">{decoded}</h1>
       {meta && (
         <p className="muted">
-          <Chip tone="wiki"><span style={{ color: wikiColor(meta.w) }}>{meta.w}</span></Chip>{' '}
+          <Chip tone="wiki">{meta.w}</Chip>{' '}
           {fmtInt(meta.r)} revisions · first {meta.f} · last {meta.l}
            {meta.d && <Chip tone="del">deleted live</Chip>}
            {meta.partial && <Badge>recovered</Badge>}
@@ -539,7 +539,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         />
       )}
 
-      <section className="card">
+      <Card as="section">
         <h2>Compare revisions</h2>
         <div className="filters">
           <Dropdown ariaLabel="Compare from revision" value={from} options={revisionOptions} onChange={(value) => setSel({ from: value, to })} />
@@ -549,9 +549,9 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         {revs[from] && revs[to] && (revs[from].partial || revs[to].partial)
           ? <p className="muted">Recovered partial revision — full body not retained</p>
           : revs[from] && revs[to] && <DiffView before={revs[from].body} after={revs[to].body} />}
-      </section>
+      </Card>
 
-      <section className="card">
+      <Card as="section">
         <h2>
           Revision history ({fmtInt(revs.length)}){' '}
           {revs.length > 0 && (
@@ -601,7 +601,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
           unit="remaining"
           action="Load older revisions"
         />
-      </section>
+      </Card>
     </div>
   )
 }

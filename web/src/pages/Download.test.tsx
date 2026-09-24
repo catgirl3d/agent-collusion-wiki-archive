@@ -42,6 +42,16 @@ describe('Download', () => {
     expect(await screen.findByText(/full \+ 90 recovered\./)).toBeInTheDocument()
   })
 
+  it('renders MCP configuration navigation with the shared button treatment', async () => {
+    loadJsonMock.mockResolvedValue(summary)
+
+    renderDownload()
+
+    const link = await screen.findByRole('link', { name: 'Configure MCP Server →' })
+    expect(link).toHaveAttribute('href', '/mcp')
+    expect(link).toHaveClass('btn', 'sm')
+  })
+
   it('uses stable en-US formatting for archive counts', async () => {
     const originalToLocaleString = Number.prototype.toLocaleString
     const localeSpy = vi.spyOn(Number.prototype, 'toLocaleString').mockImplementation(function (

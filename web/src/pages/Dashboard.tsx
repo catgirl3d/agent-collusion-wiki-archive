@@ -10,11 +10,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Link } from 'react-router-dom'
 import { loadJson } from '../api'
 import { useData, useJson } from '../components/useQuery'
 import { StatCard } from '../components/StatCard'
-import { Badge, Button } from '../components/ui'
+import { Badge, Button, Card, PageLink } from '../components/ui'
 import type { DayActivity, HourActivity, RecentEvent, Summary } from '../types'
 import { eventColor, eventPageId, fmtBytes, fmtCompact, fmtInt, fmtTime, wikiColor } from '../utils/format'
 
@@ -36,30 +35,30 @@ function LatestEvents() {
   if (!events) return <div className="loading">Loading…</div>
 
   return (
-    <table className="tbl">
-      <thead>
-        <tr><th scope="col">Type</th><th scope="col">Time</th><th scope="col">Page / wiki</th></tr>
-      </thead>
-      <tbody>
-        {events.slice(0, LATEST_EVENTS_SHOWN).map((e, i) => (
-          <tr key={i}>
-            <td className="nowrap">
-              <Badge color={eventColor(e.type)}>{e.type}</Badge>
-            </td>
-            <td className="muted nowrap">{fmtTime(e.t)}</td>
-            <td>
-              {e.page ? (
-                <Link className="link" to={`/page/${encodeURIComponent(eventPageId(e))}`}>
-                  {e.page}
-                </Link>
-              ) : (
-                <span className="muted">{e.wiki}</span>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="table-wrap">
+      <table className="tbl">
+        <thead>
+          <tr><th scope="col">Type</th><th scope="col">Time</th><th scope="col">Page / wiki</th></tr>
+        </thead>
+        <tbody>
+          {events.slice(0, LATEST_EVENTS_SHOWN).map((e, i) => (
+            <tr key={i}>
+              <td className="nowrap">
+                <Badge color={eventColor(e.type)}>{e.type}</Badge>
+              </td>
+              <td className="muted nowrap">{fmtTime(e.t)}</td>
+              <td>
+                {e.page ? (
+                  <PageLink id={eventPageId(e)} name={e.page} />
+                ) : (
+                  <span className="muted">{e.wiki}</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -145,7 +144,7 @@ export default function Dashboard() {
         <StatCard label="Active days" value={String(summary.days)} sub={`peak ${fmtCompact(summary.max_day.saves)} saves on ${summary.max_day.date}`} />
       </div>
 
-      <section className="card">
+      <Card as="section">
         <h2>Saves per day, by wiki</h2>
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={daily}>
@@ -156,7 +155,7 @@ export default function Dashboard() {
               contentStyle={{
                 background: 'rgba(15, 23, 42, 0.94)',
                 border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
                 backdropFilter: 'blur(10px)',
                 color: '#f8fafc',
@@ -169,9 +168,9 @@ export default function Dashboard() {
             <Line type="monotone" dataKey="deletes" name="deletes" stroke="#f43f5e" strokeWidth={2} dot={false} />
           </ComposedChart>
         </ResponsiveContainer>
-      </section>
+      </Card>
 
-      <section className="card">
+      <Card as="section">
         <h2>Saves by hour of day (UTC)</h2>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={hours}>
@@ -182,7 +181,7 @@ export default function Dashboard() {
               contentStyle={{
                 background: 'rgba(15, 23, 42, 0.94)',
                 border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
                 backdropFilter: 'blur(10px)',
                 color: '#f8fafc',
@@ -192,34 +191,36 @@ export default function Dashboard() {
             <Bar dataKey="saves" name="saves" fill="#38bdf8" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
-      </section>
+      </Card>
 
       <div className="grid-2">
-        <section className="card">
+        <Card as="section">
           <h2>Edits per wiki</h2>
-          <table className="tbl">
-            <thead>
-              <tr><th scope="col">Wiki</th><th scope="col">Revisions</th><th scope="col">Body size</th><th scope="col">Pages</th></tr>
-            </thead>
-            <tbody>
-              {perWiki.map(([w, v]) => (
-                <tr key={w}>
-                  <td>
-                    <Badge color={wikiColor(w)}>{w}</Badge>
-                  </td>
-                  <td className="num">{fmtInt(v.revisions)}</td>
-                  <td className="num muted">{v.bodyBytes != null ? fmtBytes(v.bodyBytes) : '—'}</td>
-                  <td className="num muted">{fmtInt(v.pages)} pages</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+          <div className="table-wrap">
+            <table className="tbl">
+              <thead>
+                <tr><th scope="col">Wiki</th><th scope="col">Revisions</th><th scope="col">Body size</th><th scope="col">Pages</th></tr>
+              </thead>
+              <tbody>
+                {perWiki.map(([w, v]) => (
+                  <tr key={w}>
+                    <td>
+                      <Badge color={wikiColor(w)}>{w}</Badge>
+                    </td>
+                    <td className="num">{fmtInt(v.revisions)}</td>
+                    <td className="num muted">{v.bodyBytes != null ? fmtBytes(v.bodyBytes) : '—'}</td>
+                    <td className="num muted">{fmtInt(v.pages)} pages</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
-        <section className="card">
+        <Card as="section">
           <h2>Latest events in the archive</h2>
           <LatestEvents />
-        </section>
+        </Card>
       </div>
     </div>
   )

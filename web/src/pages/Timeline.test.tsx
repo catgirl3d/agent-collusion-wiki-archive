@@ -122,7 +122,9 @@ describe('Timeline', () => {
     expect(panel).toHaveTextContent('2026-06-20')
     expect(screen.getByRole('link', { name: 'PageB' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'PageC' })).toBeNull()
-    expect(screen.getByRole('button', { name: /AgentX/ })).toHaveAttribute('aria-pressed', 'true')
+    const activeLabel = screen.getByRole('button', { name: /AgentX/ })
+    expect(activeLabel).toHaveAttribute('aria-pressed', 'true')
+    expect(activeLabel).toHaveClass('btn', 'ghost', 'sm')
 
     fireEvent.click(screen.getByRole('button', { name: /AgentY/ }))
     await waitFor(() => expect(currentSearch().get('label')).toBe('AgentY'))

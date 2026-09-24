@@ -184,7 +184,7 @@ export function Dropdown<Value extends string | number>({
       {open && options.length > 0 && (
         <div
           id={listboxId}
-          className={`dropdown-menu${align === 'right' ? ' align-right' : ''}${menuClassName ? ` ${menuClassName}` : ''}`}
+          className={`dropdown-menu surface-panel${align === 'right' ? ' align-right' : ''}${menuClassName ? ` ${menuClassName}` : ''}`}
           role="listbox"
           aria-labelledby={triggerId}
         >

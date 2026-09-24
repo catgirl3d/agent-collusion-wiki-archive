@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
+import { TextLink } from '../components/ui'
 import { useData } from '../components/useQuery'
 import type { DayActivity } from '../types'
 import { aggregateDays, fmtInt } from '../utils/format'
@@ -46,7 +46,7 @@ export default function EditsByDay() {
                 <td className="num">{fmtInt(day.saves)}</td>
                 <td className="num">{fmtInt(day.deletes)}</td>
                 <td className="num">{fmtInt(day.count)}{day.rec > 0 && <span className="muted"> (incl. {fmtInt(day.rec)} recovered)</span>}</td>
-                <td className="nowrap"><Link className="link" to={`/events?day=${day.date}`}>events</Link>{' · '}<Link className="link" to={`/pages?day=${day.date}`}>pages</Link></td>
+                <td className="nowrap"><TextLink to={`/events?day=${day.date}`}>events</TextLink>{' · '}<TextLink to={`/pages?day=${day.date}`}>pages</TextLink></td>
               </tr>
             ))}
           </tbody>

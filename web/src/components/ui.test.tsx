@@ -1,7 +1,35 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { createRef } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { Button, LoadMore, ScrollTopButton, SortHeader } from './ui'
+import { Badge, Button, Card, Chip, LoadMore, PageLink, ScrollTopButton, SortHeader, TextLink } from './ui'
+
+describe('TextLink', () => {
+  it('uses the shared inline-link treatment and preserves router link props', () => {
+    render(
+      <MemoryRouter>
+        <TextLink to="/events?day=2026-09-24" className="day-link" title="Open events" aria-label="Events">
+          events
+        </TextLink>
+      </MemoryRouter>,
+    )
+
+    const link = screen.getByRole('link', { name: 'Events' })
+    expect(link).toHaveAttribute('href', '/events?day=2026-09-24')
+    expect(link).toHaveAttribute('title', 'Open events')
+    expect(link).toHaveClass('link', 'day-link')
+  })
+
+  it('keeps PageLink on its archive route while sharing the inline link component', () => {
+    render(
+      <MemoryRouter>
+        <PageLink id="A/B" name="Archive page" />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Archive page' })).toHaveAttribute('href', '/page/A%2FB')
+  })
+})
 
 describe('SortHeader', () => {
   it('exposes the active direction and delegates clicks', () => {
@@ -41,6 +69,13 @@ describe('SortHeader', () => {
 })
 
 describe('Button', () => {
+  it('forwards refs to native button elements', () => {
+    const buttonRef = createRef<HTMLButtonElement>()
+    render(<Button ref={buttonRef}>Action</Button>)
+
+    expect(buttonRef.current).toBe(screen.getByRole('button', { name: 'Action' }))
+  })
+
   it('renders a plain primary button and merges caller classes', () => {
     const onClick = vi.fn()
     render(<Button className="cal-nav" onClick={onClick}>next →</Button>)
@@ -87,6 +122,122 @@ describe('Button', () => {
     expect(link).toHaveAttribute('href', '/agents?q=alpha')
     expect(link).toHaveAttribute('title', 'Agent dossier')
     expect(link).toHaveClass('btn', 'ghost', 'sm')
+  })
+
+  it('renders a native anchor when href is provided and forwards download attributes', () => {
+    render(
+      <Button
+        href="https://example.com/archive.json"
+        variant="ghost"
+        size="xs"
+        className="copy-link"
+        target="_blank"
+        rel="noreferrer"
+        download="archive.json"
+      >
+        Download
+      </Button>,
+    )
+
+    const link = screen.getByRole('link', { name: 'Download' })
+    expect(link).toHaveAttribute('href', 'https://example.com/archive.json')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
+    expect(link).toHaveAttribute('download', 'archive.json')
+    expect(link).toHaveClass('btn', 'ghost', 'xs', 'copy-link')
+  })
+
+  it('renders an accessible square icon button variant', () => {
+    render(
+      <Button variant="ghost" size="icon" aria-label="Copy link">
+        <span aria-hidden="true">copy</span>
+      </Button>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Copy link' })).toHaveClass('btn', 'ghost', 'icon')
+  })
+})
+
+describe('Badge and Chip', () => {
+  it('preserves badge styles while applying its color and native span attributes', () => {
+    render(
+      <Badge
+        color="#38bdf8"
+        className="pair-actor-badge"
+        style={{ borderColor: 'red' }}
+        title="Actor label"
+        aria-label="Actor"
+        data-testid="actor-badge"
+      >
+        MapHelper
+      </Badge>,
+    )
+
+    const badge = screen.getByTestId('actor-badge')
+    expect(badge).toHaveClass('badge', 'pair-actor-badge')
+    expect(badge).toHaveAttribute('title', 'Actor label')
+    expect(badge).toHaveAttribute('aria-label', 'Actor')
+    expect(badge.style.backgroundColor).toBe('rgba(56, 189, 248, 0.133)')
+    expect(badge.style.color).toBe('rgb(56, 189, 248)')
+    expect(badge.style.borderColor).toBe('red')
+  })
+
+  it('preserves chip tone while merging feature classes and native span attributes', () => {
+    render(
+      <Chip
+        tone="wiki"
+        className="pair-signal-chip"
+        style={{ borderRadius: '4px' }}
+        title="Wiki signal"
+        data-testid="wiki-chip"
+      >
+        ExampleWiki
+      </Chip>,
+    )
+
+    const chip = screen.getByTestId('wiki-chip')
+    expect(chip).toHaveClass('chip', 'chip-wiki', 'pair-signal-chip')
+    expect(chip).toHaveAttribute('title', 'Wiki signal')
+    expect(chip.style.borderRadius).toBe('4px')
+  })
+})
+
+describe('Card', () => {
+  it('renders the requested semantic element and forwards native props and ref', () => {
+    const articleRef = createRef<HTMLElement>()
+    render(
+      <Card
+        as="article"
+        className="research-doc"
+        aria-label="Research document"
+        data-testid="research-card"
+        ref={articleRef}
+        style={{ padding: '2px' }}
+      >
+        Document content
+      </Card>,
+    )
+
+    const card = screen.getByTestId('research-card')
+    expect(card.tagName).toBe('ARTICLE')
+    expect(card).toHaveClass('card', 'research-doc')
+    expect(card).toHaveAttribute('aria-label', 'Research document')
+    expect(card.style.padding).toBe('2px')
+    expect(articleRef.current).toBe(card)
+  })
+
+  it('defaults to a div and keeps caller classes', () => {
+    render(<Card className="compact" data-testid="basic-card">Content</Card>)
+
+    const card = screen.getByTestId('basic-card')
+    expect(card.tagName).toBe('DIV')
+    expect(card).toHaveClass('card', 'compact')
+  })
+
+  it('exposes the shared compact surface variant', () => {
+    render(<Card variant="compact" data-testid="compact-card">Content</Card>)
+
+    expect(screen.getByTestId('compact-card')).toHaveClass('card', 'card-compact')
   })
 })
 
@@ -191,6 +342,20 @@ describe('ScrollTopButton', () => {
     expect(topButton).toHaveClass('btn', 'ghost')
     fireEvent.click(topButton)
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+    scrollTo.mockRestore()
+  })
+
+  it('runs an additional caller handler with the requested button size', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const onClick = vi.fn()
+    render(<ScrollTopButton size="sm" onClick={onClick}>Back to top</ScrollTopButton>)
+
+    const topButton = screen.getByRole('button', { name: 'Back to top' })
+    fireEvent.click(topButton)
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+    expect(onClick).toHaveBeenCalledOnce()
+    expect(topButton).toHaveClass('btn', 'ghost', 'sm')
     scrollTo.mockRestore()
   })
 })

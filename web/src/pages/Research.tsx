@@ -15,6 +15,7 @@ import {
 import { loadText } from '../api'
 import { Dropdown } from '../components/Dropdown'
 import { SelectionPopup } from '../components/SelectionPopup'
+import { Button, Card, ScrollTopButton } from '../components/ui'
 import { useData, useJson } from '../components/useQuery'
 import type { ResearchDoc, ResearchIndex, ResearchTocItem } from '../types'
 
@@ -257,7 +258,7 @@ export default function Research() {
       <div
         className={`research-layout${hasToc ? ' has-toc' : ''}${isNavCollapsed ? ' is-nav-collapsed' : ''}${isTocCollapsed ? ' is-toc-collapsed' : ''}`}
       >
-        <nav className="card research-nav" aria-label="Research documents">
+        <Card as="nav" className="research-nav" aria-label="Research documents">
           {data.groups.map((group) => (
             <section className="research-group" key={group.id}>
               <h2>{group.label}</h2>
@@ -294,9 +295,9 @@ export default function Research() {
               )}
             </section>
           ))}
-        </nav>
+        </Card>
 
-        <article ref={docRef} className="card research-doc">
+        <Card as="article" ref={docRef} className="research-doc">
           {active && (
             <div className="research-doc-meta">
               <div className="research-meta-line">
@@ -337,38 +338,44 @@ export default function Research() {
                     }}
                   />
                 )}
-                <button
+                <Button
                   type="button"
-                  className={`action-icon-btn${copied ? ' copied' : ''}`}
+                  variant="ghost"
+                  size="icon"
+                  className={copied ? 'success' : undefined}
                   onClick={handleCopyLink}
                   title={copied ? 'Link copied!' : 'Copy link to this document'}
                   aria-label={copied ? 'Link copied!' : 'Copy link'}
                 >
                   {copied ? <Check size={14} /> : <Link2 size={14} />}
-                </button>
-                <a
-                  className="action-icon-btn"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   href={`/data/${active.raw}`}
                   download={fileName(active.source)}
                   title="Download raw Markdown"
                   aria-label="Download raw Markdown"
                 >
                   <Download size={14} />
-                </a>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={`action-icon-btn${isNavCollapsed ? ' is-active' : ''}`}
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setIsNavCollapsed((prev) => !prev)}
                   title={isNavCollapsed ? 'Expand reports list' : 'Collapse reports list'}
                   aria-label={isNavCollapsed ? 'Expand reports list' : 'Collapse reports list'}
                   aria-pressed={isNavCollapsed}
                 >
                   {isNavCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
-                </button>
+                </Button>
                 {hasToc && (
-                  <button
+                  <Button
                     type="button"
-                    className={`action-icon-btn toc-toggle-btn${isTocCollapsed || isMobileTocOpen ? ' is-active' : ''}`}
+                    variant="ghost"
+                    size="icon"
+                    className="toc-toggle-btn"
                     onClick={() => {
                       setIsTocCollapsed((prev) => !prev)
                       setIsMobileTocOpen((prev) => !prev)
@@ -378,7 +385,7 @@ export default function Research() {
                     aria-pressed={isTocCollapsed || isMobileTocOpen}
                   >
                     {isTocCollapsed || isMobileTocOpen ? <PanelRightOpen size={14} /> : <PanelRightClose size={14} />}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -394,11 +401,12 @@ export default function Research() {
             />
           )}
           <SelectionPopup containerRef={docRef} />
-        </article>
+        </Card>
 
         {hasToc && (
-          <aside
-            className={`card research-toc${content.loading ? ' is-loading' : ''}`}
+          <Card
+            as="aside"
+            className={`research-toc${content.loading ? ' is-loading' : ''}`}
             aria-label="Table of contents"
           >
             <div className="research-toc-header">
@@ -426,15 +434,11 @@ export default function Research() {
               })}
             </ul>
             <div className="research-toc-footer">
-              <button
-                type="button"
-                className="btn-back-top"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              >
-                <span>Back to top ↑</span>
-              </button>
+              <ScrollTopButton size="sm" className="btn-back-top">
+                Back to top ↑
+              </ScrollTopButton>
             </div>
-          </aside>
+          </Card>
         )}
 
         {hasToc && isMobileTocOpen && (
@@ -452,14 +456,15 @@ export default function Research() {
             >
               <div className="mobile-drawer-header">
                 <span className="mobile-drawer-title">On this page</span>
-                <button
+                <Button
                   type="button"
-                  className="mobile-drawer-close"
+                  variant="ghost"
+                  size="icon"
                   aria-label="Close table of contents"
                   onClick={() => setIsMobileTocOpen(false)}
                 >
                   <X size={18} aria-hidden="true" />
-                </button>
+                </Button>
               </div>
               <div className="mobile-drawer-body">
                 <ul className="research-toc-list">
@@ -487,16 +492,13 @@ export default function Research() {
                   })}
                 </ul>
                 <div className="research-toc-footer">
-                  <button
-                    type="button"
+                  <ScrollTopButton
+                    size="sm"
                     className="btn-back-top"
-                    onClick={() => {
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                      setIsMobileTocOpen(false)
-                    }}
+                    onClick={() => setIsMobileTocOpen(false)}
                   >
-                    <span>Back to top ↑</span>
-                  </button>
+                    Back to top ↑
+                  </ScrollTopButton>
                 </div>
               </div>
             </aside>
