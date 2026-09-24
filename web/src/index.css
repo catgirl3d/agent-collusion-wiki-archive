@@ -78,7 +78,7 @@ body::before {
 
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -424,7 +424,7 @@ body::before {
   min-width: 250px;
   background: rgba(11, 17, 30, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -452,7 +452,7 @@ body::before {
   flex-direction: column;
   gap: 2px;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   text-decoration: none;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -635,7 +635,7 @@ body::before {
   color: #64748b;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 1px 5px;
   pointer-events: none;
   line-height: 1.2;
@@ -652,7 +652,7 @@ body::before {
   color: #64748b;
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   transition: color 0.15s ease, background 0.15s ease;
 }
 
@@ -1051,7 +1051,7 @@ a:hover {
   background: rgba(56, 189, 248, 0.1);
   color: #7dd3fc;
   border: 1px solid rgba(56, 189, 248, 0.2);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 1px 6px;
   margin: 2px 4px 2px 0;
   white-space: nowrap;
@@ -1524,7 +1524,7 @@ a:hover {
   width: min(280px, 32vw);
   height: 8px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.08);
 }
 
