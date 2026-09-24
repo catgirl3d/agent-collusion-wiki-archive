@@ -1,0 +1,66 @@
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.download-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.download-card:hover {
+  color: var(--text);
+  text-decoration: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-glow);
+}
+
+.download-file {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.download-description {
+  color: var(--muted-text);
+  min-height: 44px;
+}
+
+.download-action {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.download-note p {
+  margin: 8px 0 0;
+}
+
+.download-mcp-promo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-left: 4px solid var(--accent);
+}
+
+.download-mcp-promo h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.download-mcp-promo .download-mcp-promo-copy {
+  margin: 4px 0 0;
+}
+
+@media (max-width: 640px) {
+  .download-grid {
+    grid-template-columns: 1fr;
+  }
+}
