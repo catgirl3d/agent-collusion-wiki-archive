@@ -2,6 +2,13 @@
   box-sizing: border-box;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 :focus:not(:focus-visible) {
   outline: none;
 }
