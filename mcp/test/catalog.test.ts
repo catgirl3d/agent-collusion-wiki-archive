@@ -180,6 +180,19 @@ describe('MCP tool catalog synchronization', () => {
     expect(await snapshotGeneratedFiles(root)).toEqual(beforeCheck)
   })
 
+  it('accepts generated artifacts checked out with CRLF line endings', async () => {
+    const root = await createTemporaryWorkspace()
+    await syncCatalog('write', root)
+
+    for (const path of generatedFiles) {
+      const target = join(root, path)
+      const contents = await readFile(target, 'utf8')
+      await writeFile(target, contents.replace(/\r?\n/g, '\r\n'))
+    }
+
+    await expect(syncCatalog('check', root)).resolves.toBeUndefined()
+  })
+
   it('rejects a missing or unknown README tool without modifying checked files', async () => {
     const root = await createTemporaryWorkspace()
     await syncCatalog('write', root)

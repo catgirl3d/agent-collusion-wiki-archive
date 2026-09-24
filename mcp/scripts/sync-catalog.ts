@@ -13,6 +13,10 @@ const readmePath = 'mcp/README.md'
 const llmsPath = 'web/public/llms.txt'
 const indexPath = 'web/index.html'
 
+function normalizeLineEndings(text: string): string {
+  return text.replace(/\r\n/g, '\n')
+}
+
 function replacePackageNames(text: string, packageName: string, path: string): string {
   const ownPackagePattern = path === readmePath
     ? /^`(@[a-z\d._-]+\/[a-z\d._-]+)` is a read-only MCP adapter/m
@@ -205,7 +209,8 @@ export async function syncCatalog(mode: SyncMode, root = repositoryRoot): Promis
 
   for (const [relativePath, expected] of outputs) {
     try {
-      if ((await readFile(resolve(root, relativePath), 'utf8')) !== expected) stalePaths.push(relativePath)
+      const actual = normalizeLineEndings(await readFile(resolve(root, relativePath), 'utf8'))
+      if (actual !== normalizeLineEndings(expected)) stalePaths.push(relativePath)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       stalePaths.push(relativePath)

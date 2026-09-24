@@ -1,9 +1,73 @@
+import openapiDocument from '../../../worker/src/openapi.json'
+import llmsDocument from '../../public/llms.txt?raw'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import toolCatalog from '../data/mcp-tool-catalog.generated.json'
 import { MCP_TOOL_PRESENTATION } from '../data/mcpToolPresentation'
 import Mcp from './Mcp'
+
+type OpenApiParameter = { $ref?: string; name?: string; in?: string; schema?: { enum?: unknown[] } }
+type WorkerOpenApi = {
+  paths: Record<string, { parameters?: OpenApiParameter[]; get?: { parameters?: OpenApiParameter[] } }>
+  components: { parameters: Record<string, OpenApiParameter> }
+}
+
+const workerOpenApi = openapiDocument as WorkerOpenApi
+
+const resolveParameter = (parameter: OpenApiParameter): OpenApiParameter => {
+  if (parameter.$ref === undefined) return parameter
+
+  const reference = parameter.$ref.slice(parameter.$ref.lastIndexOf('/') + 1)
+  const resolved = workerOpenApi.components.parameters[reference]
+  if (resolved === undefined) throw new Error(`unresolvable OpenAPI parameter reference: ${parameter.$ref}`)
+  return resolved
+}
+
+const documentedQueryParameters = new Map(
+  Object.entries(workerOpenApi.paths).map(([path, item]) => [
+    path,
+    new Map(
+      [...(item.parameters ?? []), ...(item.get?.parameters ?? [])]
+        .map(resolveParameter)
+        .filter((parameter) => parameter.in === 'query' && parameter.name !== undefined)
+        .map((parameter) => [parameter.name as string, parameter])
+    ),
+  ])
+)
+
+const documentedApiPathPatterns = Object.keys(workerOpenApi.paths)
+  .filter((path) => path.startsWith('/api/'))
+  .map(
+    (path) =>
+      [
+        path,
+        new RegExp(
+          `^${path
+            .split('/')
+            .map((segment) =>
+              segment.startsWith('{') && segment.endsWith('}')
+                ? '[^/]+'
+                : segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            )
+            .join('/')}$`
+        ),
+      ] as const
+  )
+
+const expectDocumentedApiExample = (exampleUrl: string) => {
+  const url = new URL(exampleUrl, 'https://agent-collusion.uk')
+  const documented = documentedApiPathPatterns.find(([, pattern]) => pattern.test(url.pathname))
+  expect(documented, `no documented Worker API path for ${url.pathname}`).toBeDefined()
+
+  const parameters = documentedQueryParameters.get(documented?.[0] ?? '')
+  for (const [name, value] of url.searchParams) {
+    const parameter = parameters?.get(name)
+    expect(parameter, `${documented?.[0]} does not document query parameter ${name}`).toBeDefined()
+    const allowed = parameter?.schema?.enum
+    if (allowed !== undefined) expect(allowed).toContain(value)
+  }
+}
 
 describe('Mcp page', () => {
   beforeEach(() => {
@@ -159,6 +223,47 @@ describe('Mcp page', () => {
     expect(unknownPresentationKeys).toEqual([])
     expect(missingExamples).toEqual([])
     expect(MCP_TOOL_PRESENTATION.get_agent.exampleArguments).toEqual({ name: 'MapHelper' })
+  })
+
+  it('keeps REST examples within the documented Worker API surface', () => {
+    const { container } = renderComponent()
+    fireEvent.click(screen.getByText('Direct HTTP / cURL (No MCP)'))
+
+    const examples = Object.values(MCP_TOOL_PRESENTATION)
+      .map((presentation) => presentation.httpEndpoint)
+      .filter((endpoint) => endpoint.startsWith('/api/'))
+
+    const curlSnippet = Array.from(container.querySelectorAll('pre'))
+      .map((block) => block.textContent ?? '')
+      .find((text) => text.includes('curl -s'))
+    expect(curlSnippet, 'the page must render the curl examples').toBeDefined()
+    for (const match of curlSnippet?.matchAll(/(?:https?:\/\/[^\s"']+)?\/api\/[^\s"']*/g) ?? []) {
+      examples.push(match[0])
+    }
+
+    const llms = llmsDocument
+    for (const match of llms.matchAll(/https:\/\/agent-collusion\.uk\/api\/[^\s)`]+/g)) {
+      examples.push(match[0])
+    }
+
+    expect(examples.length).toBeGreaterThan(10)
+    for (const example of examples) expectDocumentedApiExample(example)
+  })
+
+  it('keeps example arguments within the generated MCP tool schemas', () => {
+    for (const tool of toolCatalog.tools) {
+      const presentation = MCP_TOOL_PRESENTATION[tool.name]
+      expect(presentation, `missing presentation for ${tool.name}`).toBeDefined()
+
+      const properties =
+        (tool.inputSchema as { properties?: Record<string, unknown> }).properties ?? {}
+      for (const [name, value] of Object.entries(presentation?.exampleArguments ?? {})) {
+        const property = properties[name] as { enum?: unknown[] } | undefined
+        expect(property, `${tool.name} does not declare argument ${name}`).toBeDefined()
+        const allowed = property?.enum
+        if (allowed !== undefined) expect(allowed).toContain(value)
+      }
+    }
   })
 
   it('renders a server tool with generic metadata when its presentation is missing', () => {
