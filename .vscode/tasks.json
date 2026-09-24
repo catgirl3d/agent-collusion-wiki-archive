@@ -97,6 +97,24 @@
       "problemMatcher": []
     },
     {
+      "label": "Collusion Archive: Release MCP",
+      "type": "shell",
+      "command": "npm run release",
+      "options": {
+        "cwd": "${workspaceFolder}/mcp"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Collusion Archive: Generate Staged Diff",
       "type": "shell",
       "command": "git diff --staged > staged_diff_output.txt",
