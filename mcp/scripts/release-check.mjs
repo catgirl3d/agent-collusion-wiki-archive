@@ -194,6 +194,10 @@ async function verifyInstalledBinary(consumerRoot, packageName, version) {
   try {
     await withTimeout(client.connect(transport), 'MCP initialize timed out')
     assertTransportHealthy(transportError, 'initialize')
+    assertCondition(
+      client.getServerVersion()?.version === version,
+      'installed MCP server did not report the release version',
+    )
     const listed = await withTimeout(client.listTools(), 'MCP tools/list timed out')
     assertTransportHealthy(transportError, 'tools/list')
     toolNames = listed.tools.map((tool) => tool.name)

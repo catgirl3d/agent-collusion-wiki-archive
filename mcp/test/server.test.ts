@@ -5,6 +5,7 @@ import { ArchiveApiError } from '../src/api.js'
 import { ArchiveDataError } from '../src/assets.js'
 import { ArchiveQueryError } from '../src/research.js'
 import { createArchiveMcpServer, installShutdownHandlers } from '../src/server.js'
+import packageManifest from '../package.json' with { type: 'json' }
 import openApiDocument from '../../worker/src/openapi.json' with { type: 'json' }
 
 afterEach(() => {
@@ -92,6 +93,15 @@ describe('archive MCP server', () => {
       'revert',
       'probe',
     ])
+  })
+
+  it('reports the package version to MCP clients', async () => {
+    const { client } = await connectedClient()
+
+    expect(client.getServerVersion()).toMatchObject({
+      name: 'agent-collusion-archive',
+      version: packageManifest.version,
+    })
   })
 
   it('calls the API through a tool and serializes the result as JSON text', async () => {
