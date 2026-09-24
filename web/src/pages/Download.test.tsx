@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Download from './Download'
 
@@ -12,6 +13,10 @@ const summary = {
   max_day: { date: '2026-06-18', saves: 5884 },
 }
 
+function renderDownload() {
+  return render(<MemoryRouter><Download /></MemoryRouter>)
+}
+
 describe('Download', () => {
   afterEach(() => {
     loadJsonMock.mockReset()
@@ -21,7 +26,7 @@ describe('Download', () => {
   it('renders when the supplement block has no counts', async () => {
     loadJsonMock.mockResolvedValue({ ...summary, supplement: { source: 'x', recovered: '2026-09-07', sha256: 'z', bytes: 1 } })
 
-    render(<Download />)
+    renderDownload()
 
     expect(await screen.findByText(/full \+ 0 recovered\./)).toBeInTheDocument()
   })
@@ -32,7 +37,7 @@ describe('Download', () => {
       supplement: { source: 'x', recovered: '2026-09-07', sha256: 'z', bytes: 1, counts: { pages: 8, revisions: 90 } },
     })
 
-    render(<Download />)
+    renderDownload()
 
     expect(await screen.findByText(/full \+ 90 recovered\./)).toBeInTheDocument()
   })
@@ -53,7 +58,7 @@ describe('Download', () => {
       supplement: { source: 'x', recovered: '2026-09-07', sha256: 'z', bytes: 1, counts: { pages: 8, revisions: 90 } },
     })
 
-    render(<Download />)
+    renderDownload()
 
     await screen.findByText('Count reconciliation')
     expect(document.body.textContent).toContain('14,591 edits')
@@ -65,7 +70,7 @@ describe('Download', () => {
   it('describes the events artifact as the full processed event set', async () => {
     loadJsonMock.mockResolvedValue(summary)
 
-    render(<Download />)
+    renderDownload()
 
     await screen.findByText('Count reconciliation')
     const card = screen.getByText('recent_events.json').closest('a')
