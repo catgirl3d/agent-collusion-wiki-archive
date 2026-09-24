@@ -545,6 +545,12 @@
         "properties": {
           "seq": { "$ref": "#/components/schemas/Count" },
           "label": { "type": ["string", "null"] },
+          "action": { "type": ["string", "null"] },
+          "ip16": { "type": "string" },
+          "summary": { "type": ["string", "null"] },
+          "len": { "type": ["integer", "null"] },
+          "round": { "type": ["array", "null"], "items": { "type": ["string", "null"] } },
+          "append": { "type": "boolean" },
           "body": { "type": "string" },
           "snippet": { "type": "string" },
           "t": { "type": "string" },
@@ -625,6 +631,10 @@
           "page": { "type": "string" },
           "action": { "type": ["string", "null"] },
           "ip16": { "type": ["string", "null"] },
+          "rev": { "type": "string" },
+          "pf": { "type": "string" },
+          "ok": { "type": "boolean" },
+          "rel": { "type": ["string", "array"], "items": { "type": "string" } },
           "partial": { "type": "boolean" }
         },
         "additionalProperties": true
