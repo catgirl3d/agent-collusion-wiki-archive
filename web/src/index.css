@@ -695,27 +695,11 @@ a:hover {
     padding: 16px 12px 40px;
   }
 
-  .card {
-    padding: 14px 12px;
-    margin: 14px 0;
-  }
-
-  .research-doc {
-    padding: 16px 12px;
-  }
-
-  .research-nav {
-    padding: 12px 12px;
-  }
-
-  .download-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 960px) {
   .grid-2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
