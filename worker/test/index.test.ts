@@ -267,17 +267,31 @@ describe('Worker API default fetch handler', () => {
     expect(openapi.setup.calls).toEqual([])
   })
 
-  it('validates null action and ip16 values against the served Event schema', async () => {
+  it('validates nullable and recovered events against the served response schema', async () => {
     const contract = await json((await request('/api/openapi')).response)
-    const validateEvent = responseAjv.compile(contract.components.schemas.Event)
     const event = {
       type: 'edit', act: '[Admin]', wiki: 'wiki', t: '2026-01-03T10:00:00Z', page: 'Page',
       action: null, ip16: null,
     }
+    const validateEvents = responseSchema(contract, '/api/events', 200)
 
-    expect(validateEvent(event), JSON.stringify(validateEvent.errors)).toBe(true)
-    expect(validateEvent({ ...event, action: 42 })).toBe(false)
-    expect(validateEvent({ ...event, ip16: false })).toBe(false)
+    const fullResult = await request('/api/events', undefined, { '/data/recent_events.json': [event] })
+    expect(fullResult.response.status).toBe(200)
+    const fullBody = await json(fullResult.response)
+    expect(fullBody.events).toEqual([event])
+    expect(validateEvents(fullBody), JSON.stringify(validateEvents.errors)).toBe(true)
+
+    const recoveredResult = await request('/api/events?wiki=publictestwiki', undefined, {
+      '/data/recent_events.json': [partialEvent],
+    })
+    expect(recoveredResult.response.status).toBe(200)
+    const recoveredBody = await json(recoveredResult.response)
+    expect(recoveredBody.events).toEqual([partialEvent])
+    expect(recoveredBody.events[0]).not.toHaveProperty('action')
+    expect(validateEvents(recoveredBody), JSON.stringify(validateEvents.errors)).toBe(true)
+
+    expect(validateEvents({ ...fullBody, events: [{ ...event, action: 42 }] })).toBe(false)
+    expect(validateEvents({ ...fullBody, events: [{ ...event, ip16: false }] })).toBe(false)
   })
 
   it('documents and enforces the AgentLink object contract', async () => {
