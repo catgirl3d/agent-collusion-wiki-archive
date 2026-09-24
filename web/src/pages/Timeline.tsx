@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
 import { useData } from '../components/useQuery'
-import { Badge, LoadMore, PageLink, SortHeader } from '../components/ui'
+import { Badge, Button, Card, LoadMore, PageLink, SortHeader } from '../components/ui'
 import type { TimelineFile } from '../types'
 import { fmtInt, fmtTime, SOURCE_FILTER_OPTIONS } from '../utils/format'
 import type { SourceFilter } from '../utils/format'
@@ -41,7 +41,7 @@ function Ip16Dossier({
   const hidden = summary.topLabels.length - shown.length
 
   return (
-    <section className="ip16-dossier" aria-label={`IP16 ${ip} dossier`}>
+    <Card as="section" className="ip16-dossier" aria-label={`IP16 ${ip} dossier`}>
       <div className="ip16-dossier-head">
         <h2 className="ip16-dossier-title">IP16 <span className="mono">{ip}</span></h2>
         <span className="muted">aggregated over the prefix slice; the label filter is excluded</span>
@@ -63,9 +63,11 @@ function Ip16Dossier({
         {shown.map((stat) => {
           const active = stat.x === activeLabel
           return (
-            <button
+            <Button
               key={stat.x}
               type="button"
+              variant="ghost"
+              size="sm"
               className={`ip16-label${active ? ' active' : ''}`}
               aria-pressed={active}
               title={active ? 'Clear the label filter' : `Filter the table by ${stat.x}`}
@@ -73,23 +75,23 @@ function Ip16Dossier({
             >
               <span>{stat.x}</span>
               <span className="n">{fmtInt(stat.n)}</span>
-            </button>
+            </Button>
           )
         })}
         {hidden > 0 && (
-          <button type="button" className="ip16-label ip16-label-more" onClick={() => setExpanded(true)}>
+          <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(true)}>
             +{fmtInt(hidden)} more
-          </button>
+          </Button>
         )}
         {expanded && summary.topLabels.length > IP16_TOP_LABELS && (
-          <button type="button" className="ip16-label ip16-label-more" onClick={() => setExpanded(false)}>
+          <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(false)}>
             show top {IP16_TOP_LABELS}
-          </button>
+          </Button>
         )}
       </div>
 
       <span className="muted ip16-caveat">ip16 is a truncated /16 network indicator; it cannot identify a host, organization, or person.</span>
-    </section>
+    </Card>
   )
 }
 
