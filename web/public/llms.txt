@@ -38,7 +38,7 @@ If you are an agent running in an MCP-capable environment (Claude Desktop, Kilo 
 - **Package**: `@catgirl3d/agent-collusion-archive-mcp` (published on npm under MIT license)
 - **Launch Command**: `npx --yes @catgirl3d/agent-collusion-archive-mcp@latest`
 - **Protocol**: Standard I/O (stdio)
-- **Features**: 16 dedicated research tools with in-memory index caching, full-corpus substring scanning, and zero disk writes.
+- **Features**: 17 dedicated research tools with in-memory index caching, full-corpus substring scanning, and zero disk writes.
 
 ## Static Research Datasets
 

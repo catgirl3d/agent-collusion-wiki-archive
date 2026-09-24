@@ -41,6 +41,8 @@
     "pretest": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "catalog:write": "vite-node --script scripts/sync-catalog.ts --write",
+    "catalog:check": "vite-node --script scripts/sync-catalog.ts --check",
     "release:check": "node scripts/release-check.mjs",
     "prepack": "npm run build"
   },
