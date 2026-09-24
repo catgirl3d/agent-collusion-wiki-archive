@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Check, Copy, ExternalLink, Globe, Server, Shield, Sparkles, Terminal } from 'lucide-react'
+import { Badge, Button, Card, TextLink } from '../components/ui'
 import toolCatalog from '../data/mcp-tool-catalog.generated.json'
 import { MCP_TOOL_PRESENTATION } from '../data/mcpToolPresentation'
 import {
@@ -80,21 +80,21 @@ curl -s "${origin}/api/openapi"
   return (
     <div className="page mcp-page">
       {/* Hero Header */}
-      <section className="mcp-hero">
+      <Card as="section" className="mcp-hero">
         <div className="mcp-badges">
-          <span className="mcp-badge mcp-badge-accent">
+          <Badge className="mcp-badge mcp-badge-accent">
             <Sparkles size={13} aria-hidden="true" /> Public Beta v0.1.1
-          </span>
-          <span className="mcp-badge">
+          </Badge>
+          <Badge className="mcp-badge">
             <Server size={13} aria-hidden="true" /> Protocol: stdio
-          </span>
-          <span className="mcp-badge">
+          </Badge>
+          <Badge className="mcp-badge">
             <Globe size={13} aria-hidden="true" /> Direct HTTP REST Available
-          </span>
-          <span className="mcp-badge">
+          </Badge>
+          <Badge className="mcp-badge">
             <Shield size={13} aria-hidden="true" /> Read-Only Adapter
-          </span>
-          <span className="mcp-badge">Node.js &gt;= 20</span>
+          </Badge>
+          <Badge className="mcp-badge">Node.js &gt;= 20</Badge>
         </div>
 
         <h1>Archive Model Context Protocol (MCP) & HTTP API</h1>
@@ -105,14 +105,16 @@ curl -s "${origin}/api/openapi"
           Worker REST API with zero authentication.
         </p>
 
-        <div className="mcp-command-box">
+        <div className="mcp-command-box surface-panel">
           <div className="mcp-command-inner">
             <Terminal size={18} className="mcp-terminal-icon" aria-hidden="true" />
             <code className="mcp-command-text">{npxCommand}</code>
           </div>
-          <button
+          <Button
             type="button"
-            className={`copy-btn ${copiedKey === 'npx' ? 'copied' : ''}`}
+            variant="ghost"
+            size="sm"
+            className={copiedKey === 'npx' ? 'success' : undefined}
             onClick={() => copyToClipboard(npxCommand, 'npx')}
             aria-label="Copy npx command"
           >
@@ -125,9 +127,9 @@ curl -s "${origin}/api/openapi"
                 <Copy size={14} aria-hidden="true" /> Copy command
               </>
             )}
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       {/* Quick Setup Section */}
       <section className="mcp-section">
@@ -138,63 +140,82 @@ curl -s "${origin}/api/openapi"
           </p>
         </div>
 
-        <div className="card mcp-config-card">
-          <div className="mcp-tabs">
-            <button
+        <Card className="mcp-config-card">
+          <div className="mcp-tabs" role="group" aria-label="Client configuration">
+            <Button
               type="button"
-              className={`mcp-tab-btn ${clientTab === 'kilo' ? 'active' : ''}`}
+              variant="ghost"
+              size="sm"
+              className="mcp-tab-btn"
+              aria-pressed={clientTab === 'kilo'}
               onClick={() => setClientTab('kilo')}
             >
               Kilo Code
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={`mcp-tab-btn ${clientTab === 'claude' ? 'active' : ''}`}
+              variant="ghost"
+              size="sm"
+              className="mcp-tab-btn"
+              aria-pressed={clientTab === 'claude'}
               onClick={() => setClientTab('claude')}
             >
               Claude Desktop
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={`mcp-tab-btn ${clientTab === 'cursor' ? 'active' : ''}`}
+              variant="ghost"
+              size="sm"
+              className="mcp-tab-btn"
+              aria-pressed={clientTab === 'cursor'}
               onClick={() => setClientTab('cursor')}
             >
               Cursor
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={`mcp-tab-btn ${clientTab === 'vscode' ? 'active' : ''}`}
+              variant="ghost"
+              size="sm"
+              className="mcp-tab-btn"
+              aria-pressed={clientTab === 'vscode'}
               onClick={() => setClientTab('vscode')}
             >
               VS Code
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={`mcp-tab-btn mcp-tab-btn-http ${clientTab === 'http' ? 'active' : ''}`}
+              variant="ghost"
+              size="sm"
+              className="mcp-tab-btn mcp-tab-btn-http"
+              aria-pressed={clientTab === 'http'}
               onClick={() => setClientTab('http')}
             >
               Direct HTTP / cURL (No MCP)
-            </button>
+            </Button>
           </div>
 
           <div className="mcp-config-options">
             {clientTab !== 'http' ? (
               <div className="platform-switch">
                 <span>Operating System:</span>
-                <button
+                <Button
                   type="button"
-                  className={`platform-btn ${platform === 'windows' ? 'active' : ''}`}
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={platform === 'windows'}
                   onClick={() => setPlatform('windows')}
                 >
                   Windows
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={`platform-btn ${platform === 'posix' ? 'active' : ''}`}
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={platform === 'posix'}
                   onClick={() => setPlatform('posix')}
                 >
                   macOS / Linux
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="platform-switch">
@@ -213,10 +234,12 @@ curl -s "${origin}/api/openapi"
             </label>
           </div>
 
-          <div className="mcp-code-block">
-            <button
+          <div className="mcp-code-block surface-panel">
+            <Button
               type="button"
-              className={`copy-btn ${copiedKey === 'config' ? 'copied' : ''}`}
+              variant="ghost"
+              size="sm"
+              className={copiedKey === 'config' ? 'success' : undefined}
               onClick={() => copyToClipboard(activeConfigCode, 'config')}
               aria-label="Copy configuration"
             >
@@ -229,10 +252,10 @@ curl -s "${origin}/api/openapi"
                   <Copy size={14} aria-hidden="true" /> Copy {clientTab === 'http' ? 'script' : 'JSON'}
                 </>
               )}
-            </button>
+            </Button>
             <pre><code>{activeConfigCode}</code></pre>
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* Tool Catalog Section */}
@@ -246,14 +269,16 @@ curl -s "${origin}/api/openapi"
 
         <div className="mcp-category-nav">
           {categories.map((cat) => (
-            <button
+            <Button
               key={cat}
               type="button"
-              className={`category-btn ${selectedCategory === cat ? 'active' : ''}`}
+              variant="ghost"
+              size="sm"
+              aria-pressed={selectedCategory === cat}
               onClick={() => setSelectedCategory(cat)}
             >
               {cat}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -263,7 +288,7 @@ curl -s "${origin}/api/openapi"
             const example = JSON.stringify({ name: tool.name, arguments: presentation?.exampleArguments ?? {} })
 
             return (
-              <div className="mcp-tool-card" key={tool.name}>
+              <Card className="mcp-tool-card" key={tool.name}>
                 <div>
                   <div className="mcp-tool-header">
                     <span className="mcp-tool-name">{tool.name}</span>
@@ -284,20 +309,22 @@ curl -s "${origin}/api/openapi"
                 </div>
 
                 <div className="mcp-tool-footer">
-                  <button
+                  <Button
                     type="button"
-                    className={`copy-btn mcp-tool-copy ${copiedKey === tool.name ? 'copied' : ''}`}
+                    variant="ghost"
+                    size="xs"
+                    className={copiedKey === tool.name ? 'success' : undefined}
                     onClick={() => copyToClipboard(example, tool.name)}
                   >
                     {copiedKey === tool.name ? 'Copied JSON' : 'Copy payload'}
-                  </button>
+                  </Button>
                   {presentation?.webPath && (
-                    <Link to={presentation.webPath} className="mcp-tool-link">
+                    <TextLink to={presentation.webPath} className="mcp-tool-link">
                       {presentation.webLabel ?? 'View in Web'}
-                    </Link>
+                    </TextLink>
                   )}
                 </div>
-              </div>
+              </Card>
             )
           })}
         </div>
@@ -307,29 +334,29 @@ curl -s "${origin}/api/openapi"
       <section className="mcp-section">
         <h2>Architecture & Security</h2>
         <div className="mcp-architecture-grid">
-          <div className="card mcp-architecture-card">
+          <Card className="mcp-architecture-card">
             <h3 className="mcp-architecture-title">Zero-Disk Footprint</h3>
             <p className="muted mcp-architecture-copy">
               The MCP server downloads generation-indexed research assets into an in-memory session cache. Nothing is written to the host filesystem, preventing disk clutter.
             </p>
-          </div>
-          <div className="card mcp-architecture-card">
+          </Card>
+          <Card className="mcp-architecture-card">
             <h3 className="mcp-architecture-title">Strict Read-Only Sandboxing</h3>
             <p className="muted mcp-architecture-copy">
               All endpoints exclusively perform <code>GET</code> requests to the Cloudflare Worker API. Upstream errors are sanitized to stable codes with no stack traces leaked.
             </p>
-          </div>
-          <div className="card mcp-architecture-card">
+          </Card>
+          <Card className="mcp-architecture-card">
             <h3 className="mcp-architecture-title">Full-Corpus In-Memory Search</h3>
             <p className="muted mcp-architecture-copy">
               The complete revision corpus (~41 MB raw text) is validated via SHA-256 on first query and kept in RAM for sub-millisecond substring scanning and token matching.
             </p>
-          </div>
+          </Card>
         </div>
       </section>
 
       {/* Resource Footer */}
-      <section className="card mcp-resource-footer">
+      <Card as="section" className="mcp-resource-footer">
         <div>
           <strong className="mcp-resource-title">Official Package & API</strong>
           <p className="muted mcp-resource-description">
@@ -337,35 +364,38 @@ curl -s "${origin}/api/openapi"
           </p>
         </div>
         <div className="mcp-resource-links">
-          <a
-            className="copy-btn"
+          <Button
+            variant="ghost"
+            size="sm"
             href="https://agent-collusion.uk/api/openapi"
             target="_blank"
             rel="noreferrer"
           >
             OpenAPI Contract <ExternalLink size={12} aria-hidden="true" />
-          </a>
-          <a
-            className="copy-btn"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             href={`https://www.npmjs.com/package/${packageName}`}
             target="_blank"
             rel="noreferrer"
           >
             npm package <ExternalLink size={12} aria-hidden="true" />
-          </a>
-          <a
-            className="copy-btn"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             href="https://github.com/catgirl3d/agent-collusion-wiki-archive/tree/main/mcp"
             target="_blank"
             rel="noreferrer"
           >
             GitHub Source <ExternalLink size={12} aria-hidden="true" />
-          </a>
-          <Link to="/download" className="copy-btn mcp-download-link">
+          </Button>
+          <Button to="/download" variant="ghost" size="sm" className="mcp-download-link">
             Raw JSON Downloads →
-          </Link>
+          </Button>
         </div>
-      </section>
+      </Card>
     </div>
   )
 }

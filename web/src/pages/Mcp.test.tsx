@@ -54,6 +54,7 @@ describe('Mcp page', () => {
     const { container } = renderComponent()
 
     // Default: Kilo Code on Windows
+    expect(screen.getByRole('button', { name: 'Kilo Code' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText(/"agent-collusion-archive":/)).toBeInTheDocument()
     expect(screen.getByText(/"cmd",/)).toBeInTheDocument()
 
@@ -63,6 +64,8 @@ describe('Mcp page', () => {
 
     // Switch to Claude Desktop
     fireEvent.click(screen.getByText('Claude Desktop'))
+    expect(screen.getByRole('button', { name: 'Claude Desktop' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Kilo Code' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByText(/"mcpServers":/)).toBeInTheDocument()
 
     const packageArgument = `${toolCatalog.packageName}@latest`
@@ -198,5 +201,29 @@ describe('Mcp page', () => {
       .map((tool) => tool.name)
 
     expect(visibleToolNames).toEqual(expectedToolNames)
+  })
+
+  it('shares one pressed-button state across category and platform filters', () => {
+    renderComponent()
+    const firstTool = toolCatalog.tools[0]
+    if (!firstTool) throw new Error('The generated MCP tool catalog is empty')
+
+    const allCategory = screen.getByRole('button', { name: 'All' })
+    const categoryName = MCP_TOOL_PRESENTATION[firstTool.name]?.category ?? 'Other'
+    const category = screen.getByRole('button', { name: categoryName })
+
+    expect(allCategory).toHaveAttribute('aria-pressed', 'true')
+    expect(category).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(category)
+    expect(category).toHaveAttribute('aria-pressed', 'true')
+    expect(allCategory).toHaveAttribute('aria-pressed', 'false')
+
+    const windows = screen.getByRole('button', { name: 'Windows' })
+    const posix = screen.getByRole('button', { name: 'macOS / Linux' })
+    expect(windows).toHaveAttribute('aria-pressed', 'true')
+    expect(posix).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(posix)
+    expect(posix).toHaveAttribute('aria-pressed', 'true')
+    expect(windows).toHaveAttribute('aria-pressed', 'false')
   })
 })
