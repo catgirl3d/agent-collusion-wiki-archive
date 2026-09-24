@@ -9,6 +9,13 @@ textarea {
   font-family: inherit;
 }
 
+/* Neutralize UA button chrome; component classes define intended surfaces. */
+button {
+  background: none;
+  border: 0;
+  color: inherit;
+}
+
 :focus:not(:focus-visible) {
   outline: none;
 }
@@ -344,7 +351,6 @@ body::before {
   display: inline-flex;
 }
 .nav-trigger {
-  background: transparent;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -591,8 +597,6 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
   color: #64748b;
   cursor: pointer;
   padding: 4px;
@@ -746,8 +750,6 @@ a:hover {
   text-transform: inherit;
   letter-spacing: inherit;
   color: inherit;
-  background: none;
-  border: 0;
   padding: 0;
   cursor: pointer;
   display: inline-flex;
@@ -919,7 +921,6 @@ a:hover {
   padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: transparent;
   color: var(--text-dim);
   font: inherit;
   font-size: 13px;
