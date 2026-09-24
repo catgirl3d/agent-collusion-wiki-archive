@@ -386,7 +386,7 @@ export function createArchiveMcpServer(
     'get_api_contract',
     {
       title: 'Get API contract',
-      description: 'Return the raw Worker OpenAPI-style API contract document.',
+      description: 'Return the raw OpenAPI 3.1 contract from the Worker API.',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async () => call(() => api.getApiContract()),

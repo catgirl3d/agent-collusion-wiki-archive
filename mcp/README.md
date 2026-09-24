@@ -164,7 +164,7 @@ validation reports, or the rest of this repository.
 - `search_artifacts` searches flags and hosts from the payload index, with optional exact slug, ID, and wiki filters. `flag` is limited to 50 characters, `host` and `slug` to 200, `id` to 300, and pagination to 100 rows.
 - `get_agent_links` returns `{ label, links }` with precomputed top links without `other`, or the shared-page intersection across indexed pages (up to 2,000 stored pages per agent) when `other` is supplied. Labels are limited to 200 characters.
 - `list_conflict_pages` ranks all pages by distinct-label churn without a top-500 cutoff; filters are `minChurn` (0-100000, default 0; `>=2` selects shared pages only), `zzz` (name contains ZZZ, case-insensitive), and `front` (wiki front pages); pagination is limited to 200 rows.
-- `get_api_contract` returns the raw Worker OpenAPI-style document.
+- `get_api_contract` returns the raw Worker OpenAPI 3.1 contract. Clients that rely on the previous custom fields must migrate to the OpenAPI paths and schemas and to `x-data-assets`.
 
 ### Research Examples
 

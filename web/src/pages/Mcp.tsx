@@ -48,7 +48,7 @@ curl -s "${origin}/api/events?act=save&limit=10"
 # 4. Agent co-editing links
 curl -s "${origin}/api/links?label=MapHelper"
 
-# 5. OpenAPI 3.1 specification (for custom GPTs, LangChain, AutoGPT)
+# 5. OpenAPI 3.1 specification (for compatible clients)
 curl -s "${origin}/api/openapi"
 
 # Python (requests / httpx) example:

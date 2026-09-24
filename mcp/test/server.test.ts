@@ -5,6 +5,7 @@ import { ArchiveApiError } from '../src/api.js'
 import { ArchiveDataError } from '../src/assets.js'
 import { ArchiveQueryError } from '../src/research.js'
 import { createArchiveMcpServer, installShutdownHandlers } from '../src/server.js'
+import openApiDocument from '../../worker/src/openapi.json' with { type: 'json' }
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -31,7 +32,7 @@ function fakeApi() {
     searchArtifacts: async (params: unknown) => ({ params }),
     getAgentLinks: async (params: unknown) => ({ params }),
     listConflicts: async (params: unknown) => ({ params }),
-    getApiContract: async () => ({ openapi: '3.0.0' }),
+    getApiContract: async () => openApiDocument,
   }
 }
 
@@ -134,9 +135,9 @@ describe('archive MCP server', () => {
     expect(JSON.parse(textOf(await client.callTool({ name: 'list_conflict_pages', arguments: calls[3][1] })))).toEqual({
       params: { minChurn: 1, zzz: true, front: false, limit: 10, offset: 2 },
     })
-    expect(JSON.parse(textOf(await client.callTool({ name: 'get_api_contract', arguments: calls[4][1] })))).toEqual({
-      openapi: '3.0.0',
-    })
+    const contract = JSON.parse(textOf(await client.callTool({ name: 'get_api_contract', arguments: calls[4][1] })))
+    expect(contract.openapi).toBe('3.1.0')
+    expect(contract).toEqual(openApiDocument)
     expect(JSON.parse(textOf(await client.callTool({ name: 'get_page_revisions', arguments: { slug: 'Page', contains: 'needle' } })))).toEqual({
       slug: 'Page',
       params: { label: undefined, contains: 'needle', seq: undefined, withBody: false, limit: undefined, offset: undefined },
