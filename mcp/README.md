@@ -24,7 +24,7 @@ npx --yes @catgirl3d/agent-collusion-archive-mcp@latest
 
 `npx` resolves `latest` when the MCP process starts. Restart the MCP client to
 pick up a newly published release. To pin a specific version instead, use
-`@0.1.1` or another exact version.
+`@0.1.2` or another exact version.
 
 ## MCP client configuration
 
