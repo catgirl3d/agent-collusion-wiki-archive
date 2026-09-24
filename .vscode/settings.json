@@ -65,6 +65,13 @@
         "args": ["Collusion Archive: Build Processed Data (Python)"]
       },
       {
+        "name": "MCP RELEASE",
+        "color": "#d1c4e9",
+        "useVsCodeApi": true,
+        "command": "workbench.action.tasks.runTask",
+        "args": ["Collusion Archive: Release MCP"]
+      },
+      {
         "name": "DIFF",
         "color": "white",
         "useVsCodeApi": true,

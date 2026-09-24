@@ -136,7 +136,7 @@ async function inspectPackResult(packResult) {
   const localIntegrity = `sha512-${createHash('sha512').update(tarball).digest('base64')}`
   assertCondition(localIntegrity === result.integrity, 'local tarball integrity does not match npm pack result')
 
-  return { tarballPath, integrity: result.integrity, files: packFiles, version: manifest.version }
+  return { tarballPath, integrity: result.integrity, files: packFiles, name: manifest.name, version: manifest.version }
 }
 
 function withoutArchiveApiUrl() {
@@ -165,7 +165,12 @@ function handshakeFailure(error, transportError, stderr) {
   return new Error(`installed-bin MCP handshake failed\n${diagnostics.join('\n')}`)
 }
 
-async function verifyInstalledBinary(consumerRoot, version) {
+async function verifyInstalledBinary(consumerRoot, packageName, version) {
+  const installedManifestPath = join(consumerRoot, 'node_modules', ...packageName.split('/'), 'package.json')
+  const installedManifest = JSON.parse(await readFile(installedManifestPath, 'utf8'))
+  assertCondition(installedManifest.name === packageName, 'installed tarball package name does not match release metadata')
+  assertCondition(installedManifest.version === version, 'installed tarball package version does not match release metadata')
+
   const client = new Client({ name: 'release-check-client', version })
   const invocation = npmInvocation(['exec', '--prefix', consumerRoot, '--', 'agent-collusion-archive-mcp'])
   const transport = new StdioClientTransport({
@@ -260,7 +265,7 @@ async function main() {
       cwd: consumerRoot,
       printOutput: true,
     })
-    await verifyInstalledBinary(consumerRoot, artifact.version)
+    await verifyInstalledBinary(consumerRoot, artifact.name, artifact.version)
   } catch (error) {
     failure = error
   } finally {
@@ -282,6 +287,8 @@ async function main() {
 
   console.log(`TARBALL_PATH=${artifact.tarballPath}`)
   console.log(`INTEGRITY=${artifact.integrity}`)
+  console.log(`PACKAGE_NAME=${artifact.name}`)
+  console.log(`PACKAGE_VERSION=${artifact.version}`)
 }
 
 try {
