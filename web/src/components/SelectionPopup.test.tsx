@@ -65,8 +65,10 @@ describe('SelectionPopup', () => {
     fireEvent.mouseUp(document)
 
     expect(await screen.findByRole('toolbar', { name: 'Selection actions' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /search text/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /search page/i })).toBeInTheDocument()
+    const searchText = screen.getByRole('button', { name: /search text/i })
+    const searchPage = screen.getByRole('button', { name: /search page/i })
+    expect(searchText).toHaveClass('btn', 'ghost', 'sm', 'selection-popup-btn')
+    expect(searchPage).toHaveClass('btn', 'ghost', 'sm', 'selection-popup-btn')
 
     fireEvent.click(screen.getByRole('button', { name: /search text/i }))
     expect(openSpy).toHaveBeenCalledWith(
