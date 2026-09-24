@@ -1,9 +1,6 @@
 /* Syndicate Coordination Dossier */
 .agent-dossier-card {
   margin-top: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
   padding: 20px;
 }
 
@@ -124,14 +121,6 @@
   }
 }
 
-.section-subtitle {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted-text);
-  margin: 0 0 12px;
-}
-
 /* Left: Dossier Pages */
 .dossier-page-list {
   display: flex;
@@ -180,10 +169,6 @@
 
 .syndicate-card {
   position: relative;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -321,7 +306,7 @@
 .meter-track {
   height: 6px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
@@ -342,7 +327,8 @@
 .chip-mini {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
+  margin-left: 0;
   padding: 1px 6px;
   font-size: 10.5px;
 }
@@ -363,7 +349,7 @@
 .peer-tag {
   color: #d8b4fe;
   background: rgba(168, 85, 247, 0.15);
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   padding: 1px 5px;
   font-size: 10px;
 }
