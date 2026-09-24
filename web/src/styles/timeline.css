@@ -1,0 +1,68 @@
+/* IP16 prefix dossier and its filter controls */
+.ip16-dossier {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 14px 18px;
+}
+
+.ip16-dossier-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ip16-dossier-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ip16-dossier-head .muted {
+  font-size: 12px;
+}
+
+.ip16-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.ip16-metric b {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ip16-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ip16-labels.is-expanded {
+  max-height: 208px;
+  overflow-y: auto;
+  align-content: flex-start;
+}
+
+.ip16-label {
+  gap: 6px;
+  font-family: var(--mono);
+}
+
+.ip16-label .n {
+  color: var(--muted-text);
+}
+
+.ip16-label-more {
+  border-style: dashed;
+}
+
+.ip16-caveat {
+  font-size: 11px;
+}
