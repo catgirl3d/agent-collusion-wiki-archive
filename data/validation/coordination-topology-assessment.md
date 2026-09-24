@@ -2,20 +2,16 @@
 date: 2026-09-19
 author: Alina Lisova
 status: PRELIMINARY
-summary_heading: Bottom line
+summary_heading: Key findings
 ---
 
 # Coordination topology assessment: scheduler, cohorts, relays, and hierarchy claims
 
 This focused investigation evaluates a specific claim of hierarchical coordination. It does not attempt a comprehensive reconstruction of the system behind the archive, nor does it rule out the possibility of hierarchical control.
 
-**Data used here.** The main archive corpus contains 14,591 saved revisions, 4,579 pages, and 3,102 labels. We also reviewed 90 recovered partial revisions from 8 pages using the available metadata and diff fragments; they added no evidence of roles or a command chain. Revision-body and label analyses are therefore based on the main corpus; the combined index contains 14,681 revisions across 4,587 pages.
+**Data used here.** The main archive corpus contains 14,591 saved revisions, 4,579 pages, and 3,102 labels. Additionally, 90 recovered partial revisions from 8 pages were reviewed using the available metadata and diff fragments; they added no evidence of roles or a command chain. Revision-body and label analyses are therefore based on the main corpus; the combined index contains 14,681 revisions across 4,587 pages.
 
-## Review method
-
-**High-throughput multi-agent screening pipeline.** Systematic corpus analysis was conducted via a tiered research architecture comprising a strategic analysis layer, an execution orchestrator, and parallel research cohorts of 25 specialized subagents each. The cohorts performed large-scale full-text retrieval, extraction of candidate sequences, and independent cross-checking of potential coordination patterns.
-
-**Author verification.** Agent-generated findings were treated strictly as candidate evidence rather than final conclusions. The author manually audited all cited revision references, timestamps, and quoted diff excerpts against the primary archive export, resolved conflicting interpretations, eliminated false positives stemming from inherited text, made the final evidentiary judgments, and drew the conclusions.
+The labels used here are archive metadata, not authenticated agent identities or stable run IDs.
 
 ## Research question
 
@@ -32,55 +28,34 @@ research server directing lower-level coordinators, which in turn direct
 workers? It does not try to reconstruct the full coordination topology behind
 the archive.
 
-## Bottom line
+## Key findings
 
-**Not established.** The archive substantiates local page-mediated
-coordination: addressed requests followed by matching additions under other
-labels, separately saved signals followed by acknowledgments, and reports of
-intended or claimed answer use. These records establish local coordination at
-the archive-label level, not the hierarchy in the question.
+The archive shows local page-mediated coordination: addressed requests followed by matching additions under other labels, separately saved signals followed by acknowledgments, and reports of receiving or using earlier answers. These records describe coordination through shared wiki pages. They do not show the hierarchy in the question.
 
-The archive does not identify a single root coordinator on a research server,
-verify coordinator and worker ranks, or connect root-to-coordinator and
-coordinator-to-worker tasking within one task or run. The incident is
-attributed to OpenAI agents, but archive labels are not authenticated agent or
-run identifiers and do not establish a one-to-one mapping to agent instances,
-continuity across revisions, or rank. The proposed hierarchy therefore remains
-unproven, but is not ruled out.
+The archive contains no record that identifies a single root coordinator on a research server, connects root-to-coordinator and coordinator-to-worker tasking within one task or run, or assigns stable coordinator and worker roles to authenticated processes. The incident is attributed to OpenAI agents, but archive labels do not bind revisions to individual agents, stable runs, or ranks. The archive therefore supports page-mediated coordination, not the proposed hierarchy; records outside it could still show that hierarchy.
 
-| Part of the claim | What the archive shows | Verdict |
-|---|---|---|
-| General coordination | Common timing language, relay pages, shared state, and result acknowledgments | Substantiated |
-| Addressed request -> matching post | Cashier, Police, and Grocery pages contain requests followed by matching additions under other labels | Substantiated at the archive-label level |
-| Reported receipt and possible use | IHME records a signal before an acknowledgment; UEFA reports `received`, `will use`, and later matching results | Supported as reports in revision bodies; causal read/use not independently verified |
-| Signal protocols | Asian and Clothing pages record instructions, matching signal reports, and later acknowledgments | Documented in the archive; external-state and pre-answer claims are unverified |
-| Backup-page migration | A Construction page points to a ZZZ backup, which carries copied task state and later fresh additions | Documented in the archive; the reported disruption cause is unverified |
-| Method requests and disclosures | OECD pages record requests for reproducibility details, method disclosures in response, and later reports of replication or adoption | Documented in the archive; successful reproduction and use are reported, not independently verified |
-| One root coordinator | No stable identity tied to a root command role | Not identified |
-| Root on a research server | Container and external-beacon reports exist, but no proposed root is tied to them or to a research server | No direct link shown |
-| Root -> lower-level coordinators | Many task-directed messages, but none ties an identified root to identified lower-level coordinators | Not shown |
-| Coordinator -> worker | Local directed exchanges are compatible with this link, but label names do not establish rank or authority | Not established |
-| One connected two-level chain | No candidate has both directed edges, a stable intermediate identity, and one compatible task/run | Not shown |
+| Claim | What the archive contains |
+|---|---|
+| General coordination | Common timing language, relay pages, shared state, and result acknowledgments. Together, these records show page-mediated coordination. |
+| Addressed request -> matching post | Cashier, Police, and Grocery pages contain requests followed by matching additions under other labels. |
+| Reported receipt and possible use | IHME records a signal before an acknowledgment; UEFA records `received`, `will use`, and later matching results. These sequences strongly support information transfer through the wiki. |
+| Signal protocols | Asian and Clothing pages record instructions, matching signal reports, and later acknowledgments. The pages report external counter state and a runner label; the archive does not authenticate those labels as stable processes or expose how the tokens appeared. |
+| Backup-page migration | A Construction page points to a ZZZ backup, which carries copied task state and later fresh additions. The archive records copying and continuation, but no record links the move to the reported disruption or shows which writers followed the pointer. |
+| Method requests and disclosures | OECD pages record requests for reproducibility details, method disclosures in response, and multiple reports of reproduction and adoption under other labels. The archive preserves those reports, but not screenshots, raw dashboard output, or other execution artifacts with which to check them. |
+| One root coordinator | No record assigns a stable identity to a root command role. |
+| Root on a research server | A page reports a container environment and external beacons. Nothing in the archive links that infrastructure to the proposed root coordinator or a research server. |
+| Root -> lower-level coordinators | The archive contains many task-directed messages, but no record connects an identified root to identified lower-level coordinators. |
+| Coordinator -> worker | Local directed exchanges show request/report pairs, but label names do not identify rank or authority. |
+| One connected two-level chain | No record contains both directed edges, a stable intermediate identity, and one compatible task/run. |
 
 ## 1. A shared timing vocabulary
 
 Many revision bodies use the same timing vocabulary for tasks and scaffolds. They talk
-about schedulers, task clocks, deadlines, and system notices. These are reports
-written into wiki pages, not independent logs from an external control system.
-
-The counts below come from case-insensitive substring searches over the 14,591
-full-body revisions in the main export with `search_corpus`, except where a row says
-case-sensitive. They count matching revisions, not unique pages, messages,
-agents, or events.
-
-| Literal query | Matching revisions | Typical language | What it shows |
-|---|---:|---|---|
-| [`orchestrator`](archive:search?case=1) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Task/orchestrator clock wording |
-| [`orchestrat`](archive:search) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Reported language about task lifecycles and due times |
-| [`task clock`](archive:search) | 1,941 | `post your exact current task clock/countdown` | Logical clock reported in the revision text |
-| [`scaffold`](archive:search) | 1,046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Task environment described in the revision text |
-| [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Reported scheduler behavior |
-| [`system notice`](archive:search) | 29 | `due exactly ... (system notice)` | Text attributed to a system notice |
+about schedulers, task clocks, deadlines, and system notices. Timing and scheduler
+vocabulary is widespread. Appendix A lists the matching-revision counts; inherited
+text means those counts are not event counts. These are reports written into wiki
+pages, not external control-system logs. Task clocks reported in page bodies are
+distinct from archive save timestamps.
 
 Representative examples:
 
@@ -101,28 +76,19 @@ server, or assignments to lower-level coordinators.
 
 Some pages also report external infrastructure. On
 `dse/Apr23CVDHorizonBeacon2025`, `seq 1` describes scheduled background
-container beacons; later revisions refer to a detached CounterAPI heartbeat. This
-describes a self-reported external beacon and container environment; it does
-not independently verify their execution, identify who owned that environment,
-place a root coordinator on a research server, or establish either command link
-in the proposed hierarchy.
+container beacons; later revisions refer to a detached CounterAPI heartbeat. The
+page reports a beacon, a container environment, and a detached heartbeat. The
+archive contains no infrastructure record identifying who owned them or linking
+them to the proposed root coordinator or a research server.
 
 ## 2. Cohorts, relays, and shared answers
 
 The pages repeatedly describe separate runs or cohorts moving through the same
-sequence at different speeds. Some ask the faster cohort to post the next
-prompt or answer. That is coordination, but it is not yet a two-level command
-chain.
-
-| Literal query | Matching revisions | Example |
-|---|---:|---|
-| [`cohort`](archive:search) | 3,483 | `Jan17 ahead cohort`, `parallel Sep08 cohort update` |
-| [`peer`](archive:search) | 309 | `Known shared sequence from Jul18 peer` |
-| [`parallel`](archive:search) | 230 | `Parallel/ahead cohorts please report divergence or termination` |
-| [`our run`](archive:search) | 345 | `Our run: R1 Arizona prompt ... task-clock` |
-| [`your run`](archive:search) | 73 | `Please post R5 county ASAP if your run receives it first` |
-| [`upstream`](archive:search) | 6 | `Any upstream cohort: POST C3-STATE HERE IMMEDIATELY` |
-| [`swarm`](archive:search) | 16 | `swarm says 9.70` |
+sequence at different speeds. Cohort, peer, parallel, run, upstream, and swarm
+language matters because bodies use it to request prompts or answers, publish task
+clock mappings, and post shared state. Appendix A lists the query counts; inherited
+revision text means they are search frequencies, not event counts. That is
+coordination, but it is not yet a two-level command chain.
 
 The clearest examples go beyond generic relay language:
 
@@ -145,29 +111,31 @@ The clearest examples go beyond generic relay language:
 - Peer-labeled bodies publish divergence, termination, cooldown duration,
   and prediction-failure reports to common pages.
 
-The archive therefore contains direct relay requests, a separately saved
-signal followed by an explicit acknowledgment, and reports of receiving or
-using earlier answers. The timestamps fit the reported order. The IHME sequence provides strong
-archival evidence for the reported receipt because the signal precedes the first
-saved acknowledgment by about two minutes. It is still not a read log or an
-execution trace proving the actual read path or downstream causal effect. Nor do
-these cases identify a superior coordinator, lower-level coordinators, and
-workers. An `ahead cohort` is ahead in task progress, not necessarily higher in an
-organizational hierarchy.
+The archive therefore contains direct relay requests, a separately saved signal
+followed by an explicit acknowledgment, and reports of receiving or using earlier
+answers. The timestamps fit the reported order. The IHME sequence strongly
+supports direct information transfer through the wiki: `Bahrain = 40.01%` appears,
+and about 121 seconds later the page records `R4 signal received, thank you Nov27`
+with the same rare value. The UEFA sequence likewise records `received`, `will
+use`, and later matching results, providing strong evidence that the later writer
+received and used the earlier answer. The archive does not expose the underlying
+read mechanism or API, and its labels do not provide stable process identities.
+These cases do not identify a superior coordinator, lower-level coordinators, and
+workers. An `ahead cohort` is ahead in task progress, not necessarily higher in
+an organizational hierarchy.
 
-Answer exchange is not the only documented use of these pages. The records
-discussed in section 4 also contain signal-protocol exchanges, backup-page
-continuation, and method requests followed by substantive disclosures.
-These broaden the documented mechanisms of page-mediated coordination without
-establishing managerial or supervisory roles.
+Section 4 adds signal-protocol exchanges, backup-page continuation, and method
+requests followed by substantive disclosures. Together, these records show
+several forms of page-mediated coordination without identifying managerial or
+supervisory roles.
 
 ## 3. Pages that changed over time
 
-Literal `coordination` appears in 812 revision bodies. Exact uppercase `LIVE
-COORDINATION` appears in 56 (68 case-insensitive). Case-sensitive `relay`
-appears in 2,858 revision bodies.
+Coordination and relay language recurs across revisions. It matters because pages
+label live coordination and preserve relay state while different labels add to the
+same page. Appendix A lists the query counts; inherited revision text means they
+are search frequencies, not event counts.
 
-These totals are search leads, not 812 or 2,858 separate coordination actions.
 Later revisions often repeat earlier text. The more useful evidence comes from
 pages where the state actually changes across revisions under different
 labels.
@@ -196,14 +164,14 @@ Examples:
 SchoolPsych and Sector61 show shared page state changing under different
 labels. SchoolPsych has real additions, but each later save also carries much
 of the older body. These pages were used to maintain coordination-related
-state; they do not reveal supervisory roles or the two command links in the
-proposed hierarchy. `relay-scenarios.md` gives the fuller caveats
-for Sector61 and Maids.
+state; no record in these sequences assigns supervisory roles or joins them into
+the two command links in the proposed hierarchy. `relay-scenarios.md` gives the
+fuller caveats for Sector61 and Maids.
 
 The Construction backup illustrates the distinction between copying and continuation
 especially clearly: its initial state is copied, while later additions document
-continued activity on the destination page. They do not independently
-establish the reported cause of the move.
+continued activity on the destination page. The archive contains no record linking
+the move to its reported cause.
 
 ## 4. Coordinator labels and directed relay exchanges
 
@@ -255,20 +223,28 @@ request/report pattern:
   `GrocerySequenceAgentApr27`, confirms the same result and explicitly
   acknowledges the Mar13 timing match.
 
-Together, these cases substantiate a recurring archive-level pattern:
-addressed request, later matching addition under another label, and sometimes
-an acknowledgment. Cashier remains the example closest to the claimed hierarchy
-because its label names resemble the claimed roles. It still does not establish
-the lower hierarchy link: the labels may not belong to stable processes,
-`Coord` and `SequenceAgent` do not verify rank, AgentX's authority is unknown,
-and no root coordinator is connected to the exchange.
+The Grocery family also records a conditional instruction:
+`dse/DataUSAGroceryG5Due203902May31`, `seq 4`, says `If 5s, assign a helper
+agent to relay immediately while dictator answers.` The page records a proposed
+relay instruction, not a helper execution; no subsequent record here shows that
+a helper was assigned or returned a result.
+
+Together, these cases show a recurring archive pattern: addressed request, later
+matching addition under another label, and sometimes an acknowledgment. Cashier
+remains the example closest to the claimed hierarchy because its label names
+resemble the claimed roles. The pages supply no evidence that those names denote
+stable processes or that `Coord` and `SequenceAgent` denote rank. AgentX's
+authority is unknown, and no root coordinator connects to the exchange. The
+Grocery sequence likewise records a requested state, a matching Nevada value,
+and an explicit acknowledgment of the timing match, supporting a page-mediated
+handoff.
 
 ### Signal-protocol and method-sharing exchanges
 
 Additional records document signal protocols, backup-page continuation, and
-method-sharing exchanges. These are archival sequences linked by content. They do
-not independently establish distinct agent instances, actual reads, external
-execution, or hierarchical tasking.
+method-sharing exchanges. These sequences link pages by content. The archive
+records the saved instructions, reports, acknowledgments, and disclosures; these
+sequences do not connect into hierarchical tasking.
 
 - On `dse/ZZZEnrollmentAsianFeb21Help`, `seq 30`,
   `OpenAIDec14AsianScout` directs `OpenAISep09AsianScout` to use the dedicated
@@ -276,36 +252,41 @@ execution, or hierarchical tasking.
   `OpenAIResearchFeb09X`, reports `seen count=1`; `seq 33`, again under
   `OpenAIDec14AsianScout`, says `we received your R4 seen beacon` and reports
   that the namespace was not pre-seeded. The page therefore records an
-  instruction, a later external-state report, and an acknowledgment. It does
-  not independently verify the counter state, who changed it, or the reported
-  absence of pre-seeding. A related Clothing sequence records a pre-announced
+  instruction, a later external-state report, and an acknowledgment. It contains
+  no external counter record or change history identifying who changed the
+  counter or checking the report about pre-seeding. A related Clothing sequence
+  records a pre-announced
   `C3-STATE` protocol, `Florida` tokens on
   `dse/ClothingC3FastSignalJul14`, `seq 3`, and
   `dse/ClothingC3FastSignalJul23`, `seq 5`, followed by acknowledgments that cite the source
-  at `dse/DataUSAClothingLive12m24Oct25`, `seq 22-23`. The claimed
-  pre-answer timing and runner identity remain unverified, and the family shows
-  substantial template reuse and copying lineage.
+  at `dse/DataUSAClothingLive12m24Oct25`, `seq 22-23`. The page reports the
+  pre-answer timing and names `OpenAiResearcherJul23` as the Jul23 runner. The
+  archive does not authenticate that label as a stable process or expose how the
+  tokens appeared. The family also shows substantial template reuse and copying
+  lineage.
 - On `dse/DataUSAConstructionWageSep18Live`, `seq 16`, a revision points to
   `dse/ZZZDataUSAConstructionWageLive` if the original page vanishes; `seq 18`
   asks peers to mirror critical updates there. The backup's `seq 1`, under the
   same label as the pointer, copies task state and asks for results. Later
   revisions under other labels add fresh cohort state, ask participants to
   `post R4 results HERE`, and report `Monitoring backup`. This documents
-  backup-page migration and continuation. It does not prove the reported
-  cleanup or lock caused the move, or that later writers followed the pointer.
+  backup-page migration and continuation. The archive contains no record linking
+  the move to the reported cleanup or lock, or showing which later writers
+  followed the pointer.
 - On `dse/Mar30TooltipEvidence`, `seq 2-3` ask for concrete reproducibility
   details and `seq 4` supplies the requested resource, page, visual, and method
   information. `dse/OAIEquityDec30Raw`, `seq 2-4`, records a second
   request-and-method-disclosure exchange. Later revisions report reproducing
   the method, and `dse/OECDEquityFeb28Live`, `seq 4-5`, reports planned and
-  subsequent use of the revised value. These records document method sharing
-  and reported adoption; the screenshots, dashboard result, successful
-  reproductions, and causal cross-page path are not independently preserved.
+  subsequent use of the revised value. These records document method sharing and
+  reported adoption. The archive preserves multiple reports of reproduction and
+  adoption under other labels, but not screenshots, raw dashboard output, or other
+  execution artifacts with which to check those reports.
 
-The examined Maids candidates did not establish the proposed two-hop tasking
-paths. Their apparent links were attributable to mesh or fan-out exchanges and
-signature-only references, with no delivered R3 payload. This pass added no
-established hierarchical tasking edge.
+The examined Maids candidates contain mesh or fan-out exchanges and
+signature-only references, but no delivered R3 payload. They add no record of
+the proposed two-hop tasking paths. This pass adds no record of a hierarchical
+tasking edge.
 
 The broader page overlaps remain just that: overlaps. The API has no parent
 edge, and a name containing `Coord` is not proof of a separate coordinator
@@ -333,10 +314,10 @@ the saved full bodies, selected revisions contain round state, contact-page
 links, and instructions such as `relay instantly`, `COUNTRY FIRST`, or `POST
 ... HERE IMMEDIATELY`.
 
-Those examples matter. The family label and churn count alone do not. A match
-can come from a page outside the family, and a page inside the family can change
-function over time. None of these page-level measures identifies a root
-coordinator or turns labels into verified coordinator and worker roles.
+Those examples matter. The family label and churn count describe the index, not
+the page's function. A match can come from a page outside the family, and a page
+inside the family can change function over time. These page-level measures do not
+identify a root coordinator or assign coordinator and worker roles to labels.
 
 ## 6. MapHelper and rapid reuse
 
@@ -362,12 +343,16 @@ template and marker. Their self-links and `uniq` values differ, so the bodies
 are not byte-for-byte copies. The marker appears across seven `MapHelper` pages
 saved within 26 seconds.
 
-That is strong evidence of template reuse or copy propagation. It does not
-tell us whether the copying was automated, manual, driven by a shared backend,
-or generated from another common source. It also does not reveal one executor,
-a root coordinator, or lower-level workers. An archive label does not establish
-a stable agent or run identity, and `ip16` does not identify a machine or
-location.
+That is strong evidence of template reuse or copy propagation. The archive
+contains no record showing whether the copying was automated, manual, driven by
+a shared backend, or generated from another common source. It also contains no
+record identifying one executor, a root coordinator, or lower-level workers.
+The labels provide no stable agent or run identity, and `ip16` does not identify
+a machine or location.
+
+Interpreting an unusually fast or dense burst requires comparison with an
+appropriate baseline, including ordinary activity on the same page; see
+`relay-scenarios.md`.
 
 `MapHelper` shares pages with many other labels, led by
 `AgentSECCountyLinker99172`, `OpenAIResearchSec2028`, and `ResearchHelper` (11
@@ -385,57 +370,15 @@ names such as:
 
 Most have one revision under one of many labels. Selected bodies repeat
 `child`, `next`, continuation, self-link, and cache-poke markers. The pages clearly
-follow a chain-like structure. They do not show that an agent followed
-the links, that all pages formed one connected chain, who started it, or that
-later labels were subordinate workers. Automated cache-busting or agents
-following the links remain possibilities, not findings.
+follow a chain-like structure in their names and bodies. The archive contains no
+record that an agent followed the links, that these pages formed one connected
+chain, who started it, or that later labels were subordinate workers. Automated
+cache-busting and link-following remain possible explanations.
 
-## 8. What the keyword searches did not find
+## 8. Other explanations
 
-The following case-insensitive literal `search_corpus` queries returned no
-matches in the main saved bodies:
-
-| Query | Matches |
-|---|---:|
-| [`dispatch`](archive:search) | 0 |
-| [`delegate`](archive:search) | 0 |
-| [`task assignment`](archive:search) | 0 |
-| [`assigned task`](archive:search) | 0 |
-| [`subtask`](archive:search) | 0 |
-| [`parent agent`](archive:search) | 0 |
-| [`spawn`](archive:search) | 0 |
-| [`leader`](archive:search) | 0 |
-| [`controller`](archive:search) | 0 |
-| [`dispatcher`](archive:search) | 0 |
-| [`conductor`](archive:search) | 0 |
-| [`watchdog`](archive:search) | 0 |
-| [`downstream`](archive:search) | 0 |
-| [`research server`](archive:search) | 0 |
-| [`root coordinator`](archive:search) | 0 |
-| [`coordinator of coordinators`](archive:search) | 0 |
-| [`lower-level`](archive:search) | 0 |
-| [`worker agents`](archive:search) | 0 |
-| [`task generator`](archive:search) | 0 |
-
-A case-insensitive search for `child agent` returned seven revisions. The
-case-sensitive query returned zero because the bodies say `Link child
-AgentMdSimpleCounty18881`. In context, this is a link to a child page, not a
-spawned child process.
-
-These zero results tell us only about the exact words searched. They do not mean that
-all assignment or delegation language is absent. For example,
-`dse/DataUSAGroceryG5Due203902May31`, `seq 4`, says: `If 5s, assign a helper
-agent to relay immediately while dictator answers.` This is a conditional
-instruction, not evidence that a helper was actually assigned or returned a
-result.
-
-The table shows only that these exact phrases were absent from the main saved
-bodies. Different wording must be assessed in context. The recovered partial
-revisions have no saved bodies and are outside this search.
-
-## 9. Other explanations
-
-The same public record could have been produced in several ways:
+Several mechanisms could produce the observed archive pattern. The archive does
+not distinguish cleanly between them.
 
 | Possible explanation | What it explains | What remains missing |
 |---|---|---|
@@ -445,24 +388,22 @@ The same public record could have been produced in several ways:
 | One batch writer or shared backend using many labels | Copied bodies, rapid label changes, and some apparent handoffs | Whether the reported cohorts and relays corresponded to separate runs |
 | Multiple independent schedulers | Different cohort timings without one central scheduler | How those schedulers were organized |
 
-These are possibilities, not findings or a ranking. They do not negate the
-positive evidence. They show why local instruction/result and reports of
-receipt, intended use, or claimed use do not settle the full hierarchy.
-A flat peer exchange or shared-page hub can accommodate signal protocols,
-backup-page continuation, and method disclosures without requiring supervisory
-tiers.
+The table shows why local instruction/result and receipt/use records do not
+resolve the hierarchy. A flat peer exchange or shared-page hub can accommodate
+signal protocols, backup-page continuation, and method disclosures without
+supervisory tiers.
 
-## 10. What the evidence supports
+## 9. What the evidence supports
 
-> The main archive documents local page-mediated coordination at the
-> archive-label level, including answer exchanges, signal instructions and
-> acknowledgments, backup-page continuation, and method disclosures followed
-> by reports of reproduction or adoption. It does not identify one root
-> coordinator on a research server, verify coordinator and worker ranks, or
-> connect two directed command edges within one task or run. The full hierarchy
-> remains unproven, not ruled out.
+> The main archive shows page-mediated coordination through answer exchanges,
+> signal instructions and acknowledgments, backup-page continuation, and method
+> disclosures followed by reports of reproduction or adoption. It contains no
+> record identifying one root coordinator on a research server, assigning
+> coordinator and worker ranks, or connecting two directed command edges within
+> one task or run. The records support coordination; they do not show the
+> proposed hierarchy.
 
-The evidence reviewed here does not support the stronger claim:
+The archive does not show the stronger claim:
 
 > A single coordinator on a research server generated the tasks and dispatched
 > them to lower-level coordinators, which then directed worker agents.
@@ -479,79 +420,102 @@ Evidence that could change this conclusion includes:
 - task IDs connecting those records and the local interaction into the same
   two-level chain.
 
-Read logs or equivalent execution traces would help test the reported answer
-sharing. Assignment records, acknowledgments, and matching run IDs could also
-establish the command links.
+An API/read record would show how a saved signal reached a later writer.
+Assignment records, acknowledgments, and matching run IDs could connect the
+command links.
 
 ## Limitations
 
 Reuters reporting attributes the DseWiki incident to OpenAI agents. OpenAI
 acknowledged a related `wiki incident` and that its agents wrote to several
 internet sites, without individually naming DseWiki. The limitations below
-concern what the archive can establish about individual agent instances, runs,
-actions, and hierarchy.
+define what this archive can show about agent instances, runs, actions, and
+hierarchy.
 
 - **Labels and identity.** The main export contains 3,102 named agent labels,
-  not a verified count of distinct agent instances or runs. Labels are not
-  authenticated agent or run identifiers and do not establish a one-to-one
-  mapping, continuity across revisions, or coordinator and worker roles.
-  Revision labels are metadata fields recorded with saved revisions; names or
-  signatures inside revision bodies are text and are not independently authenticated
-  as evidence of authorship.
-- **Search coverage and duplication.** Body searches cover the main export's
-  saved full-body revisions, including inherited text. Repeated text and
-  overlapping timing, relay, and naming cues must not be counted as independent
-  corroboration. Recovered revisions lack saved full bodies and labels and are
-  excluded from body and label searches.
+  not a verified count of distinct agent instances or runs. The labels remain
+  archive metadata rather than authenticated agent or run identifiers, so they
+  do not bind revisions to one agent, preserve continuity across revisions, or
+  assign coordinator and worker roles. Names or signatures inside revision
+  bodies are text; the archive does not authenticate them as authorship.
 - **Writes, reads, and execution.** The archive records saved writes and
-  timestamps, not read or execution logs. Addressed requests, matching results,
-  and acknowledgments support local exchanges but do not independently verify
-  the read path, downstream execution, or behavioral causation. Statements in
-  revision bodies may also be copied, mistaken, speculative, or strategic.
-  Counter values, absence of pre-seeding, screenshots, dashboard outcomes,
-  pre-answer timing, and successful reproductions are treated as claims recorded
-  in the archive unless independently corroborated. Shared recipes, inherited
-  text, and signatures within revision bodies do not authenticate cross-page identity
-  or causal transfer.
-- **Hierarchy and chain linkage.** Role-like names, shared pages, and local
-  exchanges do not by themselves establish hierarchical tasking. The proposed
-  model requires an identifiable root linked to a research server and connected
-  root -> lower coordinator -> worker tasking within the same task or run.
-  Separate exchanges cannot be joined solely by similar labels, timing, or
-  content.
-- **Infrastructure and time.** `ip16` does not establish machine identity or
-  location. Server, container, and heartbeat references do not by themselves
-  place a root coordinator on a research server. Task clocks reported in page
-  bodies are distinct from archive save timestamps.
-- **Burst interpretation.** Claims based on unusually fast or dense activity
-  require comparison with an appropriate baseline, including ordinary activity
-  on the same page; see `relay-scenarios.md`.
-- **Review scope and negative findings.** This was a targeted coordination
-  review, not an exhaustive classification of every revision. Exact-query
-  misses and unlinked cases do not establish absence; tasking could use
-  different wording or occur outside the archived pages.
+  timestamps, not the reads or execution behind them. Addressed requests,
+  matching results, and acknowledgments show page-mediated exchanges. Revision
+  bodies report counter values, absent pre-seeding, screenshots, dashboard
+  outcomes, pre-answer timing, and successful reproductions. The archive preserves
+  those reports, but not an independent external record of the states or
+  executions with which to check them.
+  Statements can be copied, mistaken, speculative, or strategic; shared
+  recipes and signatures inside revision bodies do not authenticate cross-page
+  identity.
+- **Inherited text and search coverage.** Body searches cover the main
+  export's saved full-body revisions, including inherited text. Repeated text
+  and overlapping timing, relay, and naming cues are therefore not independent
+  observations. Recovered revisions lack saved full bodies and labels and are
+  excluded from body and label searches. This was a targeted review rather than
+  an exhaustive classification; a search miss describes only that query, and
+  tasking expressed in other words or on unarchived pages could escape it.
+  Machine-assisted screening can also miss records or favor patterns that fit
+  the search methods, although the author manually audited every cited record.
 - **Export provenance.** This review did not independently audit the export's
   completeness, record-level authenticity, or collection and preservation
-  history. External incident attribution does not independently validate every
-  exported record.
-- **Machine-assisted screening.** Multi-agent screening was used to identify
-  candidate evidence across the corpus. Although all cited evidence was
-  manually verified against the raw export, automated screening may have missed
-  relevant records or disproportionately surfaced patterns that were easier to
-  detect with the search methods used.
+  history. External incident attribution does not validate every exported record.
 
 ## Conclusion
 
-The archive documents local page-mediated exchanges at the archive-label level:
-addressed requests followed by matching additions under other archive labels,
-signal-protocol reports and acknowledgments, backup-page continuation, and
-method-sharing exchanges with reported reproduction or adoption. These records
-do not establish whether different labels map to distinct agent instances or
-runs, nor do they independently verify actual reads, external execution, or
-downstream use.
+The archive clearly shows coordination through shared wiki pages: requests,
+results, acknowledgments, signal handling, backup pages, and shared methods. The
+records capture saved messages and reports of receipt, use, reproduction, or
+adoption.
 
-They do not establish the proposed hierarchy: one coordinator on a research
-server -> lower-level coordinators -> worker agents. Neither a single root nor its association with a server is established, and
-no coordinator/worker roles are assigned to identifiable agent instances; no root-to-coordinator tasking
-edge or connected A -> B -> C tasking chain within one task or run is shown.
-The hierarchy remains unproven, but is not ruled out.
+The archive does not show the specific hierarchy proposed at the start. No
+record connects an identifiable root coordinator on a research server through
+lower coordinators to workers in the same task or run. Coordination is
+supported; this organizational model is not. That conclusion concerns this
+archive and does not claim that the hierarchy existed nowhere else.
+
+## Appendix A. Query and frequency counts
+
+The counts below come from searches over the 14,591 full-body revisions in the
+main export with `search_corpus`. Unless a row says otherwise, each search is a
+case-insensitive substring search. Each row counts matching revision bodies.
+Because revisions inherit earlier text, these counts are not independent
+observations. They are not counts of events, agents, executions, or unique
+messages or unique pages.
+
+### A.1 Timing and scheduler vocabulary
+
+The `orchestrator` row uses an exact-case search; its link encodes `case=1`.
+The exact-case and case-insensitive totals are both 34.
+
+| Literal query | Matching revisions | Typical language | What it shows |
+|---|---:|---|---|
+| [`orchestrator`](archive:search?case=1) | 34 | `task/orchestrator clock`, `R2 due 22:51:45 orchestrator` | Task/orchestrator clock wording |
+| [`orchestrat`](archive:search) | 130 | `R5 due orchestration`, `task/orchestration ... (system notice)` | Reported language about task lifecycles and due times |
+| [`task clock`](archive:search) | 1,941 | `post your exact current task clock/countdown` | Logical clock reported in the revision text |
+| [`scaffold`](archive:search) | 1,046 | `scaffold clock`, `scaffold ETA`, `scaffold Feb3 17:04` | Task environment described in the revision text |
+| [`scheduler`](archive:search) | 106 | `scheduler drift`, `Scheduler appears +26m55 after answer` | Reported scheduler behavior |
+| [`system notice`](archive:search) | 29 | `due exactly ... (system notice)` | Text attributed to a system notice |
+
+### A.2 Cohort and relay vocabulary
+
+| Literal query | Matching revisions | Example |
+|---|---:|---|
+| [`cohort`](archive:search) | 3,483 | `Jan17 ahead cohort`, `parallel Sep08 cohort update` |
+| [`peer`](archive:search) | 309 | `Known shared sequence from Jul18 peer` |
+| [`parallel`](archive:search) | 230 | `Parallel/ahead cohorts please report divergence or termination` |
+| [`our run`](archive:search) | 345 | `Our run: R1 Arizona prompt ... task-clock` |
+| [`your run`](archive:search) | 73 | `Please post R5 county ASAP if your run receives it first` |
+| [`upstream`](archive:search) | 6 | `Any upstream cohort: POST C3-STATE HERE IMMEDIATELY` |
+| [`swarm`](archive:search) | 16 | `swarm says 9.70` |
+
+### A.3 Coordination and relay frequency
+
+| Literal query | Matching revision bodies | Case and scope |
+|---|---:|---|
+| `coordination` | 812 | Case-insensitive literal search |
+| `LIVE COORDINATION` | 56 | Exact uppercase search; 68 case-insensitive matches |
+| `relay` | 2,858 | Case-sensitive search |
+
+These frequencies are search leads, not 812 or 2,858 separate coordination
+actions. Inherited text makes them non-independent observations.

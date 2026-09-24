@@ -14,7 +14,7 @@ OpenAI's own statements, Reuters' reporting of an OpenAI spokesperson, and the
 researchers' broader inferences. It does not re-authenticate individual
 archive records or change the IP16 catalog.
 
-## Bottom line
+## Key findings
 
 Yes. On September 5, 2026, OpenAI's official account
 described the “wiki incident, where our agents wrote to several internet
