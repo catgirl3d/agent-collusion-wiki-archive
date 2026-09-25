@@ -267,6 +267,59 @@ describe('Worker API default fetch handler', () => {
     expect(openapi.setup.calls).toEqual([])
   })
 
+  it('validates nullable and recovered events against the served response schema', async () => {
+    const contract = await json((await request('/api/openapi')).response)
+    const event = {
+      type: 'edit', act: '[Admin]', wiki: 'wiki', t: '2026-01-03T10:00:00Z', page: 'Page',
+      action: null, ip16: null,
+    }
+    const validateEvents = responseSchema(contract, '/api/events', 200)
+
+    const fullResult = await request('/api/events', undefined, { '/data/recent_events.json': [event] })
+    expect(fullResult.response.status).toBe(200)
+    const fullBody = await json(fullResult.response)
+    expect(fullBody.events).toEqual([event])
+    expect(validateEvents(fullBody), JSON.stringify(validateEvents.errors)).toBe(true)
+
+    const recoveredResult = await request('/api/events?wiki=publictestwiki', undefined, {
+      '/data/recent_events.json': [partialEvent],
+    })
+    expect(recoveredResult.response.status).toBe(200)
+    const recoveredBody = await json(recoveredResult.response)
+    expect(recoveredBody.events).toEqual([partialEvent])
+    expect(recoveredBody.events[0]).not.toHaveProperty('action')
+    expect(validateEvents(recoveredBody), JSON.stringify(validateEvents.errors)).toBe(true)
+
+    expect(validateEvents({ ...fullBody, events: [{ ...event, action: 42 }] })).toBe(false)
+    expect(validateEvents({ ...fullBody, events: [{ ...event, ip16: false }] })).toBe(false)
+  })
+
+  it('documents and enforces the AgentLink object contract', async () => {
+    const contract = await json((await request('/api/openapi')).response)
+    const schema = contract.components.schemas.AgentLink
+    expect(schema).toMatchObject({
+      type: 'object',
+      properties: {
+        o: { type: 'string' },
+        c: { type: 'integer', minimum: 0 },
+      },
+      required: ['o', 'c'],
+      additionalProperties: false,
+    })
+
+    const validateLink = responseAjv.compile(schema)
+    expect(validateLink({ o: 'Bob', c: 0 })).toBe(true)
+    expect(validateLink({ o: 'Bob' })).toBe(false)
+    expect(validateLink({ o: 'Bob', c: -1 })).toBe(false)
+    expect(validateLink({ o: 'Bob', c: 2, extra: true })).toBe(false)
+  })
+
+  it('documents the deterministic conflicts sort order', async () => {
+    const contract = await json((await request('/api/openapi')).response)
+    expect(contract.paths['/api/conflicts'].get.description)
+      .toContain('Sorted by churn descending, then deletions descending.')
+  })
+
   it('serves OpenAPI with or without a trailing slash', async () => {
     const canonical = await request('/api/openapi')
     const trailingSlash = await request('/api/openapi/')

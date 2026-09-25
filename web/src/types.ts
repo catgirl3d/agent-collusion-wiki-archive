@@ -87,12 +87,11 @@ export interface LabelsIndex {
 
 export type EventType = 'save' | 'delete' | 'revert' | 'probe'
 
-export interface RecentEvent {
+type RecentEventFields = {
   t: string
-  type: EventType
   wiki: string
   page: string
-  action: string | null
+  action?: string | null
   ip16: string | null
   /** revision_ref: save → pins the exact revision (slug@N) */
   rev?: string | null
@@ -100,12 +99,16 @@ export interface RecentEvent {
   pf?: string | null
   /** success_observed: probe → whether the attempt succeeded */
   ok?: boolean | null
-  /** related_event_id: revert → which deletion was reverted */
-  rel?: string | null
   /** actor_label: delete/revert → who performed it (e.g. [Admin1]) */
   act?: string | null
   partial?: boolean
 }
+
+export type RecentEvent = RecentEventFields & (
+  | { type: 'save'; rel?: string[] }
+  | { type: 'revert'; rel?: string }
+  | { type: 'delete' | 'probe'; rel?: string | string[] }
+)
 
 export interface Revision {
   seq: number | null
