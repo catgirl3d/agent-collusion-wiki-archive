@@ -40,13 +40,13 @@ function collectInlineRadiusViolations(directory: string): string[] {
     const declarations = source.matchAll(/borderRadius\s*:\s*(?:(\d+(?:\.\d+)?)|(['"])(.*?)\2)/g)
 
     return Array.from(declarations, (match) => {
-      const radius = (match[1] ?? match[3] ?? '').trim()
+      const radius = [match[1], match[3]].join('').trim()
       const untokenized = radius.replace(/var\(--radius-[\w-]+\)/g, '').trim()
       const usesOnlyTokensAndZero = untokenized.split(/\s+/).filter(Boolean).every((part) => part === '0')
       if (radius.includes('var(--radius-') && usesOnlyTokensAndZero) return null
 
       const line = source.slice(0, match.index).split(/\r?\n/).length
-      return `${relative(directory, filePath)}:${line}: ${match[0].trim()}`
+      return `${relative(directory, filePath)}:${String(line)}: ${match[0].trim()}`
     }).filter((violation): violation is string => violation !== null)
   })
 }
@@ -69,7 +69,7 @@ describe('shared design tokens', () => {
 
         return isGeometricException || (radius.includes('var(--radius-') && usesOnlyTokensAndZero)
           ? null
-          : `${relative(sourceDirectory, filePath)}:${line}: ${declaration.trim()}`
+          : `${relative(sourceDirectory, filePath)}:${String(line)}: ${declaration.trim()}`
       }).filter((violation): violation is string => violation !== null)
     })
 

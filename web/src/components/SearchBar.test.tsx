@@ -47,7 +47,9 @@ describe('SearchBar', () => {
 
     const input = screen.getByRole('searchbox', { name: /search revisions text/i })
     fireEvent.change(input, { target: { value: 'orchestrator' } })
-    fireEvent.submit(input.closest('form')!)
+    const form = input.closest('form')
+    if (!form) throw new Error('Search form was not found')
+    fireEvent.submit(form)
 
     expect(screen.getByTestId('location')).toHaveTextContent('/search?q=orchestrator')
     expect(screen.getByRole('searchbox')).toHaveValue('orchestrator')
@@ -204,7 +206,11 @@ describe('SearchBar', () => {
         <SearchBar />
       </MemoryRouter>
     )
-    const loupe = () => container.querySelector('.search-bar-toggle-btn')!
+    const loupe = () => {
+      const button = container.querySelector('.search-bar-toggle-btn')
+      if (!button) throw new Error('Search toggle button was not found')
+      return button
+    }
 
     expect(screen.getByRole('button', { name: /search archive/i })).toHaveAttribute('tabindex', '0')
 

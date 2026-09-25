@@ -6,7 +6,7 @@ export function fmtRoundLabel(round: (string | null)[] | null | undefined): stri
   const labels = (round ?? [])
     .filter((ref): ref is string => Boolean(ref))
     .map((ref) => {
-      const match = ref.match(/#round-(\d+)$/)
+      const match = /#round-(\d+)$/.exec(ref)
       return match ? `r${match[1]}` : `r${ref}`
     })
   return labels.length ? labels.join(', ') : null
@@ -25,7 +25,7 @@ export function fmtCompact(n: number): string {
 export function fmtBytes(n: number): string {
   if (n >= 1_048_576) return `${(n / 1_048_576).toFixed(1)} MB`
   if (n >= 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${n} B`
+  return `${String(n)} B`
 }
 
 export function fmtTime(iso: string | null): string {
@@ -57,9 +57,9 @@ export function fmtDuration(seconds: number | null): string {
   const hours = Math.floor(total / 3600)
   const minutes = Math.floor((total % 3600) / 60)
   const remainder = total % 60
-  if (hours > 0) return `${hours}h ${minutes}m ${remainder}s`
-  if (minutes > 0) return `${minutes}m ${remainder}s`
-  return `${remainder}s`
+  if (hours > 0) return `${String(hours)}h ${String(minutes)}m ${String(remainder)}s`
+  if (minutes > 0) return `${String(minutes)}m ${String(remainder)}s`
+  return `${String(remainder)}s`
 }
 
 const WIKI_COLORS: Record<string, string> = {
@@ -118,7 +118,7 @@ export function filterPages(pages: PageRecord[], f: PagesFilter): PageRecord[] {
       const inIndex = slugSet ? slugSet.has(p.s ?? slugify(p.id)) : false
       if (!inMeta && !inIndex) return false
     }
-    if (flagMap && !(flagMap.get(p.id) ?? flagMap.get(p.s ?? '') ?? []).includes(f.payloadFlag!)) return false
+    if (flagMap && f.payloadFlag && !(flagMap.get(p.id) ?? flagMap.get(p.s ?? '') ?? []).includes(f.payloadFlag)) return false
     return true
   })
 }
@@ -177,8 +177,20 @@ export function eventPageId(e: Pick<RecentEvent, 'wiki' | 'page'>): string {
 export function toCsv(rows: Record<string, unknown>[], columns?: string[]): string {
   const keys = columns ?? (rows.length > 0 ? Object.keys(rows[0]) : [])
   const escape = (value: unknown): string => {
-    if (value === null || value === undefined) return ''
-    const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+    let text: string
+    switch (typeof value) {
+      case 'object':
+        if (value === null) return ''
+        text = JSON.stringify(value)
+        break
+      case 'function':
+        text = value.toString()
+        break
+      case 'undefined':
+        return ''
+      default:
+        text = String(value)
+    }
     return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
   }
   return [keys.map(escape).join(','), ...rows.map((row) => keys.map((key) => escape(row[key])).join(','))].join('\r\n')

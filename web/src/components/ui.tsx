@@ -99,9 +99,7 @@ type ButtonNativeProps = ButtonCommonProps &
 type ButtonLinkProps = ButtonCommonProps & { to: string } & Omit<LinkProps, 'to' | 'className' | 'children'>
 type ButtonAnchorProps = ButtonCommonProps & { href: string } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'className' | 'children'>
 
-export function Button(props: ButtonLinkProps): React.ReactElement
-export function Button(props: ButtonAnchorProps): React.ReactElement
-export function Button(props: ButtonNativeProps): React.ReactElement
+export function Button(props: ButtonLinkProps | ButtonAnchorProps | ButtonNativeProps): React.ReactElement
 export function Button({ variant = 'primary', size = 'md', className, children, ...rest }: ButtonLinkProps | ButtonAnchorProps | ButtonNativeProps) {
   const classes = ['btn', variant === 'ghost' && 'ghost', size !== 'md' && size, className].filter(Boolean).join(' ')
   if ('to' in rest) {
@@ -139,7 +137,7 @@ export function ScrollTopButton({
       size={size}
       className={className}
       aria-label={children === undefined ? SCROLL_TOP_LABEL : undefined}
-      onClick={(event) => {
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
         window.scrollTo({ top: 0, behavior: 'smooth' })
         onClick?.(event)
       }}
@@ -190,4 +188,3 @@ export function LoadMore({
     </div>
   )
 }
-

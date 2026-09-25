@@ -91,7 +91,7 @@ export default function Pages() {
     const timestamp = Math.floor(Date.now() / 1000)
     const content = extension === 'json' ? JSON.stringify(filtered) : toCsv(filtered as unknown as Record<string, unknown>[])
     downloadBlob(
-      `pages-slice-${timestamp}.${extension}`,
+      `pages-slice-${String(timestamp)}.${extension}`,
       content,
       extension === 'json' ? 'application/json' : 'text/csv;charset=utf-8',
     )
@@ -99,7 +99,7 @@ export default function Pages() {
 
   const copyPython = () => {
     const timestamp = Math.floor(Date.now() / 1000)
-    void navigator.clipboard.writeText(`import pandas as pd\n# Full index:\ndf = pd.read_json("/data/pages.json")\n# Or load your exported slice file:\n# df = pd.read_json("pages-slice-${timestamp}.json")\nprint(df.head())`).then(() => {
+    void navigator.clipboard.writeText(`import pandas as pd\n# Full index:\ndf = pd.read_json("/data/pages.json")\n# Or load your exported slice file:\n# df = pd.read_json("pages-slice-${String(timestamp)}.json")\nprint(df.head())`).then(() => {
       setCopied(true)
       window.setTimeout(() => { setCopied(false); }, 2000)
     })
@@ -136,7 +136,7 @@ export default function Pages() {
         <Dropdown
           value={fam}
           ariaLabel="Filter by family"
-          options={[{ value: '', label: 'all families' }, ...families.map(([name, count]) => ({ value: name, label: `${name} (${count})` }))]}
+          options={[{ value: '', label: 'all families' }, ...families.map(([name, count]) => ({ value: name, label: `${name} (${String(count)})` }))]}
           onChange={(value) => { setFam(value); setLimit(PAGE_LIMIT) }}
         />
         <Dropdown
@@ -152,7 +152,7 @@ export default function Pages() {
             { value: '', label: 'all payload flags' },
             ...PAYLOAD_FLAGS_ORDER.map((flag) => ({
               value: flag,
-              label: `${flag} (${payloadByPage && data ? data.p.filter((p) => (payloadByPage.get(p.id) ?? []).includes(flag)).length : 0})`,
+              label: `${flag} (${String(data.p.filter((p) => (payloadByPage.get(p.id) ?? []).includes(flag)).length)})`,
             })),
           ]}
           onChange={(value) => { setPayloadFlag(value); setLimit(PAGE_LIMIT) }}
@@ -161,7 +161,7 @@ export default function Pages() {
           <input type="checkbox" checked={deletedOnly} onChange={(e) => { setDeletedOnly(e.target.checked); setLimit(PAGE_LIMIT) }} />
           deleted only
         </label>
-        <span className="muted result-count">{fmtInt(filtered.length)} of {fmtInt(data.p.length)}{tokenSlugs !== null && ` · full-text: ${tokenSlugs.length} pages`}</span>
+        <span className="muted result-count">{fmtInt(filtered.length)} of {fmtInt(data.p.length)}{tokenSlugs !== null && ` · full-text: ${String(tokenSlugs.length)} pages`}</span>
       </div>
       {day && filtered.length === 0 && dayStats && (
         <div className="day-empty surface-panel">

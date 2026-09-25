@@ -24,7 +24,7 @@ export default function Events() {
     const q = deferredQuery.trim().toLowerCase()
     return filterEventsByDay(data, day).filter((e) => {
       if (type && e.type !== type) return false
-      if (q && !(e.page?.toLowerCase().includes(q) || e.ip16?.toLowerCase().includes(q) || e.action?.toLowerCase().includes(q))) return false
+      if (q && !(e.page.toLowerCase().includes(q) || e.ip16?.toLowerCase().includes(q) || e.action?.toLowerCase().includes(q))) return false
       return true
     })
   }, [data, day, type, deferredQuery])
@@ -77,35 +77,44 @@ export default function Events() {
             </tr>
           </thead>
           <tbody>
-            {shown.map((e, i) => (
-              <tr key={`${e.t}-${i}`}>
-                <td className="muted nowrap">{fmtTime(e.t)}</td>
-                <td><Badge color={eventColor(e.type)}>{e.type}</Badge></td>
-                <td>{e.wiki || '—'}</td>
-                <td>
-                  {e.page ? (
-                    <PageLink id={eventPageId(e)} name={e.page} max={70} />
-                  ) : (
-                    <span className="muted">—</span>
-                  )}
-                </td>
-                <td className="muted">{e.action ?? '—'}</td>
-                <td className="muted nowrap">{e.ip16 ?? '—'}</td>
-                <td className="muted">
-                  {e.type === 'probe' && e.pf && (
-                    <>
-                      <Badge color="#16a34a">{e.pf}</Badge>{' '}
-                      {e.ok === false && <Badge color="#f87171">failed</Badge>}
-                    </>
-                  )}
-                  {e.type === 'save' && e.rev && <span className="mono" title={e.rev}>{e.rev}</span>}
-                  {(e.type === 'revert' || e.type === 'delete') && e.act && <Badge color="#fbbf24">{e.act}</Badge>}
-                   {e.type === 'revert' && e.rel && <span className="mono" title={e.rel}> {e.rel}</span>}
-                   {e.partial && <Badge>recovered</Badge>}
-                   {!e.partial && !((e.type === 'probe' && e.pf) || (e.type === 'save' && e.rev) || ((e.type === 'revert' || e.type === 'delete') && e.act) || (e.type === 'revert' && e.rel)) && '—'}
-                </td>
-              </tr>
-            ))}
+            {shown.map((e, i) => {
+              const hasDetails = [
+                e.type === 'probe' && Boolean(e.pf),
+                e.type === 'save' && Boolean(e.rev),
+                (e.type === 'revert' || e.type === 'delete') && Boolean(e.act),
+                e.type === 'revert' && Boolean(e.rel),
+              ].some(Boolean)
+
+              return (
+                <tr key={`${e.t}-${String(i)}`}>
+                  <td className="muted nowrap">{fmtTime(e.t)}</td>
+                  <td><Badge color={eventColor(e.type)}>{e.type}</Badge></td>
+                  <td>{e.wiki || '—'}</td>
+                  <td>
+                    {e.page ? (
+                      <PageLink id={eventPageId(e)} name={e.page} max={70} />
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td className="muted">{e.action ?? '—'}</td>
+                  <td className="muted nowrap">{e.ip16 ?? '—'}</td>
+                  <td className="muted">
+                    {e.type === 'probe' && e.pf && (
+                      <>
+                        <Badge color="#16a34a">{e.pf}</Badge>{' '}
+                        {e.ok === false && <Badge color="#f87171">failed</Badge>}
+                      </>
+                    )}
+                    {e.type === 'save' && e.rev && <span className="mono" title={e.rev}>{e.rev}</span>}
+                    {(e.type === 'revert' || e.type === 'delete') && e.act && <Badge color="#fbbf24">{e.act}</Badge>}
+                    {e.type === 'revert' && e.rel && <span className="mono" title={e.rel}> {e.rel}</span>}
+                    {e.partial && <Badge>recovered</Badge>}
+                    {!e.partial && !hasDetails && '—'}
+                  </td>
+                </tr>
+              )
+            })}
             {found === 0 && (
               <tr>
                 <td className="muted" colSpan={7}>No matching events</td>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FocusEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FocusEvent, type SubmitEvent } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 export function SearchBar() {
@@ -47,7 +47,7 @@ export function SearchBar() {
     return () => { window.removeEventListener('keydown', handleKeyDown); }
   }, [])
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     // The header input collapses on navigation: release DOM focus so it
     // doesn't stick in the invisible zero-width field. Collapse explicitly:
@@ -76,7 +76,7 @@ export function SearchBar() {
     }
   }
 
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform ?? '')
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
   const shortcutText = isMac ? '⌘K' : 'Ctrl K'
 
   return (

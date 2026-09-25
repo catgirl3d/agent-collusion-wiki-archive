@@ -147,7 +147,7 @@ describe('collectPayloadEvidence', () => {
   })
 
   it('caps entries per flag', () => {
-    const result = collectPayloadEvidence(Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${i}` })), ['tunnel'], { perFlagCap: 2 })
+    const result = collectPayloadEvidence(Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${String(i)}` })), ['tunnel'], { perFlagCap: 2 })
     expect(result.entries).toHaveLength(2)
     expect(result.entries.every((entry) => entry.flag === 'tunnel')).toBe(true)
   })
@@ -188,7 +188,7 @@ describe('collectPayloadEvidence', () => {
   })
 
   it('applies caps independently for each flag', () => {
-    const revisions = Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${i} https://counterapi.dev/${i}` }))
+    const revisions = Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${String(i)} https://counterapi.dev/${String(i)}` }))
     const result = collectPayloadEvidence(revisions, ['tunnel', 'beacon'], { perFlagCap: 2 })
     expect(result.entries.filter((entry) => entry.flag === 'tunnel')).toHaveLength(2)
     expect(result.entries.filter((entry) => entry.flag === 'beacon')).toHaveLength(2)
@@ -301,8 +301,8 @@ describe('analyzeRevisionChange', () => {
   })
 
   it('identifies truncated mixed for >600 line fallback diffs', () => {
-    const beforeLines = Array.from({ length: 650 }, (_, i) => `Before line ${i}`)
-    const afterLines = Array.from({ length: 650 }, (_, i) => `After line ${i}`)
+    const beforeLines = Array.from({ length: 650 }, (_, i) => `Before line ${String(i)}`)
+    const afterLines = Array.from({ length: 650 }, (_, i) => `After line ${String(i)}`)
     const before = beforeLines.join('\n')
     const after = afterLines.join('\n')
 
@@ -505,8 +505,8 @@ describe('derivePairEvidence', () => {
     expect(evidence.coverageStatus).toBe('complete')
     expect(evidence.pairObservations.some((item) => item.status === 're-added-after-third-party')).toBe(true)
     expect(evidence.artifactObservations).toHaveLength(4)
-    const pinggy = evidence.artifacts.find((item) => item.canonicalValue === 'pinggy.io')!
-    expect(pinggy.refs).toEqual([{ revIndex: 0, label: 'A', seq: 1 }, { revIndex: 2, label: 'B', seq: 3 }])
+    const pinggy = evidence.artifacts.find((item) => item.canonicalValue === 'pinggy.io')
+    expect(pinggy?.refs).toEqual([{ revIndex: 0, label: 'A', seq: 1 }, { revIndex: 2, label: 'B', seq: 3 }])
   })
 
   it('orders shared refs chronologically when the right label added first', () => {
@@ -517,8 +517,8 @@ describe('derivePairEvidence', () => {
     ]
     const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
 
-    const item = evidence.commonHosts.find((entry) => entry.canonicalValue === 'same.example')!
-    expect(item.refs).toEqual([
+    const item = evidence.commonHosts.find((entry) => entry.canonicalValue === 'same.example')
+    expect(item?.refs).toEqual([
       { revIndex: 0, label: 'B', seq: 1 },
       { revIndex: 2, label: 'A', seq: 3 },
     ])
@@ -610,8 +610,8 @@ describe('derivePairEvidence', () => {
     const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
     const item = evidence.artifacts.find((entry) => entry.canonicalValue === 'pinggy.io')
     expect(item).toBeDefined()
-    expect(item!.counts).toEqual({ A: 3, B: 1 })
-    expect(new Set(item!.statuses)).toEqual(new Set(['second-actor-added', 're-added-after-third-party']))
+    expect(item?.counts).toEqual({ A: 3, B: 1 })
+    expect(new Set(item?.statuses)).toEqual(new Set(['second-actor-added', 're-added-after-third-party']))
     const byStatus = new Map(evidence.pairObservations.filter((row) => row.artifact === 'domain:pinggy.io').map((row) => [row.status, row.observationRefs]))
     expect(byStatus.get('second-actor-added')).toEqual(['page|2|B|domain|pinggy.io|sig-extractor-v2'])
     expect(byStatus.get('re-added-after-third-party')).toEqual(['page|4|A|domain|pinggy.io|sig-extractor-v2'])

@@ -7,9 +7,9 @@ const loadJsonMock = vi.hoisted(() => vi.fn())
 vi.mock('../api', () => ({ loadJson: loadJsonMock }))
 
 class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe() { return undefined }
+  unobserve() { return undefined }
+  disconnect() { return undefined }
 }
 
 const summary = {

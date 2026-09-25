@@ -40,7 +40,7 @@ export function Dropdown<Value extends string | number>({
   const triggerId = id ?? `dropdown-trigger-${instanceId}`
   const listboxId = `dropdown-options-${instanceId}`
   const selectedIndex = options.findIndex((option) => option.value === value)
-  const selectedOption = options[selectedIndex]
+  const selectedOption = selectedIndex < 0 ? undefined : options[selectedIndex]
   const findEnabledIndex = (start: number, step: 1 | -1) => {
     for (let index = start; index >= 0 && index < options.length; index += step) {
       if (!options[index].disabled) return index
@@ -173,9 +173,12 @@ export function Dropdown<Value extends string | number>({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
-        aria-activedescendant={open && options[activeOptionIndex] ? `${listboxId}-option-${activeOptionIndex}` : undefined}
+        aria-activedescendant={open && options[activeOptionIndex] ? `${listboxId}-option-${String(activeOptionIndex)}` : undefined}
         disabled={disabled || options.length === 0}
-        onClick={() => { open ? close() : openWithIndex(fallbackIndex); }}
+        onClick={() => {
+          if (open) close()
+          else openWithIndex(fallbackIndex)
+        }}
         onKeyDown={handleTriggerKeyDown}
       >
         <span>{displayedLabel}</span>
@@ -192,7 +195,7 @@ export function Dropdown<Value extends string | number>({
             <button
               ref={(element) => { optionRefs.current[index] = element }}
               key={String(option.value)}
-              id={`${listboxId}-option-${index}`}
+              id={`${listboxId}-option-${String(index)}`}
               type="button"
               tabIndex={-1}
               role="option"

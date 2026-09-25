@@ -2,6 +2,10 @@ import type { SearchIndex } from '../types'
 
 const TOKEN_RE = /[a-z0-9]+/g
 
+type SparseSearchIndex = Omit<SearchIndex, 'tokens'> & {
+  tokens: Partial<SearchIndex['tokens']>
+}
+
 /**
  * Looks up term(s) in the full-text index (web/public/data/search_index.json:
  * tokens[term] = [slug,...]). Returns null when the index is unavailable or
@@ -12,7 +16,7 @@ const TOKEN_RE = /[a-z0-9]+/g
  * Underscores are treated as separators ("by_pass" → by + pass): same semantics
  * as in page names, where by_pass appears as separate tokenizer words.
  */
-export function lookupTokenPostings(index: SearchIndex | null | undefined, term: string): string[] | null {
+export function lookupTokenPostings(index: SparseSearchIndex | null | undefined, term: string): string[] | null {
   const words = term.trim().toLowerCase().replace(/[^a-z0-9\s]+/g, ' ').match(TOKEN_RE)?.filter((w) => w.length >= 3) ?? []
   if (!index || !words.length) return null
   let postings: string[] | null = null

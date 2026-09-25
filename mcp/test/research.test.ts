@@ -120,28 +120,30 @@ function fakeAssets(): { state: FakeState; assets: AssetReader } {
     activityHours,
   }
   const assets = {
-    async getJson(path: string) {
+    getJson(path: string) {
       state.calls.push(path)
       switch (path) {
         case DATA_PATHS.summary:
-          return state.summary
+          return Promise.resolve(state.summary)
         case DATA_PATHS.pages:
-          return state.pages
+          return Promise.resolve(state.pages)
         case DATA_PATHS.timeline:
-          return state.timeline
+          return Promise.resolve(state.timeline)
         case DATA_PATHS.activityByDay:
-          return state.activityDays
+          return Promise.resolve(state.activityDays)
         case DATA_PATHS.activityByHour:
-          return state.activityHours
+          return Promise.resolve(state.activityHours)
         default:
-          throw new Error(`unexpected path ${path}`)
+          return Promise.reject(new Error(`unexpected path ${path}`))
       }
     },
-    async getBytes(path: string) {
+    getBytes(path: string) {
       state.calls.push(path)
-      if (path !== DATA_PATHS.corpus) throw new Error(`unexpected path ${path}`)
-      if (state.failCorpus) throw new ArchiveDataError('archive_data_unavailable', 'corpus is unavailable')
-      return corpusGzip
+      if (path !== DATA_PATHS.corpus) return Promise.reject(new Error(`unexpected path ${path}`))
+      if (state.failCorpus) {
+        return Promise.reject(new ArchiveDataError('archive_data_unavailable', 'corpus is unavailable'))
+      }
+      return Promise.resolve(corpusGzip)
     },
   } as unknown as AssetReader
   return { state, assets }
@@ -503,31 +505,30 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
 
   it('does not reuse or overwrite an in-flight corpus load across summary versions', async () => {
     const summaryState = makeSummary()
-    let releaseFirst: (() => void) | null = null
+    const firstGateControl: { release?: () => void } = {}
     const firstGate = new Promise<void>((resolve) => {
-      releaseFirst = () => { resolve(); }
+      firstGateControl.release = () => { resolve(); }
     })
     let corpusCalls = 0
 
     const assets = {
-      async getJson(path: string) {
+      getJson(path: string) {
         switch (path) {
           case DATA_PATHS.summary:
-            return summaryState
+            return Promise.resolve(summaryState)
           case DATA_PATHS.pages:
-            return pages
+            return Promise.resolve(pages)
           default:
-            throw new Error(`unexpected path ${path}`)
+            return Promise.reject(new Error(`unexpected path ${path}`))
         }
       },
-      async getBytes(path: string) {
-        if (path !== DATA_PATHS.corpus) throw new Error(`unexpected path ${path}`)
+      getBytes(path: string) {
+        if (path !== DATA_PATHS.corpus) return Promise.reject(new Error(`unexpected path ${path}`))
         corpusCalls += 1
         if (corpusCalls === 1) {
-          await firstGate
-          return corpusGzip
+          return firstGate.then(() => corpusGzip)
         }
-        return corpusGzip
+        return Promise.resolve(corpusGzip)
       },
     } as unknown as AssetReader
 
@@ -537,7 +538,9 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
 
     summaryState.export_generated_at = '2026-06-22T00:00:00Z'
     const newest = await research.searchCorpus({ q: 'state5-id' })
-    releaseFirst!()
+    const releaseFirst = firstGateControl.release
+    if (!releaseFirst) throw new Error('first corpus load gate was not initialized')
+    releaseFirst()
     await oldest
 
     expect(newest.total).toBe(2)

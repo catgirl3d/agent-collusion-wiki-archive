@@ -91,7 +91,7 @@ export default function Research() {
 
   const docs = data?.groups.flatMap((group) => group.docs) ?? []
   const requested = searchParams.get('doc')
-  const active = docs.find((doc) => doc.slug === requested) ?? docs[0] ?? null
+  const active = docs.find((doc) => doc.slug === requested) ?? docs.at(0) ?? null
   const content = useJson(() => (active ? loadText(active.html) : Promise.resolve('')), [active?.html])
 
   const languages = useMemo(() => data?.languages ?? [], [data])
@@ -109,8 +109,9 @@ export default function Research() {
     [languages, translationsByLang],
   )
   const availableLanguagesCount = languageOptions.filter((option) => !option.disabled).length
+  const activeLang: string | undefined = active?.lang
   const activeLanguageLabel =
-    languages.find((language) => language.code === active?.lang)?.label ?? active?.lang?.toUpperCase() ?? ''
+    languages.find((language) => language.code === activeLang)?.label ?? activeLang?.toUpperCase() ?? ''
 
   const [activeId, setActiveId] = useState<string>('')
   const [copied, setCopied] = useState(false)
@@ -317,7 +318,7 @@ export default function Research() {
           {active && (
             <div className="research-doc-meta">
               <div className="research-meta-line">
-                <span className="research-badge-status">{metaInfo?.status || 'PRELIMINARY'}</span>
+                <span className="research-badge-status">{metaInfo?.status?.length ? metaInfo.status : 'PRELIMINARY'}</span>
                 {metaInfo?.date && (
                   <>
                     <span className="meta-sep" aria-hidden="true">·</span>
@@ -332,7 +333,7 @@ export default function Research() {
                 )}
               </div>
               <div className="research-actions">
-                {active && availableLanguagesCount > 1 && (
+                {availableLanguagesCount > 1 && (
                   <Dropdown
                     ariaLabel="Select language"
                     className="lang-dropdown-trigger"
@@ -434,7 +435,7 @@ export default function Research() {
                 const isActive = activeId === item.id
 
                 return (
-                  <li key={item.id} className={`research-toc-item level-${item.level}`}>
+                  <li key={item.id} className={`research-toc-item level-${String(item.level)}`}>
                     <a
                       href={`#${item.id}`}
                       aria-label={`Jump to ${item.text}`}
@@ -489,7 +490,7 @@ export default function Research() {
                     const isActive = activeId === item.id
 
                     return (
-                      <li key={item.id} className={`research-toc-item level-${item.level}`}>
+                      <li key={item.id} className={`research-toc-item level-${String(item.level)}`}>
                         <a
                           href={`#${item.id}`}
                           aria-label={`Jump to ${item.text}`}

@@ -12,7 +12,7 @@ function makeEvents(count: number): RecentEvent[] {
     t: new Date(Date.UTC(2026, 5, 1, 0, 0, i)).toISOString(),
     type: 'save',
     wiki: 'dse',
-    page: `Page${i}`,
+    page: `Page${String(i)}`,
     action: 'edit',
     ip16: '2.0',
   }))

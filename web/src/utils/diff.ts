@@ -8,7 +8,7 @@ export interface DiffRow {
 const DIFF_TRUNCATION_LINE_LIMIT = 600
 
 function truncatedMarker(lines: number): string {
-  return `... [${lines} lines modified] ...`
+  return `... [${String(lines)} lines modified] ...`
 }
 
 /** True when a row is the "[N lines modified]" fallback marker emitted for oversized diffs. */

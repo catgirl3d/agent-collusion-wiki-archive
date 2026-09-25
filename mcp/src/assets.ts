@@ -40,17 +40,21 @@ export function isGzip(bytes: Uint8Array): boolean {
   return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
 }
 
+function optionalHeaders(response: Response): { get?: (name: string) => string | null } | null | undefined {
+  return response.headers
+}
+
 async function readBoundedBytes(response: Response, maxBytes: number, label: string): Promise<Uint8Array> {
-  const contentLength = Number(response.headers?.get?.('content-length'))
+  const contentLength = Number(optionalHeaders(response)?.get?.('content-length'))
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     await response.body?.cancel().catch(() => undefined)
-    throw new ArchiveDataError('archive_data_too_large', `${label} is too large (${contentLength} bytes)`)
+    throw new ArchiveDataError('archive_data_too_large', `${label} is too large (${String(contentLength)} bytes)`)
   }
 
   if (!response.body) {
     const buffer = new Uint8Array(await response.arrayBuffer())
     if (buffer.byteLength > maxBytes) {
-      throw new ArchiveDataError('archive_data_too_large', `${label} is too large (${buffer.byteLength} bytes)`)
+      throw new ArchiveDataError('archive_data_too_large', `${label} is too large (${String(buffer.byteLength)} bytes)`)
     }
     return buffer
   }
@@ -59,13 +63,13 @@ async function readBoundedBytes(response: Response, maxBytes: number, label: str
   const chunks: Uint8Array[] = []
   let size = 0
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
       if (size > maxBytes) {
         await reader.cancel().catch(() => undefined)
-        throw new ArchiveDataError('archive_data_too_large', `${label} is too large (over ${maxBytes} bytes)`)
+        throw new ArchiveDataError('archive_data_too_large', `${label} is too large (over ${String(maxBytes)} bytes)`)
       }
       chunks.push(value)
     }
@@ -136,10 +140,10 @@ export class ArchiveAssets {
 
       if (!response.ok) {
         await response.body?.cancel().catch(() => undefined)
-        throw new ArchiveDataError('archive_data_unavailable', `${path} returned HTTP ${response.status}`)
+        throw new ArchiveDataError('archive_data_unavailable', `${path} returned HTTP ${String(response.status)}`)
       }
 
-      const contentType = (response.headers?.get?.('content-type') ?? '').toLowerCase()
+      const contentType = (optionalHeaders(response)?.get?.('content-type') ?? '').toLowerCase()
       if (contentType.includes('text/html')) {
         await response.body?.cancel().catch(() => undefined)
         throw new ArchiveDataError('archive_data_invalid', `${path} returned HTML instead of data`)
@@ -149,7 +153,7 @@ export class ArchiveAssets {
     } catch (error) {
       if (error instanceof ArchiveDataError) throw error
       if (controller.signal.aborted) {
-        throw new ArchiveDataError('archive_data_unavailable', `${path} request timed out after ${this.timeoutMs} ms`)
+        throw new ArchiveDataError('archive_data_unavailable', `${path} request timed out after ${String(this.timeoutMs)} ms`)
       }
       throw new ArchiveDataError('archive_data_unavailable', `${path} is unavailable`)
     } finally {

@@ -469,7 +469,7 @@ describe('Search', () => {
     expect(screen.queryByText('A-result')).toBeNull()
   })
 
-  it('exposes durable labels for text filters', async () => {
+  it('exposes durable labels for text filters', () => {
     stubSearchData()
     render(<MemoryRouter initialEntries={['/search']}><Routes><Route path="/search" element={<Search />} /></Routes></MemoryRouter>)
     expect(screen.getByLabelText('Search text')).toBeInTheDocument()
@@ -636,7 +636,7 @@ describe('Search', () => {
     expect(screen.getByRole('button', { name: 'loading…' })).toBeDisabled()
     expect(screen.getByText(/1.9 KB · 12 lines/)).toBeInTheDocument()
 
-    await act(async () => {
+    act(() => {
       worker.respond({
         type: 'body',
         requestId: worker.messages[1].requestId,
@@ -674,7 +674,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /full text/ }))
     await waitFor(() => { expect(worker.messages).toHaveLength(2); })
-    await act(async () => {
+    act(() => {
       worker.respond({
         type: 'error',
         requestId: worker.messages[1].requestId,
@@ -688,7 +688,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /full text/ }))
     await waitFor(() => { expect(worker.messages).toHaveLength(3); })
-    await act(async () => {
+    act(() => {
       worker.respond({
         type: 'body',
         requestId: worker.messages[2].requestId,
@@ -728,7 +728,7 @@ describe('Search', () => {
     })
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
 
-    await act(async () => {
+    act(() => {
       worker.respond({ type: 'body', requestId: worker.messages[1].requestId, body: 'late body' })
     })
 

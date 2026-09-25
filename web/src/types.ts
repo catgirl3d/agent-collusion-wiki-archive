@@ -90,7 +90,7 @@ export interface LabelIp16Record {
   /** labeled revision rows on this prefix */
   r: number
   /** [label, rows] pairs, weight desc then label asc */
-  l: Array<[string, number]>
+  l: [string, number][]
   /** wikis of the labeled rows */
   w: string[]
   f: string
@@ -104,7 +104,7 @@ export interface LabelsIp16Index {
 
 export type EventType = 'save' | 'delete' | 'revert' | 'probe'
 
-type RecentEventFields = {
+interface RecentEventFields {
   t: string
   wiki: string
   page: string
@@ -283,4 +283,3 @@ export interface ResearchIndex {
   languages: ResearchLanguage[]
   groups: ResearchGroup[]
 }
-

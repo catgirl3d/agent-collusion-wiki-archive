@@ -73,7 +73,7 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle, NetworkCanvasProps>(functi
       if (!cy) return
       cy.elements().removeClass('highlighted dimmed')
       const node = cy.getElementById(nodeId)
-      if (node && node.length > 0) {
+      if (node.length > 0) {
         const neighborhood = node.neighborhood().add(node)
         neighborhood.addClass('highlighted')
         cy.elements().not(neighborhood).addClass('dimmed')
@@ -144,7 +144,7 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle, NetworkCanvasProps>(functi
     cy.elements().removeClass('highlighted dimmed')
     if (selParam) {
       const node = cy.getElementById(selParam)
-      if (node && node.length > 0) {
+      if (node.length > 0) {
         const neighborhood = node.neighborhood().add(node)
         neighborhood.addClass('highlighted')
         cy.elements().not(neighborhood).addClass('dimmed')
@@ -152,7 +152,7 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle, NetworkCanvasProps>(functi
     }
   }, [selParam, networkData, cyReady])
 
-  return <div ref={containerRef} className="network-cytoscape-canvas" role="img" aria-label={`Shared-page graph for ${activeAgent}: ${networkData.nodes.length} agents, ${networkData.edges.length} links`} />
+  return <div ref={containerRef} className="network-cytoscape-canvas" role="img" aria-label={`Shared-page graph for ${activeAgent}: ${String(networkData.nodes.length)} agents, ${String(networkData.edges.length)} links`} />
 })
 
 export default NetworkCanvas

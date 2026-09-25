@@ -30,8 +30,10 @@ describe('SelectionPopup', () => {
       </div>,
     )
 
-    const p = container.querySelector('p')!
-    const textNode = p.firstChild!
+    const p = container.querySelector('p')
+    if (!p) throw new Error('Selected text paragraph was not found')
+    const textNode = p.firstChild
+    if (!textNode) throw new Error('Selected text node was not found')
 
     const mockRange = {
       getBoundingClientRect: () => ({

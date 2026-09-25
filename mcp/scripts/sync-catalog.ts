@@ -43,7 +43,7 @@ function replaceExactlyOnce(
     return replacement(matches[1], ...matches.slice(2, -2))
   })
 
-  if (replacements !== 1) throw new Error(`Expected one ${label} in the source document, found ${replacements}`)
+  if (replacements !== 1) throw new Error(`Expected one ${label} in the source document, found ${String(replacements)}`)
   return updated
 }
 
@@ -57,17 +57,17 @@ function requireLaunchCommand(text: string, packageName: string, path: string): 
 function readSection(text: string, heading: string, level: number, stopLevel = level): string {
   const lines = text.replace(/\r\n/g, '\n').split('\n')
   const matches = lines.flatMap((line, index) => line.trim() === `${'#'.repeat(level)} ${heading}` ? [index] : [])
-  if (matches.length !== 1) throw new Error(`${readmePath}: expected one ${heading} section, found ${matches.length}`)
+  if (matches.length !== 1) throw new Error(`${readmePath}: expected one ${heading} section, found ${String(matches.length)}`)
 
   const start = matches[0] + 1
-  const end = lines.findIndex((line, index) => index >= start && new RegExp(`^#{1,${stopLevel}} `).test(line))
+  const end = lines.findIndex((line, index) => index >= start && new RegExp(`^#{1,${String(stopLevel)}} `).test(line))
   return lines.slice(start, end === -1 ? undefined : end).join('\n')
 }
 
 function readExample(section: string, language: 'bash' | 'json' | 'jsonc', marker: string, label: string, startsWith = false): string {
   const blocks = [...section.matchAll(/^```(bash|jsonc|json)\s*\n([\s\S]*?)^```\s*$/gm)]
     .filter((match) => match[1] === language && (startsWith ? match[2].trimStart().startsWith(marker) : match[2].includes(marker)))
-  if (blocks.length !== 1) throw new Error(`${readmePath}: expected one ${label} example, found ${blocks.length}`)
+  if (blocks.length !== 1) throw new Error(`${readmePath}: expected one ${label} example, found ${String(blocks.length)}`)
   return blocks[0][2].trim()
 }
 
@@ -138,7 +138,7 @@ function synchronizeToolCount(text: string, toolCount: number): string {
   return replaceExactlyOnce(
     text,
     /(^- \*\*Features\*\*:\s*)(\d+)( dedicated research tools)/m,
-    (prefix, _count, suffix) => `${prefix}${toolCount}${suffix}`,
+    (prefix, _count, suffix) => `${prefix}${String(toolCount)}${suffix}`,
     'llms.txt tool count',
   )
 }
@@ -205,29 +205,29 @@ async function expectedFiles(root: string): Promise<Map<string, string>> {
 
 export async function syncCatalog(mode: SyncMode, root = repositoryRoot): Promise<void> {
   const outputs = await expectedFiles(root)
-  const stalePaths: string[] = []
+  const stalePaths = new Map<string, string>()
 
   for (const [relativePath, expected] of outputs) {
     try {
       const actual = normalizeLineEndings(await readFile(resolve(root, relativePath), 'utf8'))
-      if (actual !== normalizeLineEndings(expected)) stalePaths.push(relativePath)
+      if (actual !== normalizeLineEndings(expected)) stalePaths.set(relativePath, expected)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      stalePaths.push(relativePath)
+      stalePaths.set(relativePath, expected)
     }
   }
 
   if (mode === 'check') {
-    if (stalePaths.length > 0) {
-      throw new Error(`MCP catalog artifacts are stale: ${stalePaths.join(', ')}. Run npm run catalog:write.`)
+    if (stalePaths.size > 0) {
+      throw new Error(`MCP catalog artifacts are stale: ${[...stalePaths.keys()].join(', ')}. Run npm run catalog:write.`)
     }
     return
   }
 
-  for (const relativePath of stalePaths) {
+  for (const [relativePath, output] of stalePaths) {
     const target = resolve(root, relativePath)
     await mkdir(dirname(target), { recursive: true })
-    await writeFile(target, outputs.get(relativePath)!, 'utf8')
+    await writeFile(target, output, 'utf8')
   }
 }
 

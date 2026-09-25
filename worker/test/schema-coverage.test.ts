@@ -6,15 +6,15 @@ import addFormats from 'ajv-formats'
 import { describe, expect, it } from 'vitest'
 
 type JsonSchema = Record<string, unknown>
-type OpenApiDocument = {
-  paths: Record<string, { get?: { operationId?: string; responses?: Record<string, unknown> } }>
+interface OpenApiDocument {
+  paths: Record<string, { get?: { operationId?: string; responses?: Record<string, unknown> } } | undefined>
   components: {
     schemas: Record<string, JsonSchema>
     responses: Record<string, unknown>
   }
 }
 
-type CoverageEntry = {
+interface CoverageEntry {
   path: string
   operationId: string
   assetPath: string
@@ -148,8 +148,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function resolveSchema(schema: JsonSchema, document = contract): JsonSchema {
   if (typeof schema.$ref !== 'string') return schema
-  const match = schema.$ref.match(/^#\/components\/schemas\/([^/]+)$/)
-  if (!match || !document.components.schemas[match[1]]) {
+  const match = /^#\/components\/schemas\/([^/]+)$/.exec(schema.$ref)
+  if (!match || !Object.hasOwn(document.components.schemas, match[1])) {
     throw new Error(`unsupported or missing schema reference: ${schema.$ref}`)
   }
   return document.components.schemas[match[1]]
@@ -191,7 +191,7 @@ function responseItemSchema(entry: CoverageEntry): JsonSchema {
   if (!isRecord(successResponse)) throw new Error(`missing 200 response for ${entry.operationId}`)
   let response: Record<string, unknown> = successResponse
   if (typeof response.$ref === 'string') {
-    const match = response.$ref.match(/^#\/components\/responses\/([^/]+)$/)
+    const match = /^#\/components\/responses\/([^/]+)$/.exec(response.$ref)
     if (!match || !contract.components.responses[match[1]]) {
       throw new Error(`unsupported or missing response reference: ${response.$ref}`)
     }
@@ -229,8 +229,10 @@ function validatorFor(schemaName: string) {
   const cached = validators.get(schemaName)
   if (cached) return cached
 
+  if (!Object.hasOwn(contract.components.schemas, schemaName)) {
+    throw new Error(`missing component schema: ${schemaName}`)
+  }
   const componentSchema = contract.components.schemas[schemaName]
-  if (!componentSchema) throw new Error(`missing component schema: ${schemaName}`)
   const root = rewriteComponentRefs({
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $defs: contract.components.schemas,
@@ -249,7 +251,7 @@ function undeclaredFields(value: unknown, schema: JsonSchema, path: string): str
 
   if (Array.isArray(value)) {
     return isRecord(resolved.items)
-      ? value.flatMap((item, index) => undeclaredFields(item, resolved.items as JsonSchema, `${path}[${index}]`))
+      ? value.flatMap((item, index) => undeclaredFields(item, resolved.items as JsonSchema, `${path}[${String(index)}]`))
       : []
   }
   if (!isRecord(value)) return []
@@ -285,7 +287,7 @@ function selectRows(value: unknown, path: string[]): unknown[] {
   return selectRows(value[step], remaining)
 }
 
-function assetFiles(assetPath: string): Array<{ relativePath: string; fullPath: string }> {
+function assetFiles(assetPath: string): { relativePath: string; fullPath: string }[] {
   if (assetPath.endsWith('/*.json')) {
     const relativeDirectory = assetPath.slice(0, -'/*.json'.length)
     const fullDirectory = join(projectRoot, ...relativeDirectory.split('/'))
@@ -298,7 +300,7 @@ function assetFiles(assetPath: string): Array<{ relativePath: string; fullPath: 
   return [{ relativePath: assetPath, fullPath: join(projectRoot, ...assetPath.split('/')) }]
 }
 
-type Issue = { message: string; count: number; first: string }
+interface Issue { message: string; count: number; first: string }
 
 function collectCoverageIssues(entries: CoverageEntry[]): Map<string, Issue> {
   const issues = new Map<string, Issue>()
@@ -321,7 +323,7 @@ function collectCoverageIssues(entries: CoverageEntry[]): Map<string, Issue> {
       rowCount += rows.length
 
       rows.forEach((row, index) => {
-        const source = `${file.relativePath}[${index}]`
+        const source = `${file.relativePath}[${String(index)}]`
         if (!validate(row)) {
           for (const error of validate.errors ?? []) {
             const detail = `${error.instancePath || '/'} ${error.keyword} ${error.message ?? ''}`.trim()
@@ -354,7 +356,7 @@ describe('processed asset schema coverage', () => {
     const issues = collectCoverageIssues(coverageRegistry)
     const report = [...issues.values()]
       .sort((left, right) => left.message.localeCompare(right.message))
-      .map((issue) => `- ${issue.message} (${issue.count} rows; first at ${issue.first})`)
+      .map((issue) => `- ${issue.message} (${String(issue.count)} rows; first at ${issue.first})`)
       .join('\n')
 
     expect(issues.size, report || 'All registered asset rows match their response schemas.').toBe(0)

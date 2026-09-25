@@ -12,6 +12,10 @@ import {
 import type { McpPlatform } from '../utils/mcpConfig'
 
 type ClientTab = 'kilo' | 'claude' | 'cursor' | 'vscode' | 'http'
+type CatalogTool = Omit<(typeof toolCatalog.tools)[number], 'description'> & { description?: string }
+
+const tools: CatalogTool[] = toolCatalog.tools
+const toolPresentations: Partial<typeof MCP_TOOL_PRESENTATION> = MCP_TOOL_PRESENTATION
 
 export default function Mcp() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -75,13 +79,13 @@ curl -s "${origin}/api/openapi"
           ? serializeCursorConfig(configOptions)
           : serializeVsCodeConfig(configOptions)
 
-  const categories = ['All', ...new Set(toolCatalog.tools.map(
-    (tool) => MCP_TOOL_PRESENTATION[tool.name]?.category ?? 'Other'
+  const categories = ['All', ...new Set(tools.map(
+    (tool) => toolPresentations[tool.name]?.category ?? 'Other'
   ))]
   const filteredTools = selectedCategory === 'All'
-    ? toolCatalog.tools
-    : toolCatalog.tools.filter(
-      (tool) => (MCP_TOOL_PRESENTATION[tool.name]?.category ?? 'Other') === selectedCategory
+    ? tools
+    : tools.filter(
+      (tool) => (toolPresentations[tool.name]?.category ?? 'Other') === selectedCategory
     )
 
   return (
@@ -291,7 +295,7 @@ curl -s "${origin}/api/openapi"
 
         <div className="mcp-tools-grid">
           {filteredTools.map((tool) => {
-            const presentation = MCP_TOOL_PRESENTATION[tool.name]
+            const presentation = toolPresentations[tool.name]
             const example = JSON.stringify({ name: tool.name, arguments: presentation?.exampleArguments ?? {} })
 
             return (

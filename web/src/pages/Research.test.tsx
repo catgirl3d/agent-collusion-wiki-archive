@@ -275,11 +275,12 @@ describe('Research', () => {
   })
 
   it('scrolls to in-document heading anchors with the header offset', async () => {
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
     renderResearch()
     await screen.findByText('First body')
 
-    const heading = document.getElementById('section-1')!
+    const heading = document.getElementById('section-1')
+    if (!heading) throw new Error('Expected section heading in the rendered document')
     vi.spyOn(heading, 'getBoundingClientRect').mockReturnValue({
       top: 400,
       bottom: 430,
@@ -289,7 +290,7 @@ describe('Research', () => {
       height: 30,
       x: 0,
       y: 400,
-      toJSON: () => {},
+      toJSON: () => undefined,
     })
 
     const anchor = screen.getByRole('link', { name: 'Direct link to Section 1' })
@@ -350,7 +351,8 @@ describe('Research', () => {
 
     await screen.findByText('Section 1 body')
 
-    const layout = container.querySelector('.research-layout')!
+    const layout = container.querySelector('.research-layout')
+    if (!layout) throw new Error('Expected the research layout')
     expect(layout).toHaveClass('has-toc')
     expect(layout).not.toHaveClass('is-nav-collapsed')
     expect(layout).not.toHaveClass('is-toc-collapsed')
@@ -449,7 +451,7 @@ describe('Research', () => {
   })
 
   it('scrolls to the top and closes the mobile toc from its back-to-top action', async () => {
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
     renderResearch('/research?doc=coordination-topology')
     await screen.findByText('First body')
 

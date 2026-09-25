@@ -130,7 +130,7 @@ function sha256Hex(bytes: Uint8Array): string {
 }
 
 function invalidRow(row: number): ArchiveDataError {
-  return new ArchiveDataError('archive_data_invalid', `corpus row ${row} is malformed`)
+  return new ArchiveDataError('archive_data_invalid', `corpus row ${String(row)} is malformed`)
 }
 
 function normalizeCorpusRecord(raw: unknown, row: number): CorpusRecord {
@@ -165,7 +165,7 @@ export function parseCorpus(bytes: Uint8Array, summary: Summary): CorpusRecord[]
   let decoded: Uint8Array
   if (isGzip(bytes)) {
     if (bytes.byteLength > CORPUS_MAX_GZIP_BYTES) {
-      throw new ArchiveDataError('archive_data_too_large', `corpus gzip exceeds ${CORPUS_MAX_GZIP_BYTES} bytes`)
+      throw new ArchiveDataError('archive_data_too_large', `corpus gzip exceeds ${String(CORPUS_MAX_GZIP_BYTES)} bytes`)
     }
     if (sha256Hex(bytes) !== corpus.sha256 || bytes.byteLength !== corpus.compressed_bytes) {
       throw new ArchiveDataError('archive_data_invalid', 'corpus gzip does not match summary metadata')
@@ -174,7 +174,7 @@ export function parseCorpus(bytes: Uint8Array, summary: Summary): CorpusRecord[]
       decoded = new Uint8Array(gunzipSync(bytes, { maxOutputLength: CORPUS_MAX_DECODED_BYTES }))
     } catch (error) {
       if ((error as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') {
-        throw new ArchiveDataError('archive_data_too_large', `corpus exceeds ${CORPUS_MAX_DECODED_BYTES} decoded bytes`)
+        throw new ArchiveDataError('archive_data_too_large', `corpus exceeds ${String(CORPUS_MAX_DECODED_BYTES)} decoded bytes`)
       }
       throw new ArchiveDataError('archive_data_invalid', 'corpus gzip could not be decompressed')
     }
@@ -183,7 +183,7 @@ export function parseCorpus(bytes: Uint8Array, summary: Summary): CorpusRecord[]
   }
 
   if (decoded.byteLength > CORPUS_MAX_DECODED_BYTES) {
-    throw new ArchiveDataError('archive_data_too_large', `corpus exceeds ${CORPUS_MAX_DECODED_BYTES} decoded bytes`)
+    throw new ArchiveDataError('archive_data_too_large', `corpus exceeds ${String(CORPUS_MAX_DECODED_BYTES)} decoded bytes`)
   }
   if (sha256Hex(decoded) !== corpus.decoded_sha256 || decoded.byteLength !== corpus.decoded_bytes) {
     throw new ArchiveDataError('archive_data_invalid', 'corpus data does not match summary metadata')
@@ -198,13 +198,13 @@ export function parseCorpus(bytes: Uint8Array, summary: Summary): CorpusRecord[]
     start = index + 1
     if (!line) continue
     if (records.length >= CORPUS_MAX_ROWS) {
-      throw new ArchiveDataError('archive_data_too_large', `corpus exceeds ${CORPUS_MAX_ROWS} rows`)
+      throw new ArchiveDataError('archive_data_too_large', `corpus exceeds ${String(CORPUS_MAX_ROWS)} rows`)
     }
     let raw: unknown
     try {
       raw = JSON.parse(line)
     } catch {
-      throw new ArchiveDataError('archive_data_invalid', `corpus row ${records.length + 1} is not valid JSON`)
+      throw new ArchiveDataError('archive_data_invalid', `corpus row ${String(records.length + 1)} is not valid JSON`)
     }
     records.push(normalizeCorpusRecord(raw, records.length + 1))
   }
@@ -212,7 +212,7 @@ export function parseCorpus(bytes: Uint8Array, summary: Summary): CorpusRecord[]
   if (records.length !== corpus.revisions) {
     throw new ArchiveDataError(
       'archive_data_invalid',
-      `corpus has ${records.length} rows, summary declares ${corpus.revisions}`,
+      `corpus has ${String(records.length)} rows, summary declares ${String(corpus.revisions)}`,
     )
   }
   return records
@@ -309,19 +309,25 @@ export class ArchiveResearch {
   private async getTimeline(summary: Summary): Promise<TimelineFile> {
     const version = versionOf(summary)
     if (this.timelineCache?.version === version) return this.timelineCache.value
-    const file = await this.assets.getJson<TimelineFile>(DATA_PATHS.timeline)
-    if (file?.meta?.schema_version !== 1 || !Array.isArray(file.r)) {
+    const file = await this.assets.getJson<{
+      meta: TimelineFile['meta'] | null | undefined
+      r: TimelineEntry[] | null | undefined
+    } | null>(DATA_PATHS.timeline)
+    const meta = file?.meta
+    const revisions = file?.r
+    if (meta?.schema_version !== 1 || !Array.isArray(revisions)) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json has an unsupported schema')
     }
+    const timeline: TimelineFile = { meta, r: revisions }
     // A missing timestamp and an explicit null both mean "generation unknown".
-    if ((file.meta.export_generated_at ?? null) !== (summary.export_generated_at ?? null)) {
+    if ((timeline.meta.export_generated_at ?? null) !== (summary.export_generated_at ?? null)) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json does not match summary generation')
     }
-    if (file.meta.count !== file.r.length) {
+    if (timeline.meta.count !== timeline.r.length) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json count does not match its rows')
     }
     const expectedCount = summary.combined?.revisions ?? summary.counts?.revisions
-    if (expectedCount !== undefined && file.r.length !== expectedCount) {
+    if (expectedCount !== undefined && timeline.r.length !== expectedCount) {
       throw new ArchiveDataError('archive_data_invalid', 'timeline.json does not match summary counts')
     }
     const canonicalCount = summary.counts?.revisions
@@ -335,18 +341,19 @@ export class ArchiveResearch {
     ) {
       throw new ArchiveDataError('archive_data_invalid', 'summary counts do not match combined revisions')
     }
-    this.timelineCache = { version, value: file }
-    return file
+    this.timelineCache = { version, value: timeline }
+    return timeline
   }
 
   private async getPages(summary: Summary): Promise<Map<string, PageEntry>> {
     const version = versionOf(summary)
     if (this.pagesCache?.version === version) return this.pagesCache.value
-    const file = await this.assets.getJson<{ p: PageEntry[] }>(DATA_PATHS.pages)
-    if (!file || !Array.isArray(file.p) || !file.p.every(isPageEntry)) {
+    const file = await this.assets.getJson<{ p?: unknown } | null>(DATA_PATHS.pages)
+    const pages = file?.p
+    if (!Array.isArray(pages) || !pages.every(isPageEntry)) {
       throw new ArchiveDataError('archive_data_invalid', 'pages.json has an unsupported schema')
     }
-    const map = new Map(file.p.map((page) => [page.id, page]))
+    const map = new Map(pages.map((page) => [page.id, page]))
     this.pagesCache = { version, value: map }
     return map
   }
@@ -378,8 +385,16 @@ export class ArchiveResearch {
   }
 
   async listRevisions(args: ListRevisionsArgs) {
-    const order = args.order ?? 'desc'
-    if (order !== 'desc' && order !== 'asc') throw new ArchiveQueryError('order must be desc or asc')
+    const requestedOrder: unknown = args.order
+    if (
+      requestedOrder !== null
+      && requestedOrder !== undefined
+      && requestedOrder !== 'desc'
+      && requestedOrder !== 'asc'
+    ) {
+      throw new ArchiveQueryError('order must be desc or asc')
+    }
+    const order = requestedOrder === 'asc' ? 'asc' : 'desc'
     const day = assertDate(args.day, 'day')
     const from = assertDate(args.from, 'from')
     const to = assertDate(args.to, 'to')
@@ -486,7 +501,8 @@ export class ArchiveResearch {
   }
 
   async getActivity(args: GetActivityArgs) {
-    if (args.by !== 'day' && args.by !== 'hour') throw new ArchiveQueryError('by must be day or hour')
+    const by: unknown = args.by
+    if (by !== 'day' && by !== 'hour') throw new ArchiveQueryError('by must be day or hour')
     const from = assertDate(args.from, 'from')
     const to = assertDate(args.to, 'to')
     assertRange(from, to)
@@ -494,7 +510,7 @@ export class ArchiveResearch {
     const summary = await this.getSummary()
     const version = versionOf(summary)
 
-    if (args.by === 'hour') {
+    if (by === 'hour') {
       if (args.wiki || from || to) {
         throw new ArchiveQueryError('hourly activity has no wiki/date dimensions; use by=day for filters')
       }

@@ -234,13 +234,13 @@ describe('corpus sorting', () => {
       match({ id: 'dse/PageA', x: 'AgentA', seq: 1, t: '2026-06-19T10:00:00Z' }),
     ]
 
-    expect(sortMatches(matches, 'label', 'asc').map((item) => `${item.id}:${item.seq}`)).toEqual([
+    expect(sortMatches(matches, 'label', 'asc').map((item) => `${item.id}:${String(item.seq)}`)).toEqual([
       'dse/PageA:1',
       'dse/PageA:2',
       'dse/PageC:1',
       'dse/PageB:2',
     ])
-    expect(sortMatches(matches, 'label', 'desc').map((item) => `${item.id}:${item.seq}`)).toEqual([
+    expect(sortMatches(matches, 'label', 'desc').map((item) => `${item.id}:${String(item.seq)}`)).toEqual([
       'dse/PageC:1',
       'dse/PageA:1',
       'dse/PageA:2',

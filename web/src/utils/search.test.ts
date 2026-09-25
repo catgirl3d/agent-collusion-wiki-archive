@@ -29,7 +29,7 @@ describe('full-text search and token postings', () => {
       urls: {},
       meta: { built_from: 'test', n_tokens: 3 },
     }
-    expect(lookupTokenPostings(multi, 'bypass probe')!.sort()).toEqual(['dse_BypassPage~', 'dse_Shared~'])
+    expect(lookupTokenPostings(multi, 'bypass probe')?.sort()).toEqual(['dse_BypassPage~', 'dse_Shared~'])
     expect(lookupTokenPostings(multi, 'bypass simple')).toEqual([])
   })
 
@@ -45,8 +45,8 @@ describe('full-text search and token postings', () => {
     // BY_PASS splits into by + pass; by is dropped (<3), pass is missing from the index → []
     expect(lookupTokenPostings(multi, 'Probe BY_PASS!')).toEqual([])
     // mixed case + punctuation normalize to ready tokens
-    expect(lookupTokenPostings(multi, 'Probe, BYpass!')!.sort()).toEqual(['dse_BypassPage~', 'dse_Shared~'])
+    expect(lookupTokenPostings(multi, 'Probe, BYpass!')?.sort()).toEqual(['dse_BypassPage~', 'dse_Shared~'])
     // the short word "by" is dropped — only probe remains
-    expect(lookupTokenPostings(multi, 'by probe')!.sort()).toEqual(['dse_BypassPage~', 'dse_ProbePage~', 'dse_Shared~'])
+    expect(lookupTokenPostings(multi, 'by probe')?.sort()).toEqual(['dse_BypassPage~', 'dse_ProbePage~', 'dse_Shared~'])
   })
 })

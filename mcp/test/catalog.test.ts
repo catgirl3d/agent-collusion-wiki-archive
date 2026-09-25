@@ -137,7 +137,7 @@ describe('MCP tool catalog synchronization', () => {
     expect(readme).toContain('npx --yes @example/archive-mcp@latest\n```')
     expect(readme).toContain('Keep this paragraph.')
     expect(llms).toContain('- **Launch Command**: `npx --yes @example/archive-mcp@latest`')
-    expect(llms).toContain(`- **Features**: ${catalog.tools.length} dedicated research tools`)
+    expect(llms).toContain(`- **Features**: ${String(catalog.tools.length)} dedicated research tools`)
     expect(llms).toContain('Keep this paragraph.')
     expect(index).toContain('<code>npx --yes @example/archive-mcp@latest</code>')
     expect(index).toContain('<p>Keep this paragraph.</p>')

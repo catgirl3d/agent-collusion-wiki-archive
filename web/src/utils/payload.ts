@@ -90,7 +90,7 @@ function serviceHostMatches(host: string, indicator: string): boolean {
 
 function trimUrl(value: string): string {
   let trimmed = value
-  while (trimmed && URL_TRIM_CHARS.includes(trimmed.at(-1)!)) trimmed = trimmed.slice(0, -1)
+  while (trimmed && URL_TRIM_CHARS.includes(trimmed.slice(-1))) trimmed = trimmed.slice(0, -1)
   return trimmed
 }
 
@@ -122,7 +122,7 @@ function serviceMatches(body: string, flag: ServiceFlag): PayloadMatch[] {
     const authority = rawUrl.slice(authorityStart, authorityEnd)
     const hostWithPort = authority.slice(authority.lastIndexOf('@') + 1)
     const rawHost = hostWithPort.replace(/:\d+$/, '')
-    const hostStart = (match.index ?? 0) + authorityStart + authority.lastIndexOf('@') + 1
+    const hostStart = match.index + authorityStart + authority.lastIndexOf('@') + 1
     const hostEnd = hostStart + rawHost.length
     matches.push({ start: hostStart, end: hostEnd, flag })
   }
@@ -163,7 +163,7 @@ function encodedDataUriMatches(body: string, flag: string): PayloadMatch[] {
   const decoded = decodePercentOne(body)
   const matches: PayloadMatch[] = []
   for (const match of decoded.text.matchAll(DATA_URI_RE)) {
-    const [start, end] = rawRange(decoded, match.index ?? 0, (match.index ?? 0) + match[0].length)
+    const [start, end] = rawRange(decoded, match.index, match.index + match[0].length)
     matches.push({ start, end, flag })
   }
   return matches
@@ -174,7 +174,7 @@ function carrierMatches(body: string): PayloadMatch[] {
   const decoded = decodePercentOne(body)
   for (const match of decoded.text.matchAll(JSON_DATA_RE)) {
     if (!validCarrierBase64(match[1])) continue
-    const valueStart = (match.index ?? 0) + match[0].length - match[1].length
+    const valueStart = match.index + match[0].length - match[1].length
     const [start, end] = rawRange(decoded, valueStart, valueStart + match[1].length)
     matches.push({ start, end, flag: 'b64' })
   }
@@ -185,7 +185,7 @@ function carrierMatches(body: string): PayloadMatch[] {
     const host = parsed.hostname.toLowerCase().replace(/^www\./, '')
     const path = /^\/base64\/([^/]+)$/.exec(parsed.pathname)
     if (host !== 'httpbin.org' || !path || !validCarrierBase64(path[1])) continue
-    const urlStart = match.index ?? 0
+    const urlStart = match.index
     const blobStart = urlStart + rawUrl.lastIndexOf('/base64/') + '/base64/'.length
     matches.push({ start: blobStart, end: blobStart + path[1].length, flag: 'b64' })
   }
@@ -234,7 +234,7 @@ export function extractLineArtifacts(body: string): string[] {
 
 export function canonicalUrlHost(value: string): string | null {
   let trimmed = value
-  while (trimmed && URL_TRIM_CHARS.includes(trimmed.at(-1)!)) trimmed = trimmed.slice(0, -1)
+  while (trimmed && URL_TRIM_CHARS.includes(trimmed.slice(-1))) trimmed = trimmed.slice(0, -1)
   try {
     const parsed = new URL(trimmed)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
@@ -304,7 +304,7 @@ export function scanPayloadMatches(body: string, activeFlags?: Set<string>): Pay
     re.lastIndex = 0
     for (const match of body.matchAll(re)) {
       if (flag === 'b64' && !validBase64(match[0])) continue
-      matches.push({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length, flag })
+      matches.push({ start: match.index, end: match.index + match[0].length, flag })
     }
   }
   for (const flag of ['proxy', 'callback', 'beacon'] as const) {
@@ -316,21 +316,21 @@ export function scanPayloadMatches(body: string, activeFlags?: Set<string>): Pay
     if (activeFlags && !activeFlags.has('exec')) continue
     re.lastIndex = 0
     for (const match of body.matchAll(re)) {
-      matches.push({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length, flag: 'exec' })
+      matches.push({ start: match.index, end: match.index + match[0].length, flag: 'exec' })
     }
   }
   for (const re of INJECT_RES) {
     if (activeFlags && !activeFlags.has('inject')) continue
     re.lastIndex = 0
     for (const match of body.matchAll(re)) {
-      matches.push({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length, flag: 'inject' })
+      matches.push({ start: match.index, end: match.index + match[0].length, flag: 'inject' })
     }
   }
   const checkHomoglyph = !activeFlags || activeFlags.has('homoglyph')
   const checkEntropy = !activeFlags || activeFlags.has('high-entropy')
   for (const match of body.matchAll(/\S+/g)) {
     const word = match[0]
-    const idx = match.index ?? 0
+    const idx = match.index
     if (checkHomoglyph && LATIN_RE.test(word) && CYRILLIC_RE.test(word)) {
       matches.push({ start: idx, end: idx + word.length, flag: 'homoglyph' })
     } else if (checkEntropy && word.length >= 200 && shannonEntropy(word) > 4.5) {

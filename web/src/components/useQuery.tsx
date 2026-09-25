@@ -25,8 +25,12 @@ export function useJson<T>(load: () => Promise<T>, deps: unknown[]): QueryState<
   useEffect(() => {
     let alive = true
     load().then(
-      (data) => alive && setState({ data, error: null, loading: false }),
-      (err: unknown) => alive && setState({ data: null, error: err instanceof Error ? err.message : String(err), loading: false }),
+      (data) => {
+        if (alive) setState({ data, error: null, loading: false })
+      },
+      (err: unknown) => {
+        if (alive) setState({ data: null, error: err instanceof Error ? err.message : String(err), loading: false })
+      },
     )
     return () => {
       alive = false

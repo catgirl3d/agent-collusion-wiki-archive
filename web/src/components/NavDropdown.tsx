@@ -154,7 +154,10 @@ export function NavDropdown({ label, items, id, isOpen, onOpen, onClose }: NavDr
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => { open ? handleClose() : handleOpen(); }}
+        onClick={() => {
+          if (open) handleClose()
+          else handleOpen()
+        }}
         onKeyDown={handleTriggerKeyDown}
       >
         <span>{label}</span>
