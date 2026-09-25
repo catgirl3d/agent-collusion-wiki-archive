@@ -14,6 +14,7 @@ import {
   fmtBytes,
   fmtCompact,
   fmtInt,
+  fmtRoundLabel,
   fmtTime,
   fmtTimeSeconds,
   toCsv,
@@ -257,5 +258,23 @@ describe('eventPageId', () => {
   it('handles empty normalized values from build.py without throwing', () => {
     expect(eventPageId({ wiki: '', page: 'SomePage' })).toBe('SomePage')
     expect(eventPageId({ wiki: 'dse', page: '' })).toBe('')
+  })
+})
+
+describe('fmtRoundLabel', () => {
+  it('returns null when no non-null reference remains', () => {
+    expect(fmtRoundLabel(null)).toBeNull()
+    expect(fmtRoundLabel([])).toBeNull()
+    expect(fmtRoundLabel([null])).toBeNull()
+    expect(fmtRoundLabel([null, null])).toBeNull()
+  })
+
+  it('compacts canonical references to their round number', () => {
+    expect(fmtRoundLabel(['dse~Page#round-1'])).toBe('r1')
+  })
+
+  it('joins multiple references and keeps unknown shapes verbatim', () => {
+    expect(fmtRoundLabel(['dse~A#round-2', 'dse~B#round-1', null])).toBe('r2, r1')
+    expect(fmtRoundLabel(['custom-round'])).toBe('rcustom-round')
   })
 })

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import type { PairEvent, PairTimeline, SharedPageEntry } from '../utils/pairEvidence'
 import { derivePairEvidence, derivePatternSignals, formatPatternSignals, getPayloadEvidence } from '../utils/pairEvidence'
-import { fmtDuration, fmtTimeSeconds, wikiColor } from '../utils/format'
+import { fmtDuration, fmtRoundLabel, fmtTimeSeconds, wikiColor } from '../utils/format'
 import { PAYLOAD_FLAG_COLORS } from '../utils/payload'
 import { DiffView } from './DiffView'
 import { Badge, Button, Card, Chip } from './ui'
@@ -55,6 +55,7 @@ function EventRow({
 
   const payloadEvidence = useMemo(() => (isExpanded ? getPayloadEvidence(afterBody) : null), [isExpanded, afterBody])
 
+  const roundLabel = fmtRoundLabel(event.round)
   const deltaFormatted = event.analysis.delta > 0 ? `+${event.analysis.delta}` : `${event.analysis.delta}`
   const deltaClass =
     event.analysis.delta > 0
@@ -83,7 +84,7 @@ function EventRow({
           {event.label}
         </Badge>
         {event.action && <Badge className="pair-action-badge">{event.action}</Badge>}
-        {event.round && <Badge className="pair-round-badge">r{event.round}</Badge>}
+        {roundLabel && <Badge className="pair-round-badge">{roundLabel}</Badge>}
         <span className={deltaClass}>delta {deltaFormatted} chars</span>
         <Badge className="pair-op-badge">{event.analysis.op}</Badge>
         {event.analysis.truncated && (

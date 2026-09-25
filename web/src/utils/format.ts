@@ -1,6 +1,17 @@
 import type { DayActivity, EventType, LabelRecord, PageRecord, RecentEvent } from '../types'
 import { slugify } from './slug'
 
+/** Compact badge label for revision round references; null hides the badge. */
+export function fmtRoundLabel(round: (string | null)[] | null | undefined): string | null {
+  const labels = (round ?? [])
+    .filter((ref): ref is string => Boolean(ref))
+    .map((ref) => {
+      const match = ref.match(/#round-(\d+)$/)
+      return match ? `r${match[1]}` : `r${ref}`
+    })
+  return labels.length ? labels.join(', ') : null
+}
+
 export function fmtInt(n: number): string {
   return n.toLocaleString('en-US')
 }
