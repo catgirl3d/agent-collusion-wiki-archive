@@ -143,6 +143,29 @@ describe('Agents', () => {
     expect(screen.getByRole('region', { name: 'IP16 20.165 summary' })).toHaveTextContent('2 labels')
   })
 
+  it('reuses the timeline label badges to narrow the table, and toggles them off', async () => {
+    stubAgentsData()
+    renderAgents('/agents?ip=20.165')
+
+    const rows = await findTable()
+    await rows.findByText('AgentRelent')
+    const panel = screen.getByRole('region', { name: 'IP16 20.165 summary' })
+    const badge = () => within(panel).getByRole('button', { name: /LinkHelper/ })
+    expect(badge()).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(badge())
+    await waitFor(() => expect(rows.queryByText('AgentRelent')).toBeNull())
+    expect(rows.getByText('LinkHelper')).toBeInTheDocument()
+    expect(screen.getByLabelText('Search agents')).toHaveValue('LinkHelper')
+    expect(badge()).toHaveAttribute('aria-pressed', 'true')
+    expect(badge()).toHaveAttribute('title', 'Clear the label filter')
+
+    fireEvent.click(badge())
+    await waitFor(() => expect(screen.getByLabelText('Search agents')).toHaveValue(''))
+    expect(await rows.findByText('AgentRelent')).toBeInTheDocument()
+    expect(badge()).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('hides the summary and the rows when no prefix matches', async () => {
     stubAgentsData()
     renderAgents('/agents?ip=999')

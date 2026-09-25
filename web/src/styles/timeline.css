@@ -51,8 +51,6 @@
 }
 
 .ip16-label {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
   font-family: var(--mono);
 }

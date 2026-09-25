@@ -2,11 +2,11 @@ import { Fragment, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
 import { Badge, Button, Card, LoadMore, PageLink } from '../components/ui'
+import { Ip16LabelList } from '../components/Ip16LabelList'
 import type { LabelsIndex, LabelsIp16Index } from '../types'
 import { filterLabels, fmtInt, toCsv } from '../utils/format'
 import {
   IP16_CAVEAT,
-  IP16_TOP_LABELS,
   matchIp16Prefixes,
   summarizeIp16Slice,
   type Ip16SliceSummary,
@@ -15,11 +15,17 @@ import { downloadBlob } from '../utils/download'
 
 const RESULT_LIMIT = 50
 
-function Ip16PrefixSummary({ ip, summary }: { ip: string; summary: Ip16SliceSummary }) {
-  const [expanded, setExpanded] = useState(false)
-  const shown = expanded ? summary.labelWeights : summary.labelWeights.slice(0, IP16_TOP_LABELS)
-  const hidden = summary.labelWeights.length - shown.length
-
+function Ip16PrefixSummary({
+  ip,
+  summary,
+  activeLabel,
+  onPickLabel,
+}: {
+  ip: string
+  summary: Ip16SliceSummary
+  activeLabel: string
+  onPickLabel: (label: string) => void
+}) {
   return (
     <Card as="section" className="ip16-dossier" aria-label={`IP16 ${ip} summary`}>
       <div className="ip16-dossier-head">
@@ -37,24 +43,12 @@ function Ip16PrefixSummary({ ip, summary }: { ip: string; summary: Ip16SliceSumm
         )}
       </div>
 
-      <div className={`ip16-labels${expanded ? ' is-expanded' : ''}`} role="group" aria-label="Labels on the matched prefixes">
-        {shown.map((stat) => (
-          <span key={stat.x} className="ip16-label">
-            <span>{stat.x}</span>
-            <span className="n">{fmtInt(stat.n)}</span>
-          </span>
-        ))}
-        {hidden > 0 && (
-          <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(true)}>
-            +{fmtInt(hidden)} more
-          </Button>
-        )}
-        {expanded && summary.labelWeights.length > IP16_TOP_LABELS && (
-          <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(false)}>
-            show top {IP16_TOP_LABELS}
-          </Button>
-        )}
-      </div>
+      <Ip16LabelList
+        stats={summary.labelWeights}
+        activeLabel={activeLabel}
+        onPickLabel={onPickLabel}
+        ariaLabel="Labels on the matched prefixes"
+      />
 
       <span className="muted ip16-caveat">{IP16_CAVEAT}</span>
     </Card>
@@ -165,7 +159,18 @@ export default function Agents() {
         <Button onClick={exportCsv}>Export CSV</Button>
       </div>
 
-      {ipSummary && ipSummary.labels > 0 && <Ip16PrefixSummary key={ip} ip={ip} summary={ipSummary} />}
+      {ipSummary && ipSummary.labels > 0 && (
+        <Ip16PrefixSummary
+          key={ip}
+          ip={ip}
+          summary={ipSummary}
+          activeLabel={query.trim()}
+          onPickLabel={(value) => {
+            setQuery(value === query.trim() ? '' : value)
+            setLimit(RESULT_LIMIT)
+          }}
+        />
+      )}
 
       <div className="table-wrap">
         <table className="tbl">
