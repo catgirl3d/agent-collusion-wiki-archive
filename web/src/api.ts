@@ -1,20 +1,35 @@
 import { slugify } from './utils/slug'
+import { createLruCache } from './utils/lru'
 
 const DATA_BASE = '/data'
+const CACHE_CAPACITY = 32
 
-const cache = new Map<string, Promise<unknown>>()
+const completed = createLruCache<string, Promise<unknown>>(CACHE_CAPACITY)
+const inFlight = new Map<string, Promise<unknown>>()
 
 function load<T>(path: string, parse: (res: Response) => Promise<T>): Promise<T> {
-  let p = cache.get(path)
-  if (!p) {
-    p = fetch(`${DATA_BASE}/${path}`).then((res) => {
-      if (!res.ok) throw new Error(`HTTP ${String(res.status)} for ${path}`)
-      return parse(res)
-    })
-    cache.set(path, p)
-    p.catch(() => cache.delete(path))
-  }
-  return p as Promise<T>
+  const cached = completed.get(path)
+  if (cached) return cached as Promise<T>
+
+  const pending = inFlight.get(path)
+  if (pending) return pending as Promise<T>
+
+  const promise = fetch(`${DATA_BASE}/${path}`).then((res) => {
+    if (!res.ok) throw new Error(`HTTP ${String(res.status)} for ${path}`)
+    return parse(res)
+  })
+  inFlight.set(path, promise)
+  promise.then(
+    () => {
+      if (inFlight.get(path) === promise) inFlight.delete(path)
+      completed.set(path, promise)
+    },
+    () => {
+      if (inFlight.get(path) === promise) inFlight.delete(path)
+    },
+  )
+
+  return promise
 }
 
 export function loadJson<T>(path: string): Promise<T> {
