@@ -327,7 +327,7 @@ describe('buildPairTimeline', () => {
         len: 10,
         body: 'Initial text by A',
         action: 'edit',
-        round: '1',
+        round: ['1'],
       },
       {
         seq: 2,
@@ -338,7 +338,7 @@ describe('buildPairTimeline', () => {
         len: 25,
         body: 'Initial text by A\nIntervening from X',
         action: 'edit',
-        round: '1',
+        round: ['1'],
       },
       {
         seq: 3,
@@ -349,7 +349,7 @@ describe('buildPairTimeline', () => {
         len: 40,
         body: 'Initial text by A\nIntervening from X\nAppended by B',
         action: 'edit',
-        round: '1',
+        round: ['1'],
       },
     ]
 

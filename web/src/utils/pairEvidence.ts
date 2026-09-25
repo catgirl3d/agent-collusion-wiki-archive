@@ -25,7 +25,7 @@ export interface PairEvent {
   summary: string | null
   len: number | null
   action: string | null
-  round: string | null
+  round: (string | null)[] | null
   baselineIndex: number | null
   baselineLabel: string | null
   baselineSeq: number | null
