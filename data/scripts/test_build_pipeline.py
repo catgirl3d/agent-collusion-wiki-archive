@@ -45,7 +45,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
             "body_len": 12,
             "body": "second body",
             "request_action": "edit",
-            "round_id": "round-2",
+            "round_id": ["round-2"],
         },
         {
             "page_id": colliding_ids[0],
@@ -73,7 +73,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
             "body_len": 7,
             "body": "first",
             "request_action": "create",
-            "round_id": "round-1",
+            "round_id": ["round-1"],
         },
     ]
     pages = [
@@ -183,7 +183,9 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     second_slug = next(page["s"] for page in slug_map if page["id"] == colliding_ids[1])
     assert first_slug == "wiki~Page_A"
     assert second_slug == f"wiki~Page_A_h{hashlib.sha1(colliding_ids[1].encode()).hexdigest()[:8]}"
-    assert [_read_json(out / "revisions" / f"{first_slug}.json")[0]["seq"], _read_json(out / "revisions" / f"{first_slug}.json")[1]["seq"]] == [1, 2]
+    first_revisions = _read_json(out / "revisions" / f"{first_slug}.json")
+    assert [first_revisions[0]["seq"], first_revisions[1]["seq"]] == [1, 2]
+    assert [row["round"] for row in first_revisions] == [["round-1"], None]
 
     timeline = _read_json(out / "timeline.json")
     assert timeline["meta"] == {
@@ -283,6 +285,7 @@ def test_main_merges_recovered_layer_and_is_idempotent(tmp_path, monkeypatch):
     assert _read_json(out / "events_head.json")[0]["partial"] is True
     recovered = _read_json(out / "revisions" / "other_Recovered~.json")[0]
     assert recovered["body"] == "" and recovered["added"] == ["added"] and recovered["removed"] == ["removed"]
+    assert recovered["append"] is None
     summary = _read_json(out / "summary.json")
     assert summary["supplement"]["counts"] == {"pages": 1, "revisions": 1}
     assert summary["combined"] == {"pages": 2, "revisions": 2}
