@@ -8,6 +8,7 @@ Output: data/processed/
   activity_by_hour.json   - [{"hour","saves"}]  (UTC hours, save events only)
   pages.json              - page index (lightweight, without revision bodies)
   labels.json             - agent label index
+  labels_ip16.json        - labeled revisions per accepted /16 prefix (agents view filter)
   recent_events.json      - all events (unlimited)
   events_head.json        - first EVENTS_HEAD_LIMIT events of recent_events.json (prefix, same order)
   timeline.json           - global revision timeline for cross-page agent history

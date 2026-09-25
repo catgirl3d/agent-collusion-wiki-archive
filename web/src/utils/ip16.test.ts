@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LabelsIp16Index } from '../types'
-import { matchIp16Prefixes, summarizeIp16Slice } from './ip16'
+import { ip16Matches, matchIp16Prefixes, summarizeIp16Slice } from './ip16'
 
 const index: LabelsIp16Index = {
   meta: { schema_version: 1, prefixes: 3 },
@@ -28,6 +28,22 @@ const index: LabelsIp16Index = {
     },
   },
 }
+
+describe('ip16Matches', () => {
+  it('treats an empty query as no constraint', () => {
+    expect(ip16Matches('20.165', '')).toBe(true)
+    expect(ip16Matches(null, '   ')).toBe(true)
+  })
+
+  it('matches by trimmed substring, as the timeline filter does', () => {
+    expect(ip16Matches('20.165', '20')).toBe(true)
+    expect(ip16Matches('2.202', '20')).toBe(true)
+    expect(ip16Matches('20.165', ' 20.165 ')).toBe(true)
+    expect(ip16Matches('20.165', '57')).toBe(false)
+    expect(ip16Matches(null, '20')).toBe(false)
+    expect(ip16Matches(undefined, '20')).toBe(false)
+  })
+})
 
 describe('matchIp16Prefixes', () => {
   it('matches prefixes by substring and returns them sorted', () => {

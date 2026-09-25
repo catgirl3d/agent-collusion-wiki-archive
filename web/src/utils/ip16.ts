@@ -20,11 +20,21 @@ export interface Ip16SliceSummary {
   labelWeights: Ip16LabelStat[]
 }
 
+/**
+ * Trim-then-substring `?ip=` matching, shared by the timeline row filter and the
+ * agents prefix matcher so both pages cannot drift apart. An empty query means
+ * "no constraint" and matches everything.
+ */
+export function ip16Matches(value: string | null | undefined, query: string): boolean {
+  const q = query.trim()
+  return q === '' || (value ?? '').includes(q)
+}
+
 /** Prefixes whose /16 indicator contains the trimmed query, as in the timeline filter. */
 export function matchIp16Prefixes(index: LabelsIp16Index | null, ip: string): string[] {
   const query = ip.trim()
   if (!index || !query) return []
-  return Object.keys(index.prefixes).filter((prefix) => prefix.includes(query)).sort()
+  return Object.keys(index.prefixes).filter((prefix) => ip16Matches(prefix, query)).sort()
 }
 
 /** Aggregates the matched prefix records; revision weights stay disjoint per prefix. */
