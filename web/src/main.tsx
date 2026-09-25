@@ -12,7 +12,7 @@ import './styles/download.css'
 import './styles/mcp.css'
 import './styles/network.css'
 import './styles/pair-evidence.css'
-import './styles/timeline.css'
+import './styles/ip16.css'
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(

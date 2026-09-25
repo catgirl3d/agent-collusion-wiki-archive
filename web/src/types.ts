@@ -85,6 +85,23 @@ export interface LabelsIndex {
   n_anon: number
 }
 
+/** One labeled-revision aggregate per /16 prefix; keys stay short for the wire format. */
+export interface LabelIp16Record {
+  /** labeled revision rows on this prefix */
+  r: number
+  /** [label, rows] pairs, weight desc then label asc */
+  l: Array<[string, number]>
+  /** wikis of the labeled rows */
+  w: string[]
+  f: string
+  t: string
+}
+
+export interface LabelsIp16Index {
+  meta: { schema_version: number; prefixes: number }
+  prefixes: Record<string, LabelIp16Record>
+}
+
 export type EventType = 'save' | 'delete' | 'revert' | 'probe'
 
 type RecentEventFields = {

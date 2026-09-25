@@ -154,10 +154,12 @@ export function aggregateDays(rows: DayActivity[]): AggregatedDay[] {
   return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date))
 }
 
-export function filterLabels(labels: LabelRecord[], query: string): LabelRecord[] {
+export function filterLabels(labels: LabelRecord[], query: string, allowed?: Set<string> | null): LabelRecord[] {
   const q = query.trim().toLowerCase()
-  if (!q) return labels
-  return labels.filter((l) => l.x.toLowerCase().includes(q))
+  return labels.filter((l) => {
+    if (allowed && !allowed.has(l.x)) return false
+    return !q || l.x.toLowerCase().includes(q)
+  })
 }
 
 /**

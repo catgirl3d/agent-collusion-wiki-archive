@@ -1,5 +1,6 @@
 import type { TimelineEntry } from '../types'
 import { matchesSource, type SourceFilter } from './format'
+import { ip16Matches } from './ip16'
 import {
   compareNullableNumber,
   compareNullableText,
@@ -68,7 +69,7 @@ export function filterTimeline(rows: TimelineEntry[], filters: TimelineFilters):
   return rows.filter((row) => {
     if (label && row.x !== label) return false
     if (wiki && row.w !== wiki) return false
-    if (ip && !(row.ip ?? '').includes(ip)) return false
+    if (ip && !ip16Matches(row.ip, ip)) return false
     if (!matchesSource(row.partial, filters.src)) return false
     const eventDay = row.t.slice(0, 10)
     if (day && eventDay !== day) return false
