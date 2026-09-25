@@ -411,6 +411,29 @@ describe('buildPairTimeline', () => {
     expect(timeline.events).toHaveLength(2)
   })
 
+  it('returns equivalent timelines when overlapping pairs are requested in either order', () => {
+    const makeHistory = (): Revision[] => [
+      revision({ seq: 1, time: '2026-06-01T10:00:00Z', label: 'AgentA', body: 'start' }),
+      revision({ seq: 2, time: '2026-06-01T10:10:00Z', label: 'AgentB', body: 'from B' }),
+      revision({ seq: 3, time: '2026-06-01T10:20:00Z', label: 'AgentC', body: 'from C' }),
+      revision({ seq: 4, time: '2026-06-01T10:30:00Z', label: 'AgentA', body: 'from C\nback to A' }),
+    ]
+
+    const abThenAcHistory = makeHistory()
+    const abThenAc = {
+      ab: buildPairTimeline(abThenAcHistory, 'AgentA', 'AgentB'),
+      ac: buildPairTimeline(abThenAcHistory, 'AgentA', 'AgentC'),
+    }
+    const acThenAbHistory = makeHistory()
+    const acThenAb = {
+      ac: buildPairTimeline(acThenAbHistory, 'AgentA', 'AgentC'),
+      ab: buildPairTimeline(acThenAbHistory, 'AgentA', 'AgentB'),
+    }
+
+    expect(abThenAc.ab).toEqual(acThenAb.ab)
+    expect(abThenAc.ac).toEqual(acThenAb.ac)
+  })
+
   it('filters to pair actors only, preserves chronological order, and counts intervening third-label revisions', () => {
     const revisions: Revision[] = [
       {
@@ -420,7 +443,7 @@ describe('buildPairTimeline', () => {
         ip16: null,
         summary: 'Initial by A',
         len: 10,
-        body: 'Initial text by A',
+        body: 'Original text by A',
         action: 'edit',
         round: ['dse~Page#round-1'],
       },
@@ -431,7 +454,7 @@ describe('buildPairTimeline', () => {
         ip16: null,
         summary: 'Intervening edit by X',
         len: 25,
-        body: 'Initial text by A\nIntervening from X',
+        body: 'Third-party replacement',
         action: 'edit',
         round: ['dse~Page#round-1'],
       },
@@ -442,7 +465,7 @@ describe('buildPairTimeline', () => {
         ip16: null,
         summary: 'Follow-up by B',
         len: 40,
-        body: 'Initial text by A\nIntervening from X\nAppended by B',
+        body: 'Third-party replacement\nAppended by B',
         action: 'edit',
         round: ['dse~Page#round-1'],
       },
@@ -470,6 +493,57 @@ describe('buildPairTimeline', () => {
     expect(evB.baselineSeq).toBe(2)
     expect(evB.interveningOther).toBe(1)
     expect(evB.analysis.op).toBe('append')
+  })
+
+  it('does not mutate the input revisions while ordering and building events', () => {
+    const revisions: Revision[] = [
+      revision({ seq: 2, time: '2026-06-01T10:10:00Z', label: 'AgentB', body: '<script>alert(1)</script>', round: ['round-2'] }),
+      revision({ seq: 1, time: '2026-06-01T10:00:00Z', label: 'AgentA', body: 'initial', round: ['round-1'] }),
+    ]
+    const before = JSON.parse(JSON.stringify(revisions)) as Revision[]
+
+    buildPairTimeline(revisions, 'AgentA', 'AgentB')
+
+    expect(revisions).toEqual(before)
+  })
+
+  it('keeps cached analysis and payload flags independent across repeated timelines', () => {
+    const revisions: Revision[] = [
+      revision({ seq: 1, time: '2026-06-01T10:00:00Z', label: 'AgentA', body: '<script>alert(1)</script>' }),
+      revision({ seq: 2, time: '2026-06-01T10:10:00Z', label: 'AgentB', body: 'ordinary body' }),
+    ]
+    const first = buildPairTimeline(revisions, 'AgentA', 'AgentB')
+    const second = buildPairTimeline(revisions, 'AgentA', 'AgentB')
+
+    first.events[0].analysis.op = 'mixed'
+    first.events[0].payloadFlags.splice(0, first.events[0].payloadFlags.length, 'changed')
+    first.orderedRevisions.pop()
+
+    expect(second.events[0].analysis.op).toBe('initial')
+    expect(second.events[0].payloadFlags).toContain('script')
+    expect(second.orderedRevisions).toHaveLength(2)
+
+    const third = buildPairTimeline(revisions, 'AgentA', 'AgentB')
+    expect(third.events[0].analysis.op).toBe('initial')
+    expect(third.events[0].payloadFlags).toContain('script')
+    expect(third.orderedRevisions).toHaveLength(2)
+  })
+
+  it('returns well-formed timelines for empty and single-revision histories', () => {
+    expect(buildPairTimeline([], 'AgentA', 'AgentB')).toEqual({ orderedRevisions: [], events: [] })
+
+    const onlyRevision = revision({ seq: 1, time: '2026-06-01T10:00:00Z', label: 'AgentA', body: 'only revision' })
+    const timeline = buildPairTimeline([onlyRevision], 'AgentA', 'AgentB')
+
+    expect(timeline.orderedRevisions).toEqual([onlyRevision])
+    expect(timeline.events).toHaveLength(1)
+    expect(timeline.events[0]).toMatchObject({
+      revIndex: 0,
+      baselineIndex: null,
+      baselineLabel: null,
+      baselineSeq: null,
+      analysis: { op: 'initial' },
+    })
   })
 
   it('resolves event revIndex against orderedRevisions without copying body into events', () => {

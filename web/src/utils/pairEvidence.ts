@@ -324,6 +324,13 @@ function stableSortRevisions(revisions: readonly (Revision | null | undefined)[]
   return indexed.map((entry) => entry.rev)
 }
 
+interface PairTimelineCacheEntry {
+  orderedRevisions: Revision[]
+  analysisByIndex: Map<number, { analysis: RevisionAnalysis; payloadFlags: string[] }>
+}
+
+const pairTimelineCache = new WeakMap<readonly (Revision | null | undefined)[], PairTimelineCacheEntry>()
+
 function parsedGap(previous: string | null, current: string | null): number | null {
   if (!previous || !current) return null
   const before = Date.parse(previous)
@@ -345,7 +352,15 @@ export function buildPairTimeline(
     return { orderedRevisions: [], events: [] }
   }
 
-  const orderedRevisions = stableSortRevisions(revisions)
+  let cacheEntry = pairTimelineCache.get(revisions)
+  if (!cacheEntry) {
+    cacheEntry = {
+      orderedRevisions: stableSortRevisions(revisions),
+      analysisByIndex: new Map(),
+    }
+    pairTimelineCache.set(revisions, cacheEntry)
+  }
+  const { orderedRevisions, analysisByIndex } = cacheEntry
   const events: PairEvent[] = []
   let prevPairEventRevIndex = -1
 
@@ -369,10 +384,16 @@ export function buildPairTimeline(
     const baselineLabel = baselineRev?.label ?? null
     const baselineSeq = baselineRev?.seq ?? null
 
-    const currentBody = rev.body ?? ''
-    const baselineBody = baselineRev ? (baselineRev.body ?? '') : null
-    const analysis = analyzeRevisionChange(baselineBody, currentBody)
-    const payloadFlags = detectPayloadFlags(currentBody)
+    let cachedAnalysis = analysisByIndex.get(revIndex)
+    if (!cachedAnalysis) {
+      const currentBody = rev.body ?? ''
+      const baselineBody = baselineRev ? (baselineRev.body ?? '') : null
+      cachedAnalysis = {
+        analysis: analyzeRevisionChange(baselineBody, currentBody),
+        payloadFlags: detectPayloadFlags(currentBody),
+      }
+      analysisByIndex.set(revIndex, cachedAnalysis)
+    }
 
     events.push({
       revIndex,
@@ -387,8 +408,8 @@ export function buildPairTimeline(
       baselineLabel,
       baselineSeq,
       interveningOther,
-      analysis,
-      payloadFlags,
+      analysis: { ...cachedAnalysis.analysis },
+      payloadFlags: [...cachedAnalysis.payloadFlags],
       gapSeconds: parsedGap(events.at(-1)?.time ?? null, rev.time ?? null),
     })
 
@@ -396,7 +417,7 @@ export function buildPairTimeline(
   }
 
   return {
-    orderedRevisions,
+    orderedRevisions: [...orderedRevisions],
     events,
   }
 }
