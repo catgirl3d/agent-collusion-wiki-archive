@@ -5,7 +5,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ORIGIN = 'https://agent-collusion.uk'
 const SITE_NAME = 'Agent Wiki Archive'
-const HUB_DESCRIPTION = 'Research reports on autonomous AI agent activity across public wikis.'
+const TITLE_LIMIT = 60
+const DESCRIPTION_LIMIT = 160
+const HUB_DESCRIPTION = 'Three research reports on autonomous AI agents across public wikis: coordination topology, IP16 network catalog, and OpenAI wiki incident acknowledgment.'
 const REPORT_DESCRIPTION = 'Research report on autonomous AI agent activity across public wikis.'
 
 export function escapeHtml(value) {
@@ -33,14 +35,15 @@ function escapeWithinLimit(value, limit) {
   return escaped
 }
 
-function buildHead({ title, description, canonical, styles, openGraphType }) {
+function buildHead({ title, description, canonical, styles, openGraphType, ogTitle = title }) {
   const safeTitle = escapeHtml(title)
-  const safeDescription = escapeWithinLimit(description, 300)
+  const safeOgTitle = escapeHtml(ogTitle)
+  const safeDescription = escapeWithinLimit(description, DESCRIPTION_LIMIT)
   const openGraph = openGraphType
     ? `
 <meta property="og:type" content="${openGraphType}" />
 <meta property="og:site_name" content="${SITE_NAME}" />
-<meta property="og:title" content="${safeTitle}" />
+<meta property="og:title" content="${safeOgTitle}" />
 <meta property="og:description" content="${safeDescription}" />
 <meta property="og:url" content="${escapeHtml(canonical)}" />
 <meta name="twitter:card" content="summary" />`
@@ -71,9 +74,27 @@ function buildDocDescription(doc) {
   return `${doc.title}${details ? ` — ${details}` : ''}. ${REPORT_DESCRIPTION}`
 }
 
+function buildDocTitle(title) {
+  const suffix = ` — ${SITE_NAME}`
+  if (title.length + suffix.length <= TITLE_LIMIT) return `${title}${suffix}`
+  if (title.length <= TITLE_LIMIT) return title
+
+  let trimmedTitle = ''
+  for (const word of title.trim().split(/\s+/)) {
+    const candidate = trimmedTitle ? `${trimmedTitle} ${word}` : word
+    if (candidate.length > TITLE_LIMIT) {
+      if (!trimmedTitle) return word.slice(0, TITLE_LIMIT)
+      break
+    }
+    trimmedTitle = candidate
+  }
+  return trimmedTitle
+}
+
 export function buildDocPage({ doc, siblings, fragment, styles, origin }) {
   const canonical = `${origin}/research/${doc.slug}`
-  const title = `${doc.title} — ${SITE_NAME}`
+  const title = buildDocTitle(doc.title)
+  const ogTitle = `${doc.title} — ${SITE_NAME}`
   const siblingLinks = siblings
     .filter((sibling) => sibling.slug !== doc.slug)
     .map((sibling) => `<a href="/research/${escapeHtml(sibling.slug)}">${escapeHtml(sibling.title)}</a>`)
@@ -85,7 +106,7 @@ export function buildDocPage({ doc, siblings, fragment, styles, origin }) {
 
   return `<!doctype html>
 <html lang="en">
-${buildHead({ title, description: buildDocDescription(doc), canonical, styles, openGraphType: 'article' })}
+${buildHead({ title, description: buildDocDescription(doc), canonical, styles, openGraphType: 'article', ogTitle })}
 <body>
 <header><a href="/">← ${SITE_NAME}</a></header>
 <main>

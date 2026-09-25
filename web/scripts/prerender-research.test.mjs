@@ -9,6 +9,14 @@ const doc = { slug: 'ip16-network-catalog', title: 'IP16 Network Catalog', meta:
 const siblings = [{ slug: 'ip16-network-catalog', title: 'IP16 Network Catalog' }, { slug: 'coordination-topology', title: 'Coordination Topology' }]
 const tempRoots = []
 
+function extractTitle(html) {
+  return html.match(/<title>([^<]*)<\/title>/)?.[1] ?? ''
+}
+
+function extractDescription(html) {
+  return html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
+}
+
 function createFixture(docs, fragments = []) {
   const webRoot = mkdtempSync(join(tmpdir(), 'research-prerender-'))
   tempRoots.push(webRoot)
@@ -73,6 +81,57 @@ describe('buildDocPage', () => {
     expect(html).not.toContain('<img')
     expect(html).toContain('&lt;img')
   })
+
+  it('keeps the brand suffix when the combined title fits 60 characters', () => {
+    const title = 'Short report'
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+
+    expect(extractTitle(html)).toBe(`${title} — Agent Wiki Archive`)
+  })
+
+  it('drops the brand suffix when a title under 60 characters would exceed the limit', () => {
+    const title = 'A'.repeat(40)
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+
+    expect(extractTitle(html)).toBe(title)
+  })
+
+  it('drops the brand suffix and caps a 70-character document title', () => {
+    const title = 'Long '.repeat(14)
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+    const renderedTitle = extractTitle(html)
+
+    expect(title.length).toBeGreaterThanOrEqual(70)
+    expect(renderedTitle.length).toBeLessThanOrEqual(60)
+    expect(renderedTitle).not.toContain('Agent Wiki Archive')
+  })
+
+  it('trims a long title at a word boundary without changing its heading or OG title', () => {
+    const title = `${'Alpha '.repeat(18)}EndSegment`
+    const expectedTitle = Array(10).fill('Alpha').join(' ')
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+
+    expect(title.length).toBeGreaterThan(100)
+    expect(extractTitle(html)).toBe(expectedTitle)
+    expect(extractTitle(html).length).toBeLessThanOrEqual(60)
+    expect(html).toContain(`<h1>${title}</h1>`)
+    expect(html).toContain(`<meta property="og:title" content="${title} — Agent Wiki Archive" />`)
+  })
+
+  it('hard-cuts a single overlong word at 60 characters', () => {
+    const title = 'W'.repeat(75)
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+
+    expect(extractTitle(html)).toBe('W'.repeat(60))
+    expect(html).toContain(`<h1>${title}</h1>`)
+  })
+
+  it('caps the document description at 160 escaped characters', () => {
+    const title = 'Research & findings '.repeat(20)
+    const html = buildDocPage({ doc: { ...doc, title, meta: { author: 'Research & author '.repeat(20) } }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+
+    expect(extractDescription(html).length).toBeLessThanOrEqual(160)
+  })
 })
 
 describe('buildHubPage', () => {
@@ -84,10 +143,21 @@ describe('buildHubPage', () => {
     expect(html).toContain('<meta property="og:type" content="website" />')
     expect(html).toContain('<meta property="og:site_name" content="Agent Wiki Archive" />')
     expect(html).toContain('<meta property="og:title" content="Research reports — Agent Wiki Archive" />')
-    expect(html).toContain('<meta property="og:description" content="Research reports on autonomous AI agent activity across public wikis." />')
+    expect(html).toContain('<meta property="og:description" content="Three research reports on autonomous AI agents across public wikis: coordination topology, IP16 network catalog, and OpenAI wiki incident acknowledgment." />')
     expect(html).toContain('<meta property="og:url" content="https://agent-collusion.uk/research" />')
     expect(html).toContain('<meta name="twitter:card" content="summary" />')
     expect(html).not.toContain('<script')
+  })
+
+  it('uses a three-report description between 70 and 160 characters', () => {
+    const html = buildHubPage({ docs: siblings, styles, origin: 'https://agent-collusion.uk' })
+    const description = extractDescription(html)
+
+    expect(description.length).toBeGreaterThanOrEqual(70)
+    expect(description.length).toBeLessThanOrEqual(160)
+    expect(description).toContain('coordination topology')
+    expect(description).toContain('IP16 network catalog')
+    expect(description).toContain('OpenAI wiki incident acknowledgment')
   })
 })
 
@@ -153,11 +223,15 @@ describe('run', () => {
     await run({ webRoot })
 
     expect(readFileSync(join(distDir, 'research.html'), 'utf8')).toBe(readFileSync(join(distDir, 'research', 'index.html'), 'utf8'))
+    const hubHtml = readFileSync(join(distDir, 'research.html'), 'utf8')
+    expect(extractDescription(hubHtml).length).toBeLessThanOrEqual(160)
     for (const [item, body] of [[firstDoc, 'First body'], [secondDoc, 'Second body']]) {
       const flatPage = join(distDir, 'research', `${item.slug}.html`)
       const directoryPage = join(distDir, 'research', item.slug, 'index.html')
-      expect(readFileSync(flatPage, 'utf8')).toBe(readFileSync(directoryPage, 'utf8'))
-      expect(readFileSync(flatPage, 'utf8')).toContain(`<p>${body}</p>`)
+      const pageHtml = readFileSync(flatPage, 'utf8')
+      expect(pageHtml).toBe(readFileSync(directoryPage, 'utf8'))
+      expect(pageHtml).toContain(`<p>${body}</p>`)
+      expect(extractDescription(pageHtml).length).toBeLessThanOrEqual(160)
     }
     expect(readFileSync(join(distDir, 'sitemap.xml'), 'utf8')).toContain('https://agent-collusion.uk/research/first-report')
   })
