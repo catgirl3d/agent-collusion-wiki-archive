@@ -335,7 +335,10 @@ describe('PageDetail', () => {
 
     fireEvent.click(await screen.findByRole('combobox', { name: 'Compare from revision' }))
 
-    expect(screen.getAllByRole('option')).toHaveLength(120)
+    const listbox = screen.getByRole('listbox')
+    expect(within(listbox).getAllByRole('option')).toHaveLength(120)
+    expect(within(listbox).getByRole('option', { name: /^#1\b/ })).toBeInTheDocument()
+    expect(within(listbox).getByRole('option', { name: /^#120\b/ })).toBeInTheDocument()
   })
 
   it('opens the history page holding a revision picked from payload evidence', async () => {

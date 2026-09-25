@@ -428,6 +428,11 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     return [0, revs ? revs.length - 1 : 0]
   }, [sel, revs])
 
+  const revisionOptions = useMemo(() => revs ? revs.map((revision, index) => ({
+    value: index,
+    label: `#${String(index + 1)} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
+  })) : [], [revs])
+
   if (error) {
     const notFound = !resolved
     return (
@@ -446,11 +451,6 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   // Index still loading (empty sentinel) or revisions pending: show loading,
   // never a transient "not found" flash before pages.json arrives.
   if (!revs || (!indexReady && !error)) return <div className="loading">Loading…</div>
-  const revisionOptions = revs.map((revision, index) => ({
-    value: index,
-    label: `#${String(index + 1)} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
-  }))
-
   const visibleRevisions: number[] = []
   for (let i = revs.length - 1; i >= 0 && visibleRevisions.length < revLimit; i--) visibleRevisions.push(i)
 
