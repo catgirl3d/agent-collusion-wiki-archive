@@ -3,6 +3,22 @@
   "private": true,
   "scripts": {
     "build": "npm --prefix web run build",
-    "deploy": "npm run build && npx wrangler@4 deploy"
+    "deploy": "npm run build && npx wrangler@4 deploy",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "npm --prefix worker run typecheck && npm --prefix mcp run typecheck && npm --prefix web run typecheck",
+    "test": "npm --prefix worker test && npm --prefix mcp test && npm --prefix web test",
+    "check": "npm run lint && npm run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@vitest/eslint-plugin": "^1.6.27",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "typescript-eslint": "^8.70.0"
   }
 }

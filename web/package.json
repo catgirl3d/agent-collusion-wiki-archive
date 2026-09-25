@@ -8,7 +8,7 @@
     "prebuild": "node scripts/sync-data.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "typecheck": "tsc -b",
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --pool=threads --maxWorkers=1"
@@ -34,7 +34,6 @@
     "@vitest/coverage-v8": "^4.1.11",
     "jsdom": "^29.1.1",
     "marked": "^18.0.12",
-    "oxlint": "^1.79.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
