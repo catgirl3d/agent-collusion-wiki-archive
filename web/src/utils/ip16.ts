@@ -41,8 +41,8 @@ export function matchIp16Prefixes(index: LabelsIp16Index | null, ip: string): st
   return Object.keys(index.prefixes).filter((prefix) => ip16Matches(prefix, query)).sort()
 }
 
-export function ip16PrefixesByLabel(index: LabelsIp16Index | null): Map<string, Array<[prefix: string, weight: number]>> {
-  const prefixesByLabel = new Map<string, Array<[string, number]>>()
+export function ip16PrefixesByLabel(index: LabelsIp16Index | null): Map<string, [prefix: string, weight: number][]> {
+  const prefixesByLabel = new Map<string, [string, number][]>()
   if (!index) return prefixesByLabel
 
   for (const [prefix, record] of Object.entries(index.prefixes)) {

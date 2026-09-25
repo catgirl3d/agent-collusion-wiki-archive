@@ -283,7 +283,7 @@ export default function Agents() {
                                     size="sm"
                                     aria-label={`Filter agents by IP16 prefix ${prefix} (${revisionLabel})`}
                                     title={`Filter agents by IP16 prefix ${prefix}`}
-                                    onClick={() => update({ ip: prefix })}
+                                    onClick={() => { update({ ip: prefix }); }}
                                   >
                                     <span className="mono">{prefix}</span> <span className="muted">{fmtInt(weight)} revs</span>
                                   </Button>

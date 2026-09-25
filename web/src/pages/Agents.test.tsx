@@ -148,7 +148,7 @@ describe('Agents', () => {
 
     fireEvent.click(prefixButton)
 
-    await waitFor(() => expect(currentSearch().get('ip')).toBe('57.1'))
+    await waitFor(() => { expect(currentSearch().get('ip')).toBe('57.1') })
     expect(rows.getByText('MapHelper')).toBeInTheDocument()
     expect(rows.queryByText('AgentRelent')).toBeNull()
     expect(rows.queryByText('LinkHelper')).toBeNull()
@@ -319,7 +319,7 @@ describe('Agents', () => {
 
     fireEvent.click(ip16Header)
 
-    await waitFor(() => expect(currentSearch().get('dir')).toBe('asc'))
+    await waitFor(() => { expect(currentSearch().get('dir')).toBe('asc') })
     tableRows = rows.getAllByRole('row')
     expect(tableRows[1]).toHaveTextContent('ZetaBot')
   })
@@ -331,10 +331,10 @@ describe('Agents', () => {
     const rows = await findTable()
     const revsHeader = screen.getByRole('button', { name: 'Revs' })
     fireEvent.click(revsHeader)
-    await waitFor(() => expect(currentSearch().get('dir')).toBe('desc'))
+    await waitFor(() => { expect(currentSearch().get('dir')).toBe('desc') })
     fireEvent.click(revsHeader)
 
-    await waitFor(() => expect(currentSearch().get('dir')).toBe('asc'))
+    await waitFor(() => { expect(currentSearch().get('dir')).toBe('asc') })
     const tableRows = rows.getAllByRole('row')
     expect(tableRows[1]).toHaveTextContent('MapHelper')
     expect(tableRows[2]).toHaveTextContent('LinkHelper')
@@ -378,7 +378,7 @@ describe('Agents', () => {
     const rows = await findTable()
     fireEvent.click(screen.getByRole('button', { name: 'First' }))
 
-    await waitFor(() => expect(currentSearch().get('sort')).toBe('first'))
+    await waitFor(() => { expect(currentSearch().get('sort')).toBe('first') })
     const tableRows = rows.getAllByRole('row')
     expect(tableRows[1]).toHaveTextContent('LinkHelper')
     expect(tableRows[1]).toHaveTextContent('2026-05-01')
@@ -417,13 +417,13 @@ describe('Agents', () => {
     renderAgents()
 
     const rows = await findTable()
-    await waitFor(() => expect(rows.getAllByRole('row')).toHaveLength(51))
+    await waitFor(() => { expect(rows.getAllByRole('row')).toHaveLength(51) })
     fireEvent.click(screen.getByRole('button', { name: /^Load more\b/ }))
-    await waitFor(() => expect(rows.getAllByRole('row')).toHaveLength(61))
+    await waitFor(() => { expect(rows.getAllByRole('row')).toHaveLength(61) })
 
     fireEvent.click(screen.getByRole('button', { name: 'Revs' }))
 
-    await waitFor(() => expect(rows.getAllByRole('row')).toHaveLength(51))
+    await waitFor(() => { expect(rows.getAllByRole('row')).toHaveLength(51) })
     expect(rows.getAllByRole('row')[1]).toHaveTextContent('Bot59')
     expect(currentSearch().get('sort')).toBe('revs')
     expect(currentSearch().get('dir')).toBe('desc')
