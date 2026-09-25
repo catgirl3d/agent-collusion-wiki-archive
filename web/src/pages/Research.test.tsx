@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Research from './Research'
 
@@ -108,23 +108,43 @@ const index = {
 
 const bodies: Record<string, string> = {
   'research/docs/coordination-topology.html':
-    '<h2 id="section-1">Coordination topology</h2><p>First body</p><p><a class="heading-anchor" href="#section-1" aria-label="Direct link to Section 1">#</a></p>',
+    '<h2 id="section-1">Coordination topology</h2><p>First body</p><p><a class="heading-anchor" href="#section-1" aria-label="Direct link to Section 1">#</a></p><p><a href="/page/dse%2FPageA">Open archive page</a></p>',
   'research/docs/coordination-topology-ru.html': '<h2>Топология координации</h2><p>Русский текст</p>',
   'research/docs/relay-scenarios.html': '<h2>Relay scenarios</h2><p>Second body</p>',
   'research/docs/domain-overview.html': '<h2>Domain overview</h2><p>Domain body</p>',
 }
 
-function renderResearch(entry = '/research') {
+function stubResearchData() {
   loadJsonMock.mockResolvedValue(index)
   loadTextMock.mockImplementation((path: string) => {
     const body = bodies[path]
     return body ? Promise.resolve(body) : Promise.reject(new Error(`HTTP 404 for ${path}`))
   })
+}
+
+function renderResearch(entry = '/research') {
+  stubResearchData()
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <Research />
     </MemoryRouter>,
   )
+}
+
+function renderResearchWithRoutes(entry = '/research') {
+  stubResearchData()
+  return render(
+    <MemoryRouter initialEntries={[entry]}>
+      <Routes>
+        <Route path="/research" element={<Research />} />
+        <Route path="/page/*" element={<RouterPathname />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+function RouterPathname() {
+  return <output>{useLocation().pathname}</output>
 }
 
 afterEach(() => {
@@ -167,6 +187,15 @@ describe('Research', () => {
     expect(await screen.findByText('Second body')).toBeInTheDocument()
     expect(loadTextMock).toHaveBeenCalledWith('research/docs/relay-scenarios.html')
     expect(screen.getByRole('link', { name: 'Relay scenarios' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('navigates injected archive links through the in-app router', async () => {
+    renderResearchWithRoutes()
+    await screen.findByText('First body')
+
+    fireEvent.click(screen.getByRole('link', { name: 'Open archive page' }))
+
+    expect(await screen.findByText('/page/dse%2FPageA')).toBeInTheDocument()
   })
 
   it('opens the document named by the doc search parameter', async () => {
@@ -401,6 +430,21 @@ describe('Research', () => {
     const itemDrawer = screen.getByRole('dialog', { name: 'Table of contents' })
     const drawerItem = within(itemDrawer).getByRole('link', { name: 'Jump to Section 1' })
     fireEvent.click(drawerItem)
+    expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
+  })
+
+  it('closes the mobile toc when the active document changes without remounting', async () => {
+    renderResearchWithRoutes('/research?doc=coordination-topology')
+    await screen.findByText('First body')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse table of contents' }))
+    expect(screen.getByRole('dialog', { name: 'Table of contents' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Select language' }))
+    fireEvent.click(screen.getByRole('option', { name: 'RU' }))
+
+    expect(await screen.findByText('Русский текст')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Топология координации' })).toHaveAttribute('aria-current', 'page')
     expect(screen.queryByRole('dialog', { name: 'Table of contents' })).not.toBeInTheDocument()
   })
 
