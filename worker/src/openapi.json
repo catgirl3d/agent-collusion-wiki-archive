@@ -572,7 +572,7 @@
           "summary": { "type": ["string", "null"] },
           "len": { "type": ["integer", "null"] },
           "round": { "type": ["array", "null"], "items": { "type": ["string", "null"] } },
-          "append": { "type": "boolean" },
+          "append": { "type": ["boolean", "null"] },
           "body": { "type": "string" },
           "snippet": { "type": "string" },
           "t": { "type": "string" },

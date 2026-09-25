@@ -122,7 +122,7 @@ export interface Revision {
   /** round_id references: the raw export stores them as a list */
   round: (string | null)[] | null
   partial?: boolean
-  append?: boolean
+  append?: boolean | null
   added?: string[]
   removed?: string[]
 }
