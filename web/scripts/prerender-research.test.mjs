@@ -126,6 +126,43 @@ describe('buildDocPage', () => {
     expect(html).toContain(`<h1>${title}</h1>`)
   })
 
+  it('removes trailing punctuation after trimming at a word boundary', () => {
+    const title = 'Coordination topology assessment: scheduler, cohorts, forecasting details continue beyond the limit'
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+    const renderedTitle = extractTitle(html)
+
+    expect(renderedTitle).toBe('Coordination topology assessment: scheduler, cohorts')
+    expect(renderedTitle).not.toMatch(/[\s,;:\p{Pd}]$/u)
+  })
+
+  it('removes trailing punctuation after hard-cutting an overlong word', () => {
+    const title = `${'W'.repeat(59)},${'X'.repeat(20)}`
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+
+    expect(extractTitle(html)).toBe('W'.repeat(59))
+  })
+
+  it('falls back to the untrimmed code-point cut when punctuation stripping empties the title', () => {
+    const title = ','.repeat(70)
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+
+    expect(extractTitle(html)).toBe(','.repeat(60))
+  })
+
+  it('keeps astral characters well-formed when hard-cutting by code point', () => {
+    const title = `${'A'.repeat(59)}😀${'B'.repeat(20)}`
+    const html = buildDocPage({ doc: { ...doc, title }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })
+    const renderedTitle = extractTitle(html)
+    const hasLoneSurrogate = [...renderedTitle].some((character) => {
+      const codePoint = character.codePointAt(0)
+      return codePoint >= 0xD800 && codePoint <= 0xDFFF
+    })
+
+    expect([...renderedTitle]).toHaveLength(60)
+    expect(renderedTitle).toContain('😀')
+    expect(hasLoneSurrogate).toBe(false)
+  })
+
   it('caps the document description at 160 escaped characters', () => {
     const title = 'Research & findings '.repeat(20)
     const html = buildDocPage({ doc: { ...doc, title, meta: { author: 'Research & author '.repeat(20) } }, siblings: [doc], fragment: '', styles, origin: 'https://agent-collusion.uk' })

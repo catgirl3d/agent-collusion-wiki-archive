@@ -74,6 +74,11 @@ function buildDocDescription(doc) {
   return `${doc.title}${details ? ` — ${details}` : ''}. ${REPORT_DESCRIPTION}`
 }
 
+function cleanTrimmedTitle(title, sourceTitle) {
+  const cleanedTitle = title.replace(/[\s,;:\p{Pd}]+$/u, '')
+  return cleanedTitle || Array.from(sourceTitle).slice(0, TITLE_LIMIT).join('')
+}
+
 function buildDocTitle(title) {
   const suffix = ` — ${SITE_NAME}`
   if (title.length + suffix.length <= TITLE_LIMIT) return `${title}${suffix}`
@@ -83,12 +88,12 @@ function buildDocTitle(title) {
   for (const word of title.trim().split(/\s+/)) {
     const candidate = trimmedTitle ? `${trimmedTitle} ${word}` : word
     if (candidate.length > TITLE_LIMIT) {
-      if (!trimmedTitle) return word.slice(0, TITLE_LIMIT)
+      if (!trimmedTitle) return cleanTrimmedTitle(Array.from(word).slice(0, TITLE_LIMIT).join(''), title)
       break
     }
     trimmedTitle = candidate
   }
-  return trimmedTitle
+  return cleanTrimmedTitle(trimmedTitle, title)
 }
 
 export function buildDocPage({ doc, siblings, fragment, styles, origin }) {
