@@ -492,7 +492,8 @@ describe('Worker API default fetch handler', () => {
     })
     expect(withNullAppend.response.status).toBe(200)
     const nullBody = await json(withNullAppend.response)
-    expect(nullBody.revisions[0].append).toBeNull()
+    const firstRevision = records(nullBody.revisions).at(0)
+    expect(firstRevision?.append).toBeNull()
     expect(validateRevisions(nullBody), JSON.stringify(validateRevisions.errors)).toBe(true)
 
     const withStringAppend = await request('/api/pages/Page~/revisions?body=1', undefined, {
