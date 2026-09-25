@@ -302,8 +302,10 @@ export function analyzeRevisionChange(before: string | null | undefined, after: 
  * archived timestamps, and finally to original array position — never unconditionally ahead
  * of or behind the known-seq block.
  */
-function stableSortRevisions(revisions: Revision[] | null | undefined): Revision[] {
-  const indexed = (revisions ?? []).map((rev, originalIndex) => ({ rev, seq: rev.seq ?? null, originalIndex }))
+function stableSortRevisions(revisions: readonly (Revision | null | undefined)[] | null | undefined): Revision[] {
+  const indexed = (revisions ?? [])
+    .filter((rev): rev is Revision => rev != null)
+    .map((rev, originalIndex) => ({ rev, seq: rev.seq ?? null, originalIndex }))
   const timeOf = (entry: { rev: Revision }): number => {
     const parsed = entry.rev.time ? Date.parse(entry.rev.time) : NaN
     return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
@@ -334,7 +336,11 @@ function parsedGap(previous: string | null, current: string | null): number | nu
  * Build pair timeline for two labels across page revisions.
  * Events exclude revision bodies and resolve baselines against previous chronological revisions.
  */
-export function buildPairTimeline(revisions: Revision[] | null | undefined, leftLabel: string, rightLabel: string): PairTimeline {
+export function buildPairTimeline(
+  revisions: readonly (Revision | null | undefined)[] | null | undefined,
+  leftLabel: string,
+  rightLabel: string,
+): PairTimeline {
   if (!revisions || revisions.length === 0) {
     return { orderedRevisions: [], events: [] }
   }
@@ -363,8 +369,8 @@ export function buildPairTimeline(revisions: Revision[] | null | undefined, left
     const baselineLabel = baselineRev?.label ?? null
     const baselineSeq = baselineRev?.seq ?? null
 
-    const currentBody = rev.body
-    const baselineBody = baselineRev ? baselineRev.body : null
+    const currentBody = rev.body ?? ''
+    const baselineBody = baselineRev ? (baselineRev.body ?? '') : null
     const analysis = analyzeRevisionChange(baselineBody, currentBody)
     const payloadFlags = detectPayloadFlags(currentBody)
 
@@ -679,7 +685,9 @@ export function collectPayloadEvidence(
     const needed = new Set(flags.filter((flag) => (counts.get(flag) ?? 0) < perFlagCap))
     if (needed.size === 0) break
     const revision = revisions[i]
-    const text = revision.body || (revision.partial ? [...(revision.added ?? []), ...(revision.removed ?? [])].join('\n') : '')
+    const text = revision.body !== null && revision.body !== ''
+      ? revision.body
+      : (revision.partial ? [...(revision.added ?? []), ...(revision.removed ?? [])].join('\n') : '')
     if (!text) continue
     if (scannedChars + text.length > charBudget) break
     scannedRevisions++

@@ -134,7 +134,7 @@ export interface Revision {
   ip16: string | null
   summary: string | null
   len: number | null
-  body: string
+  body: string | null
   action: string | null
   /** round_id references: the raw export stores them as a list */
   round: (string | null)[] | null

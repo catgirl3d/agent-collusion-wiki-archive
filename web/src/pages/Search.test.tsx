@@ -728,8 +728,9 @@ describe('Search', () => {
     })
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
 
-    act(() => {
+    await act(async () => {
       worker.respond({ type: 'body', requestId: worker.messages[1].requestId, body: 'late body' })
+      await Promise.resolve()
     })
 
     expect(screen.queryByText(/late body/)).toBeNull()

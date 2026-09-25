@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadJson, loadText } from './api'
+import { loadJson, loadText, revisionFile } from './api'
+import { slugify } from './utils/slug'
 
 const DATA_BASE = '/data'
+
+describe('revisionFile', () => {
+  it('uses the slugified page ID when the supplied slug is empty', () => {
+    const pageId = 'wiki/Some page'
+    expect(revisionFile(pageId, '')).toBe(`revisions/${slugify(pageId)}.json`)
+  })
+})
 
 function mockFetchOnce(status: number): ReturnType<typeof vi.fn> {
   return vi.fn().mockResolvedValue(new Response('{"x":1}', { status }))

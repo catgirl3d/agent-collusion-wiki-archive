@@ -26,5 +26,6 @@ export function loadText(path: string): Promise<string> {
 }
 
 export function revisionFile(pageId: string, slug?: string): string {
-  return `revisions/${slug ?? slugify(pageId)}.json`
+  const revisionSlug = slug === undefined || slug === '' ? slugify(pageId) : slug
+  return `revisions/${revisionSlug}.json`
 }

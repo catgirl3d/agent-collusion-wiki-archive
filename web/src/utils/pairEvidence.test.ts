@@ -316,6 +316,28 @@ describe('analyzeRevisionChange', () => {
 })
 
 describe('buildPairTimeline', () => {
+  it('treats null current and baseline bodies as empty strings', () => {
+    const timeline = buildPairTimeline([
+      revision({ seq: 1, label: 'AgentA', body: null }),
+      revision({ seq: 2, label: 'AgentB', body: null }),
+    ], 'AgentA', 'AgentB')
+
+    expect(timeline.events.map((event) => event.analysis.op)).toEqual(['initial', 'unchanged'])
+    expect(timeline.events.every((event) => event.payloadFlags.length === 0)).toBe(true)
+  })
+
+  it('skips sparse and undefined revision entries before sorting', () => {
+    const sparseRevisions = new Array<Revision | undefined>(2)
+    sparseRevisions[1] = revision({ seq: 1, label: 'AgentA', body: 'present' })
+    const undefinedRevisions: (Revision | undefined)[] = [undefined, revision({ seq: 2, label: 'AgentB', body: 'present' })]
+
+    for (const revisions of [sparseRevisions, undefinedRevisions]) {
+      const timeline = buildPairTimeline(revisions, 'AgentA', 'AgentB')
+      expect(timeline.orderedRevisions).toHaveLength(1)
+      expect(timeline.events).toHaveLength(1)
+    }
+  })
+
   it('filters to pair actors only, preserves chronological order, and counts intervening third-label revisions', () => {
     const revisions: Revision[] = [
       {

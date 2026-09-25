@@ -567,7 +567,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         </div>
         {revs[from] && revs[to] && (revs[from].partial || revs[to].partial)
           ? <p className="muted">Recovered partial revision — full body not retained</p>
-          : revs[from] && revs[to] && <DiffView before={revs[from].body} after={revs[to].body} />}
+          : revs[from] && revs[to] && <DiffView before={revs[from].body ?? ''} after={revs[to].body ?? ''} />}
       </Card>
 
       <Card as="section">

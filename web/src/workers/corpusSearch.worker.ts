@@ -16,7 +16,7 @@ import {
   selectMatches,
   searchRecords,
 } from '../utils/corpus'
-import type { CorpusBodyRequest, CorpusPageMap, CorpusSearchRequest, CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
+import type { CorpusBodyRequest, CorpusPageMap, CorpusSearchRequest, CorpusWorkerResponse } from '../utils/corpus'
 import { createLruCache } from '../utils/lru'
 import { resolveSort } from '../utils/sort'
 
@@ -36,7 +36,7 @@ class CorpusWorkerError extends Error {
 
 const workerScope = self as unknown as {
   postMessage(message: CorpusWorkerResponse): void
-  onmessage: ((event: MessageEvent<CorpusWorkerRequest>) => void) | null
+  onmessage: ((event: MessageEvent<unknown>) => void) | null
 }
 
 let summary: Summary | null = null
@@ -55,11 +55,13 @@ let running = false
 
 workerScope.onmessage = (event) => {
   const message = event.data
+  if (typeof message !== 'object' || message === null || !('type' in message) || typeof message.type !== 'string') return
   if (message.type === 'body') {
-    void handleBody(message)
+    void handleBody(message as CorpusBodyRequest)
     return
   }
-  pending = message
+  if (message.type !== 'search') return
+  pending = message as CorpusSearchRequest
   if (!running) void drain()
 }
 
