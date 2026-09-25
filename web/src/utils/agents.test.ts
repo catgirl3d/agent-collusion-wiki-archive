@@ -13,6 +13,8 @@ const rows: LabelRecord[] = [
   { x: 'beta', r: 9, f: '2026-04-01', t: '2026-05-01', p: 2, h: false, w: ['dse'], pgs: [] },
   { x: 'Copper', r: 9, f: '2026-03-01', t: '2026-07-01', p: 1, h: true, w: [], pgs: [] },
 ]
+const ip16Counts = new Map([['Alpha', 1], ['beta', 2], ['Copper', 3]])
+const ip16CountOf = (label: string) => ip16Counts.get(label) ?? 0
 
 describe('agent label sorting', () => {
   it('sorts labels in locale collation order in both directions', () => {
@@ -48,6 +50,36 @@ describe('agent label sorting', () => {
     expect(sortAgentLabels(tiedRows, 'revs', 'desc').map(({ x }) => x)).toEqual(['Copper', 'beta', 'Alpha'])
   })
 
+  it('sorts IP16 counts descending', () => {
+    expect(sortAgentLabels(rows, 'ip16', 'desc', ip16CountOf).map(({ x }) => x)).toEqual(['Copper', 'beta', 'Alpha'])
+  })
+
+  it('sorts IP16 counts ascending', () => {
+    const unordered: LabelRecord[] = [rows[2], rows[1], rows[0]]
+
+    expect(sortAgentLabels(unordered, 'ip16', 'asc', ip16CountOf).map(({ x }) => x)).toEqual(['Alpha', 'beta', 'Copper'])
+  })
+
+  it('keeps equal IP16 counts in their input order', () => {
+    const tiedRows: LabelRecord[] = [rows[2], rows[1], rows[0]]
+
+    expect(sortAgentLabels(tiedRows, 'ip16', 'desc', () => 1).map(({ x }) => x)).toEqual(['Copper', 'beta', 'Alpha'])
+  })
+
+  it('sorts labels missing from the IP16 lookup as zero', () => {
+    const ip16Counts = new Map([['Alpha', 1]])
+
+    expect(sortAgentLabels([rows[2], rows[0]], 'ip16', 'desc', (label) => ip16Counts.get(label) ?? 0).map(({ x }) => x))
+      .toEqual(['Alpha', 'Copper'])
+  })
+
+  it('treats IP16 counts as equal when the lookup is omitted', () => {
+    const unordered: LabelRecord[] = [rows[2], rows[1], rows[0]]
+
+    expect(Math.abs(compareAgents(rows[0], rows[2], 'ip16', 'desc'))).toBe(0)
+    expect(sortAgentLabels(unordered, 'ip16', 'desc').map(({ x }) => x)).toEqual(['Copper', 'beta', 'Alpha'])
+  })
+
   it('orders an empty label before text ascending and after text descending', () => {
     const emptyLabel: LabelRecord = { ...rows[0], x: '' }
 
@@ -64,14 +96,15 @@ describe('agent label sorting', () => {
   })
 
   it('exposes the expected keys and sort defaults', () => {
-    expect(AGENTS_SORT_KEYS).toEqual(['label', 'revs', 'pages', 'first', 'last'])
-    expect(Object.keys(AGENTS_SORT_DEFAULTS)).toEqual(['label', 'revs', 'pages', 'first', 'last'])
+    expect(AGENTS_SORT_KEYS).toEqual(['label', 'revs', 'pages', 'first', 'last', 'ip16'])
+    expect(Object.keys(AGENTS_SORT_DEFAULTS)).toEqual(['label', 'revs', 'pages', 'first', 'last', 'ip16'])
     expect(AGENTS_SORT_DEFAULTS).toEqual({
       label: 'asc',
       revs: 'desc',
       pages: 'desc',
       first: 'asc',
       last: 'desc',
+      ip16: 'desc',
     })
     expect(AGENTS_SORT_DEFAULT).toEqual({ sort: 'label', dir: 'asc' })
   })

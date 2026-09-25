@@ -118,6 +118,55 @@ describe('Agents', () => {
     expect(screen.queryByRole('region', { name: /summary/ })).toBeNull()
   })
 
+  it('shows the distinct IP16 prefix count for each label', async () => {
+    stubAgentsData()
+    renderAgents()
+
+    const rows = await findTable()
+    await rows.findByText('AgentRelent')
+
+    expect(rows.getByRole('button', { name: 'AgentRelent: 1 IP16 prefixes' })).toHaveTextContent('1')
+    expect(rows.getByRole('button', { name: 'LinkHelper: 1 IP16 prefixes' })).toHaveTextContent('1')
+    expect(rows.getByRole('button', { name: 'MapHelper: 1 IP16 prefixes' })).toHaveTextContent('1')
+    expect(rows.getByRole('button', { name: 'ZetaBot: 0 IP16 prefixes' })).toHaveTextContent('0')
+
+    fireEvent.click(rows.getByRole('button', { name: 'ZetaBot: 0 IP16 prefixes' }))
+    expect(await rows.findByText('No IP16 prefixes')).toHaveClass('muted')
+  })
+
+  it('expands prefixes for labels without pages and filters by a selected prefix', async () => {
+    stubAgentsData()
+    renderAgents()
+
+    const rows = await findTable()
+    await rows.findByText('MapHelper')
+    fireEvent.click(rows.getByRole('button', { name: 'MapHelper: 1 IP16 prefixes' }))
+
+    expect(await rows.findByText('IP16 prefixes')).toBeInTheDocument()
+    const prefixButton = rows.getByRole('button', { name: 'Filter agents by IP16 prefix 57.1 (3 revisions)' })
+    expect(prefixButton).toBeInTheDocument()
+
+    fireEvent.click(prefixButton)
+
+    await waitFor(() => expect(currentSearch().get('ip')).toBe('57.1'))
+    expect(rows.getByText('MapHelper')).toBeInTheDocument()
+    expect(rows.queryByText('AgentRelent')).toBeNull()
+    expect(rows.queryByText('LinkHelper')).toBeNull()
+    expect(rows.queryByText('ZetaBot')).toBeNull()
+  })
+
+  it('shows a muted IP16 placeholder when the index fails and keeps the table usable', async () => {
+    stubFailingIp16()
+    renderAgents()
+
+    const rows = await findTable()
+    await rows.findByText('AgentRelent')
+    expect(rows.getByText('MapHelper')).toBeInTheDocument()
+
+    const agentRow = rows.getByRole('row', { name: /AgentRelent/ })
+    expect(within(agentRow).getByText('—')).toHaveClass('muted')
+  })
+
   it('clears a whitespace-only ip16 param and keeps every label', async () => {
     stubAgentsData()
     renderAgents('/agents?ip=%20')
@@ -251,6 +300,28 @@ describe('Agents', () => {
     expect(tableRows[2]).toHaveTextContent('AgentRelent')
     expect(tableRows[3]).toHaveTextContent('LinkHelper')
     expect(tableRows[4]).toHaveTextContent('MapHelper')
+  })
+
+  it('sorts by IP16 prefix count and toggles the direction', async () => {
+    stubAgentsData()
+    renderAgents()
+
+    const rows = await findTable()
+    const ip16Header = screen.getByRole('button', { name: 'IP16' })
+    fireEvent.click(ip16Header)
+
+    await waitFor(() => {
+      expect(currentSearch().get('sort')).toBe('ip16')
+      expect(currentSearch().get('dir')).toBe('desc')
+    })
+    let tableRows = rows.getAllByRole('row')
+    expect(tableRows[4]).toHaveTextContent('ZetaBot')
+
+    fireEvent.click(ip16Header)
+
+    await waitFor(() => expect(currentSearch().get('dir')).toBe('asc'))
+    tableRows = rows.getAllByRole('row')
+    expect(tableRows[1]).toHaveTextContent('ZetaBot')
   })
 
   it('toggles the active sort column to ascending on the second click', async () => {
