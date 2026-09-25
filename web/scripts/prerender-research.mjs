@@ -33,12 +33,12 @@ function escapeWithinLimit(value, limit) {
   return escaped
 }
 
-function buildHead({ title, description, canonical, styles, article = false }) {
+function buildHead({ title, description, canonical, styles, openGraphType }) {
   const safeTitle = escapeHtml(title)
   const safeDescription = escapeWithinLimit(description, 300)
-  const openGraph = article
+  const openGraph = openGraphType
     ? `
-<meta property="og:type" content="article" />
+<meta property="og:type" content="${openGraphType}" />
 <meta property="og:site_name" content="${SITE_NAME}" />
 <meta property="og:title" content="${safeTitle}" />
 <meta property="og:description" content="${safeDescription}" />
@@ -85,7 +85,7 @@ export function buildDocPage({ doc, siblings, fragment, styles, origin }) {
 
   return `<!doctype html>
 <html lang="en">
-${buildHead({ title, description: buildDocDescription(doc), canonical, styles, article: true })}
+${buildHead({ title, description: buildDocDescription(doc), canonical, styles, openGraphType: 'article' })}
 <body>
 <header><a href="/">← ${SITE_NAME}</a></header>
 <main>
@@ -114,6 +114,7 @@ ${buildHead({
     description: HUB_DESCRIPTION,
     canonical: `${origin}/research`,
     styles,
+    openGraphType: 'website',
   })}
 <body>
 <header><a href="/">← ${SITE_NAME}</a></header>
@@ -130,12 +131,11 @@ ${entries}
 
 export function buildSitemapXml(entries, origin) {
   const baseOrigin = origin.replace(/\/+$/, '')
-  const urls = entries.map(({ loc, lastmod }) => {
+  const urls = entries.map(({ loc }) => {
     const absoluteLoc = /^https?:\/\//i.test(loc)
       ? loc
       : `${baseOrigin}${loc.startsWith('/') ? loc : `/${loc}`}`
-    const lastmodElement = lastmod ? `\n    <lastmod>${escapeHtml(lastmod)}</lastmod>` : ''
-    return `  <url>\n    <loc>${escapeHtml(absoluteLoc)}</loc>${lastmodElement}\n  </url>`
+    return `  <url>\n    <loc>${escapeHtml(absoluteLoc)}</loc>\n  </url>`
   }).join('\n')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -151,10 +151,7 @@ export function buildSitemapEntries(index, origin) {
   return [
     { loc: `${baseOrigin}/` },
     { loc: `${baseOrigin}/research` },
-    ...docs.map((doc) => ({
-      loc: `${baseOrigin}/research/${doc.slug}`,
-      ...(doc.meta?.date ? { lastmod: doc.meta.date } : {}),
-    })),
+    ...docs.map((doc) => ({ loc: `${baseOrigin}/research/${doc.slug}` })),
   ]
 }
 
@@ -167,11 +164,37 @@ function readRequiredFile(filePath, label) {
   }
 }
 
-function assertInside(baseDir, targetPath, sourcePath) {
+function assertInside(baseDir, targetPath, label) {
   const relativePath = relative(baseDir, targetPath)
   if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
-    throw new Error(`research fragment path escapes ${baseDir}: ${sourcePath}`)
+    throw new Error(`${label} escapes ${baseDir}`)
   }
+}
+
+export function validateResearchDocs(docs, researchOutputDir) {
+  const seenSlugs = new Set()
+
+  return docs.map((doc) => {
+    const slug = doc?.slug
+    if (typeof slug !== 'string') {
+      throw new Error(`invalid research slug ${JSON.stringify(slug)}: expected a lowercase hyphenated slug`)
+    }
+
+    const flatPath = resolve(researchOutputDir, `${slug}.html`)
+    const directoryIndexPath = resolve(researchOutputDir, slug, 'index.html')
+    assertInside(researchOutputDir, flatPath, `research output path for slug ${JSON.stringify(slug)}`)
+    assertInside(researchOutputDir, directoryIndexPath, `research output path for slug ${JSON.stringify(slug)}`)
+
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      throw new Error(`invalid research slug ${JSON.stringify(slug)}: expected ^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+    }
+    if (slug === 'index') throw new Error(`reserved research slug ${JSON.stringify(slug)}`)
+    if (seenSlugs.has(slug)) throw new Error(`duplicate research slug ${JSON.stringify(slug)}`)
+    if (typeof doc.title !== 'string') throw new Error(`research document ${JSON.stringify(slug)} is missing its title`)
+
+    seenSlugs.add(slug)
+    return { doc, flatPath, directoryIndexPath }
+  })
 }
 
 function writePage(filePath, html) {
@@ -179,10 +202,10 @@ function writePage(filePath, html) {
   writeFileSync(filePath, html, 'utf8')
 }
 
-export async function run() {
-  const publicDataDir = join(WEB_ROOT, 'public', 'data')
+export async function run({ webRoot = WEB_ROOT } = {}) {
+  const publicDataDir = join(webRoot, 'public', 'data')
   const dataDir = join(publicDataDir, 'research')
-  const distDir = join(WEB_ROOT, 'dist')
+  const distDir = join(webRoot, 'dist')
   const indexHtmlPath = join(distDir, 'index.html')
   const styles = pickStylesheets(readRequiredFile(indexHtmlPath, 'Vite entry HTML'))
   if (styles.length === 0) throw new Error(`no stylesheet links found in ${indexHtmlPath}`)
@@ -198,31 +221,42 @@ export async function run() {
   if (!Array.isArray(index?.groups)) throw new Error(`invalid research index ${indexPath}: groups must be an array`)
 
   const docs = index.groups.flatMap((group, groupIndex) => {
-    if (!Array.isArray(group.docs)) {
+    if (!group || !Array.isArray(group.docs)) {
       throw new Error(`invalid research index ${indexPath}: groups[${groupIndex}].docs must be an array`)
     }
     return group.docs
   })
-  const siblings = docs.map(({ slug, title }) => ({ slug, title }))
   const researchOutputDir = join(distDir, 'research')
-  const hub = buildHubPage({ docs, styles, origin: ORIGIN })
-  writePage(join(distDir, 'research.html'), hub)
-  writePage(join(researchOutputDir, 'index.html'), hub)
-
-  for (const doc of docs) {
+  const validatedDocs = validateResearchDocs(docs, researchOutputDir)
+  const siblings = validatedDocs.map(({ doc }) => ({ slug: doc.slug, title: doc.title }))
+  const fragments = validatedDocs.map((validatedDoc) => {
+    const { doc } = validatedDoc
     if (typeof doc.html !== 'string') {
       throw new Error(`research document ${doc.slug} is missing its html path`)
     }
     const fragmentPath = resolve(join(publicDataDir, doc.html))
-    assertInside(dataDir, fragmentPath, doc.html)
-    const fragment = readRequiredFile(fragmentPath, `research fragment ${doc.html}`)
-    const page = buildDocPage({ doc, siblings, fragment, styles, origin: ORIGIN })
-    writePage(join(researchOutputDir, `${doc.slug}.html`), page)
-    writePage(join(researchOutputDir, doc.slug, 'index.html'), page)
-  }
+    assertInside(dataDir, fragmentPath, `research fragment path ${doc.html}`)
+    return { ...validatedDoc, fragment: readRequiredFile(fragmentPath, `research fragment ${doc.html}`) }
+  })
 
+  const hub = buildHubPage({ docs, styles, origin: ORIGIN })
+  const pages = fragments.map(({ doc, fragment, ...outputPaths }) => ({
+    ...outputPaths,
+    html: buildDocPage({ doc, siblings, fragment, styles, origin: ORIGIN }),
+  }))
   const sitemap = buildSitemapXml(buildSitemapEntries(index, ORIGIN), ORIGIN)
-  writeFileSync(join(distDir, 'sitemap.xml'), sitemap, 'utf8')
+  const outputs = [
+    { path: join(distDir, 'research.html'), html: hub },
+    { path: join(researchOutputDir, 'index.html'), html: hub },
+    ...pages.flatMap(({ flatPath, directoryIndexPath, html }) => [
+      { path: flatPath, html },
+      { path: directoryIndexPath, html },
+    ]),
+    { path: join(distDir, 'sitemap.xml'), html: sitemap },
+  ]
+  for (const output of outputs) {
+    writePage(output.path, output.html)
+  }
   console.log(`static research pages: ${docs.length} documents, hub, sitemap`)
 }
 
