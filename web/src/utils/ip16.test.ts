@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LabelsIp16Index } from '../types'
-import { ip16Matches, matchIp16Prefixes, summarizeIp16Slice } from './ip16'
+import { ip16Matches, ip16PrefixesByLabel, matchIp16Prefixes, summarizeIp16Slice } from './ip16'
 
 const index: LabelsIp16Index = {
   meta: { schema_version: 1, prefixes: 3 },
@@ -54,6 +54,40 @@ describe('matchIp16Prefixes', () => {
     expect(matchIp16Prefixes(index, '2')).toEqual(['2.202', '20.165', '20.97'])
     expect(matchIp16Prefixes(index, '')).toEqual([])
     expect(matchIp16Prefixes(null, '20')).toEqual([])
+  })
+})
+
+describe('ip16PrefixesByLabel', () => {
+  it('inverts prefix records into label weights', () => {
+    const prefixesByLabel = ip16PrefixesByLabel(index)
+
+    expect(prefixesByLabel.get('AgentRelent')).toEqual([['20.165', 3], ['20.97', 2]])
+    expect(prefixesByLabel.get('LinkHelper')).toEqual([['20.165', 1]])
+    expect(prefixesByLabel.get('[Admin1]')).toEqual([['2.202', 1]])
+  })
+
+  it('orders equal weights by prefix ascending', () => {
+    const tied: LabelsIp16Index = {
+      meta: { schema_version: 1, prefixes: 2 },
+      prefixes: {
+        '20.2': { r: 5, l: [['AgentRelent', 5]], w: [], f: '', t: '' },
+        '10.2': { r: 5, l: [['AgentRelent', 5]], w: [], f: '', t: '' },
+      },
+    }
+
+    expect(ip16PrefixesByLabel(tied).get('AgentRelent')).toEqual([
+      ['10.2', 5],
+      ['20.2', 5],
+    ])
+  })
+
+  it('does not create entries for labels absent from the index', () => {
+    expect(ip16PrefixesByLabel(index).has('ZetaBot')).toBe(false)
+  })
+
+  it('returns an empty map for empty and null indexes', () => {
+    expect(ip16PrefixesByLabel({ meta: { schema_version: 1, prefixes: 0 }, prefixes: {} }).size).toBe(0)
+    expect(ip16PrefixesByLabel(null).size).toBe(0)
   })
 })
 

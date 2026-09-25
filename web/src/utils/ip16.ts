@@ -37,6 +37,25 @@ export function matchIp16Prefixes(index: LabelsIp16Index | null, ip: string): st
   return Object.keys(index.prefixes).filter((prefix) => ip16Matches(prefix, query)).sort()
 }
 
+export function ip16PrefixesByLabel(index: LabelsIp16Index | null): Map<string, Array<[prefix: string, weight: number]>> {
+  const prefixesByLabel = new Map<string, Array<[string, number]>>()
+  if (!index) return prefixesByLabel
+
+  for (const [prefix, record] of Object.entries(index.prefixes)) {
+    for (const [label, weight] of record.l) {
+      const labelPrefixes = prefixesByLabel.get(label) ?? []
+      labelPrefixes.push([prefix, weight])
+      prefixesByLabel.set(label, labelPrefixes)
+    }
+  }
+
+  for (const labelPrefixes of prefixesByLabel.values()) {
+    labelPrefixes.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  }
+
+  return prefixesByLabel
+}
+
 /** Aggregates the matched prefix records; revision weights stay disjoint per prefix. */
 export function summarizeIp16Slice(index: LabelsIp16Index, prefixes: string[]): Ip16SliceSummary {
   const weights = new Map<string, number>()

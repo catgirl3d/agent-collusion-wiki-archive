@@ -8,6 +8,7 @@ import { filterLabels, fmtInt, toCsv } from '../utils/format'
 import {
   IP16_CAVEAT,
   matchIp16Prefixes,
+  ip16PrefixesByLabel,
   summarizeIp16Slice,
   type Ip16SliceSummary,
 } from '../utils/ip16'
@@ -117,6 +118,7 @@ export default function Agents() {
   // taking the label index down with it. While it is not ready the filter stays
   // disabled instead of silently showing unfiltered rows for an ?ip= request.
   const ip16Status: 'ready' | 'loading' | 'error' = ip16Error ? 'error' : ip16Index ? 'ready' : 'loading'
+  const prefixesByLabel = useMemo(() => ip16PrefixesByLabel(ip16Index ?? null), [ip16Index])
   const matchedPrefixes = useMemo(() => (ip16Index ? matchIp16Prefixes(ip16Index, ip) : []), [ip16Index, ip])
   const ipSummary = useMemo(
     () => (ip16Index && ip ? summarizeIp16Slice(ip16Index, matchedPrefixes) : null),
@@ -133,8 +135,8 @@ export default function Agents() {
     [data, deferredQuery, allowedLabels],
   )
   const sorted = useMemo(
-    () => sortAgentLabels(filtered, sortState.sort, sortState.dir),
-    [filtered, sortState],
+    () => sortAgentLabels(filtered, sortState.sort, sortState.dir, (label) => prefixesByLabel.get(label)?.length ?? 0),
+    [filtered, sortState, prefixesByLabel],
   )
   const shown = sorted.slice(0, limit)
 
@@ -205,6 +207,7 @@ export default function Agents() {
               <SortHeader label="Pages" sortKey="pages" current={sortState} numeric onToggle={toggleSort} />
               <SortHeader label="First" sortKey="first" current={sortState} onToggle={toggleSort} />
               <SortHeader label="Last" sortKey="last" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="IP16" sortKey="ip16" current={sortState} numeric onToggle={toggleSort} />
               <th>Wikis</th>
               <th>Kind</th>
               <th aria-label="Actions" />
@@ -219,6 +222,19 @@ export default function Agents() {
                   <td className="num">{fmtInt(l.p)}</td>
                   <td className="muted nowrap">{l.f}</td>
                   <td className="muted nowrap">{l.t}</td>
+                  <td className="num">
+                    {ip16Status === 'ready' ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`${l.x || '(empty)'}: ${fmtInt(prefixesByLabel.get(l.x)?.length ?? 0)} IP16 prefixes`}
+                        aria-expanded={open === l.x}
+                        onClick={() => { setOpen(open === l.x ? null : l.x); }}
+                      >
+                        {fmtInt(prefixesByLabel.get(l.x)?.length ?? 0)}
+                      </Button>
+                    ) : <span className="muted">—</span>}
+                  </td>
                   <td>{l.w.join(', ') || '—'}</td>
                   <td>{l.h ? <Badge>human?</Badge> : <span className="muted">agent</span>}</td>
                   <td className="nowrap">
@@ -244,13 +260,39 @@ export default function Agents() {
                 </tr>
                 {open === l.x && (
                   <tr className="row-detail">
-                    <td colSpan={8}>
-                      <div className="pages-list">
-                        {l.pgs.slice(0, 60).map((pid) => (
-                          <PageLink key={pid} id={pid} name={pid} max={90} />
-                        ))}
-                        {l.pgs.length > 60 && <span className="muted">… and {l.pgs.length - 60} more</span>}
-                      </div>
+                    <td colSpan={9}>
+                      {l.pgs.length > 0 && (
+                        <div className="pages-list">
+                          {l.pgs.slice(0, 60).map((pid) => (
+                            <PageLink key={pid} id={pid} name={pid} max={90} />
+                          ))}
+                          {l.pgs.length > 60 && <span className="muted">… and {l.pgs.length - 60} more</span>}
+                        </div>
+                      )}
+                      {ip16Status === 'ready' && (
+                        <div>
+                          <strong>IP16 prefixes</strong>
+                          {(prefixesByLabel.get(l.x)?.length ?? 0) > 0 ? (
+                            <div className="pages-list">
+                              {(prefixesByLabel.get(l.x) ?? []).map(([prefix, weight]) => {
+                                const revisionLabel = `${fmtInt(weight)} ${weight === 1 ? 'revision' : 'revisions'}`
+                                return (
+                                  <Button
+                                    key={prefix}
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label={`Filter agents by IP16 prefix ${prefix} (${revisionLabel})`}
+                                    title={`Filter agents by IP16 prefix ${prefix}`}
+                                    onClick={() => update({ ip: prefix })}
+                                  >
+                                    <span className="mono">{prefix}</span> <span className="muted">{fmtInt(weight)} revs</span>
+                                  </Button>
+                                )
+                              })}
+                            </div>
+                          ) : <span className="muted">No IP16 prefixes</span>}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}
