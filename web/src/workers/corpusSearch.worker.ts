@@ -16,7 +16,7 @@ import {
   selectMatches,
   searchRecords,
 } from '../utils/corpus'
-import type { CorpusBodyRequest, CorpusPageMap, CorpusSearchRequest, CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
+import type { CorpusBodyRequest, CorpusPageMap, CorpusSearchRequest, CorpusWorkerResponse } from '../utils/corpus'
 import { createLruCache } from '../utils/lru'
 import { resolveSort } from '../utils/sort'
 
@@ -36,7 +36,7 @@ class CorpusWorkerError extends Error {
 
 const workerScope = self as unknown as {
   postMessage(message: CorpusWorkerResponse): void
-  onmessage: ((event: MessageEvent<CorpusWorkerRequest>) => void) | null
+  onmessage: ((event: MessageEvent<unknown>) => void) | null
 }
 
 let summary: Summary | null = null
@@ -55,13 +55,13 @@ let running = false
 
 workerScope.onmessage = (event) => {
   const message = event.data
-  if (!message) return
+  if (typeof message !== 'object' || message === null || !('type' in message) || typeof message.type !== 'string') return
   if (message.type === 'body') {
-    void handleBody(message)
+    void handleBody(message as CorpusBodyRequest)
     return
   }
   if (message.type !== 'search') return
-  pending = message
+  pending = message as CorpusSearchRequest
   if (!running) void drain()
 }
 
@@ -114,7 +114,7 @@ function assertDate(value: string | undefined, name: string): void {
 async function runSearch(request: CorpusSearchRequest) {
   const q = request.q.trim()
   if (q.length < CORPUS_MIN_QUERY || q.length > CORPUS_MAX_QUERY) {
-    throw new CorpusWorkerError('invalid_param', `q must be between ${CORPUS_MIN_QUERY} and ${CORPUS_MAX_QUERY} characters`)
+    throw new CorpusWorkerError('invalid_param', `q must be between ${String(CORPUS_MIN_QUERY)} and ${String(CORPUS_MAX_QUERY)} characters`)
   }
   assertDate(request.from, 'from')
   assertDate(request.to, 'to')
@@ -206,7 +206,7 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
       throw new CorpusWorkerError('archive_data_unavailable', 'corpus is unavailable')
     }
     if (!response.ok) {
-      throw new CorpusWorkerError('archive_data_unavailable', `corpus returned HTTP ${response.status}`)
+      throw new CorpusWorkerError('archive_data_unavailable', `corpus returned HTTP ${String(response.status)}`)
     }
     const contentType = response.headers.get('content-type') ?? ''
     if (contentType.includes('text/html')) {
@@ -220,7 +220,7 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
     let decoded: Uint8Array
     if (isGzip(received)) {
       if (received.byteLength > CORPUS_MAX_GZIP_BYTES) {
-        throw new CorpusWorkerError('archive_data_too_large', `corpus gzip exceeds ${CORPUS_MAX_GZIP_BYTES} bytes`)
+        throw new CorpusWorkerError('archive_data_too_large', `corpus gzip exceeds ${String(CORPUS_MAX_GZIP_BYTES)} bytes`)
       }
       const digest = await sha256Hex(received)
       if (digest !== meta.sha256 || received.byteLength !== meta.compressed_bytes) {
@@ -232,7 +232,7 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
     }
 
     if (decoded.byteLength > CORPUS_MAX_DECODED_BYTES) {
-      throw new CorpusWorkerError('archive_data_too_large', `corpus exceeds ${CORPUS_MAX_DECODED_BYTES} decoded bytes`)
+      throw new CorpusWorkerError('archive_data_too_large', `corpus exceeds ${String(CORPUS_MAX_DECODED_BYTES)} decoded bytes`)
     }
     const decodedDigest = await sha256Hex(decoded)
     if (decodedDigest !== meta.decoded_sha256 || decoded.byteLength !== meta.decoded_bytes) {
@@ -242,7 +242,7 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
     const parsed: CorpusRecord[] = []
     const parser = createJsonlParser((record, row) => {
       if (parsed.length >= CORPUS_MAX_ROWS) {
-        throw new CorpusWorkerError('archive_data_too_large', `corpus exceeds ${CORPUS_MAX_ROWS} rows`)
+        throw new CorpusWorkerError('archive_data_too_large', `corpus exceeds ${String(CORPUS_MAX_ROWS)} rows`)
       }
       parsed.push(record)
       if (row % 2000 === 0) progress(requestId, { phase: 'decode', rows: row })
@@ -258,7 +258,7 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
     if (parsed.length !== meta.revisions) {
       throw new CorpusWorkerError(
         'archive_data_invalid',
-        `corpus has ${parsed.length} rows, summary declares ${meta.revisions}`,
+        `corpus has ${String(parsed.length)} rows, summary declares ${String(meta.revisions)}`,
       )
     }
     progress(requestId, { phase: 'decode', rows: parsed.length })
@@ -288,7 +288,7 @@ async function fetchJsonBounded<T>(path: string, label: string, init?: RequestIn
     throw new CorpusWorkerError('archive_data_unavailable', `${label} is unavailable`)
   }
   if (!response.ok) {
-    throw new CorpusWorkerError('archive_data_unavailable', `${label} returned HTTP ${response.status}`)
+    throw new CorpusWorkerError('archive_data_unavailable', `${label} returned HTTP ${String(response.status)}`)
   }
   const contentType = response.headers.get('content-type') ?? ''
   if (contentType.includes('text/html')) {
@@ -311,7 +311,7 @@ async function readAll(
   if (!response.body) {
     const buffer = new Uint8Array(await response.arrayBuffer())
     if (buffer.byteLength > maxBytes) {
-      throw new CorpusWorkerError('archive_data_too_large', `${label} exceeds ${maxBytes} bytes`)
+      throw new CorpusWorkerError('archive_data_too_large', `${label} exceeds ${String(maxBytes)} bytes`)
     }
     return buffer
   }
@@ -319,13 +319,13 @@ async function readAll(
   const chunks: Uint8Array[] = []
   let size = 0
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
       if (size > maxBytes) {
         await reader.cancel().catch(() => undefined)
-        throw new CorpusWorkerError('archive_data_too_large', `${label} exceeds ${maxBytes} bytes`)
+        throw new CorpusWorkerError('archive_data_too_large', `${label} exceeds ${String(maxBytes)} bytes`)
       }
       chunks.push(value)
       onProgress?.(size)
@@ -350,7 +350,7 @@ async function gunzipInto(bytes: Uint8Array, expectedBytes: number, requestId: n
     throw new CorpusWorkerError('archive_data_unavailable', 'this browser cannot decompress the corpus')
   }
   if (expectedBytes > CORPUS_MAX_DECODED_BYTES) {
-    throw new CorpusWorkerError('archive_data_too_large', `corpus exceeds ${CORPUS_MAX_DECODED_BYTES} decoded bytes`)
+    throw new CorpusWorkerError('archive_data_too_large', `corpus exceeds ${String(CORPUS_MAX_DECODED_BYTES)} decoded bytes`)
   }
   // The decoded size is known from summary metadata, so decompress into one preallocated buffer
   // instead of retaining a chunk list plus a merged copy (halves peak memory for the 41 MB corpus).
@@ -360,7 +360,7 @@ async function gunzipInto(bytes: Uint8Array, expectedBytes: number, requestId: n
   let size = 0
   let reported = 0
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read()
       if (done) break
       if (size + value.byteLength > output.byteLength) {

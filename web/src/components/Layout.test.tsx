@@ -74,7 +74,9 @@ describe('Layout', () => {
     const downloadLink = screen.getByRole('link', { name: /^download$/i })
 
     // Hover does not open
-    fireEvent.mouseEnter(exploreTrigger.closest('.nav-dropdown')!)
+    const exploreDropdown = exploreTrigger.closest('.nav-dropdown')
+    if (!exploreDropdown) throw new Error('Explore dropdown container was not found')
+    fireEvent.mouseEnter(exploreDropdown)
     expect(screen.queryByRole('menu', { name: 'Explore' })).not.toBeInTheDocument()
 
     // Click on Explore opens Explore

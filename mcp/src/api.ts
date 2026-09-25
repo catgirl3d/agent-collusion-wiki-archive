@@ -146,7 +146,7 @@ export function readTimeoutMs(configured: number | undefined): number {
   const label = configured === undefined ? 'ARCHIVE_API_TIMEOUT_MS' : 'timeoutMs'
   const value = typeof raw === 'string' ? Number(raw) : raw
   if (!Number.isInteger(value) || value < MIN_TIMEOUT_MS || value > MAX_TIMEOUT_MS) {
-    throw new Error(`${label} must be an integer between ${MIN_TIMEOUT_MS} and ${MAX_TIMEOUT_MS}`)
+    throw new Error(`${label} must be an integer between ${String(MIN_TIMEOUT_MS)} and ${String(MAX_TIMEOUT_MS)}`)
   }
   return value
 }
@@ -183,7 +183,7 @@ async function readResponseBody(response: Response): Promise<string> {
   let body = ''
   let size = 0
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
@@ -210,7 +210,7 @@ async function readBoundedText(response: Response, maxBytes: number): Promise<st
   let text = ''
   let size = 0
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
@@ -226,10 +226,15 @@ async function readBoundedText(response: Response, maxBytes: number): Promise<st
   return text
 }
 
+function optionalHeaders(response: Response): { get?: (name: string) => string | null } | null | undefined {
+  return response.headers
+}
+
 async function readApiError(response: Response): Promise<ArchiveApiError> {
-  const fallback = `Archive API returned HTTP ${response.status}`
+  const fallback = `Archive API returned HTTP ${String(response.status)}`
   // Only a JSON error contract is trusted; anything else stays a generic status error.
-  const contentType = (response.headers?.get?.('content-type') ?? '').toLowerCase()
+  const headers = optionalHeaders(response)
+  const contentType = (headers?.get?.('content-type') ?? '').toLowerCase()
   if (!contentType.includes('application/json')) {
     await response.body?.cancel().catch(() => undefined)
     return new ArchiveApiError(fallback, response.status)
@@ -358,7 +363,7 @@ export class ArchiveApiClient implements ArchiveApi {
     } catch (error) {
       if (error instanceof ArchiveApiError) throw error
       if (controller.signal.aborted) {
-        throw new ArchiveApiError(`Archive API request timed out after ${this.timeoutMs} ms`)
+        throw new ArchiveApiError(`Archive API request timed out after ${String(this.timeoutMs)} ms`)
       }
       throw new ArchiveApiError('Unable to reach archive API')
     } finally {

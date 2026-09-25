@@ -91,8 +91,8 @@ describe('diffLines', () => {
   })
 
   it('returns fallback summary markers when modified lines exceed 600', () => {
-    const before = Array.from({ length: 650 }, (_, i) => `old line ${i}`).join('\n')
-    const after = Array.from({ length: 650 }, (_, i) => `new line ${i}`).join('\n')
+    const before = Array.from({ length: 650 }, (_, i) => `old line ${String(i)}`).join('\n')
+    const after = Array.from({ length: 650 }, (_, i) => `new line ${String(i)}`).join('\n')
 
     const result = diffLines(before, after)
 
@@ -103,8 +103,8 @@ describe('diffLines', () => {
   })
 
   it('strips common prefix and suffix so localized changes in large files avoid the 600-line fallback', () => {
-    const prefix = Array.from({ length: 500 }, (_, i) => `common prefix line ${i}`)
-    const suffix = Array.from({ length: 500 }, (_, i) => `common suffix line ${i}`)
+    const prefix = Array.from({ length: 500 }, (_, i) => `common prefix line ${String(i)}`)
+    const suffix = Array.from({ length: 500 }, (_, i) => `common suffix line ${String(i)}`)
 
     const before = [...prefix, 'original middle', ...suffix].join('\n')
     const after = [...prefix, 'updated middle', ...suffix].join('\n')

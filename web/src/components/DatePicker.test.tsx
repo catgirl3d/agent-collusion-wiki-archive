@@ -103,20 +103,23 @@ describe('ArchiveCalendar', () => {
   })
 
   it('shows a disabled trigger while activity data is loading and recovers after it resolves', async () => {
-    let resolveActivity!: (rows: unknown) => void
+    let resolveActivity: ((rows: unknown) => void) | undefined
     loadJsonMock.mockImplementation(() => new Promise((resolve) => { resolveActivity = resolve }))
 
     render(
       <MemoryRouter>
-        <ArchiveCalendar value="" onChange={() => {}} />
+        <ArchiveCalendar value="" onChange={vi.fn()} />
       </MemoryRouter>,
     )
     const trigger = await screen.findByRole('button', { name: /pick a date/i })
     expect(trigger).toBeDisabled()
     expect(screen.queryByRole('dialog')).toBeNull()
 
+    const resolve = resolveActivity
+    if (!resolve) throw new Error('Activity request resolver was not registered')
     await act(async () => {
-      resolveActivity(activity)
+      resolve(activity)
+      await Promise.resolve()
     })
 
     await waitFor(() => expect(screen.getByRole('button', { name: /pick a date/i })).toBeEnabled())
@@ -130,7 +133,7 @@ describe('ArchiveCalendar', () => {
 
     render(
       <MemoryRouter>
-        <ArchiveCalendar value="" onChange={() => {}} />
+        <ArchiveCalendar value="" onChange={vi.fn()} />
       </MemoryRouter>,
     )
 
@@ -139,7 +142,7 @@ describe('ArchiveCalendar', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
     const now = new Date()
     const month = MONTHS[now.getUTCMonth()]
-    expect(screen.getByRole('button', { name: `${month} 15, ${now.getUTCFullYear()}` })).toBeEnabled()
+    expect(screen.getByRole('button', { name: `${month} 15, ${String(now.getUTCFullYear())}` })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Previous month' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Next month' })).toBeEnabled()
   })
@@ -191,7 +194,7 @@ describe('DatePicker', () => {
   it('gives calendar days full date names and announces the selected state', () => {
     render(
       <MemoryRouter>
-        <DatePicker value="2026-06-17" onChange={() => {}} fallbackMonth="2026-06-17" />
+        <DatePicker value="2026-06-17" onChange={vi.fn()} fallbackMonth="2026-06-17" />
       </MemoryRouter>,
     )
 
@@ -205,14 +208,14 @@ describe('DatePicker', () => {
   it('defaults to the current UTC month when no value and no fallbackMonth', () => {
     render(
       <MemoryRouter>
-        <DatePicker value="" onChange={() => {}} />
+        <DatePicker value="" onChange={vi.fn()} />
       </MemoryRouter>,
     )
 
     fireEvent.click(screen.getByRole('button', { name: /pick a date/i }))
     const now = new Date()
     const month = MONTHS[now.getUTCMonth()]
-    expect(screen.getByText(`${month} ${now.getUTCFullYear()}`)).toBeInTheDocument()
+    expect(screen.getByText(`${month} ${String(now.getUTCFullYear())}`)).toBeInTheDocument()
   })
 
   it('renders the supplied label for a generic availability restriction', () => {
@@ -220,7 +223,7 @@ describe('DatePicker', () => {
       <MemoryRouter>
         <DatePicker
           value=""
-          onChange={() => {}}
+          onChange={vi.fn()}
           fallbackMonth="2026-06-17"
           isDayEnabled={() => true}
           allowLiftRestriction

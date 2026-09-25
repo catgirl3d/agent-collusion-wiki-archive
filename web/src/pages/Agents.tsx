@@ -143,7 +143,7 @@ export default function Agents() {
   const exportCsv = () => {
     const timestamp = Math.floor(Date.now() / 1000)
     const rows = sorted.map(({ x, r, p, f, t, h }) => ({ label: x, revs: r, pages: p, first: f, last: t, h }))
-    downloadBlob(`agents-slice-${timestamp}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
+    downloadBlob(`agents-slice-${String(timestamp)}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
   }
 
   if (error) return <div className="error">Error: {error}</div>
@@ -170,13 +170,13 @@ export default function Agents() {
           placeholder="IP16…"
           value={ip}
           disabled={ip16Status !== 'ready'}
-          onChange={(event) => update({ ip: event.target.value || null })}
+          onChange={(event) => { update({ ip: event.target.value || null }); }}
         />
         {ip16Status === 'error' && (
           <span className="error" role="status">ip16 index failed to load; the ip16 filter is disabled</span>
         )}
         {ip16Status === 'error' && ip && (
-          <Button variant="ghost" size="sm" onClick={() => update({ ip: null })}>clear ip16 filter</Button>
+          <Button variant="ghost" size="sm" onClick={() => { update({ ip: null }); }}>clear ip16 filter</Button>
         )}
         {ip16Status === 'loading' && (
           <span className="muted" role="status">loading ip16 index…</span>
@@ -283,7 +283,7 @@ export default function Agents() {
                                     size="sm"
                                     aria-label={`Filter agents by IP16 prefix ${prefix} (${revisionLabel})`}
                                     title={`Filter agents by IP16 prefix ${prefix}`}
-                                    onClick={() => update({ ip: prefix })}
+                                    onClick={() => { update({ ip: prefix }); }}
                                   >
                                     <span className="mono">{prefix}</span> <span className="muted">{fmtInt(weight)} revs</span>
                                   </Button>

@@ -27,8 +27,8 @@ function mockBigPage(count: number, oldestBody = 'oldest body', payloadIndex: un
     label: null,
     ip16: null,
     summary: null,
-    len: (index === 0 ? oldestBody : `r${index + 1}`).length,
-    body: index === 0 ? oldestBody : `r${index + 1}`,
+    len: (index === 0 ? oldestBody : `r${String(index + 1)}`).length,
+    body: index === 0 ? oldestBody : `r${String(index + 1)}`,
     action: null,
     round: null,
   }))
@@ -269,6 +269,7 @@ describe('PageDetail', () => {
     expect(await screen.findByText(/showing 60 of 60 revisions/)).toBeInTheDocument()
     const article = document.getElementById('rev-0')
     expect(article).not.toBeNull()
-    expect(within(article!).getByText(/UNIQUE_OLDEST_MARKER/)).toBeVisible()
+    if (!article) throw new Error('Expected oldest revision article')
+    expect(within(article).getByText(/UNIQUE_OLDEST_MARKER/)).toBeVisible()
   })
 })

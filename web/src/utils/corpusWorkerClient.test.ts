@@ -50,7 +50,7 @@ describe('corpusWorkerClient', () => {
   it('creates one worker lazily and keeps it alive when subscribers leave', () => {
     vi.stubGlobal('Worker', FakeWorker)
 
-    const unsubscribe = subscribeCorpusWorker(() => {})
+    const unsubscribe = subscribeCorpusWorker(vi.fn())
     expect(FakeWorker.instances).toHaveLength(0)
 
     postCorpusRequest(request(1))
@@ -94,12 +94,12 @@ describe('corpusWorkerClient', () => {
   it('keeps request ids unique across page mount lifetimes', () => {
     vi.stubGlobal('Worker', FakeWorker)
 
-    const unsubscribeFirstMount = subscribeCorpusWorker(() => {})
+    const unsubscribeFirstMount = subscribeCorpusWorker(vi.fn())
     const firstId = createCorpusRequestId()
     postCorpusRequest(request(firstId))
     unsubscribeFirstMount()
 
-    const unsubscribeSecondMount = subscribeCorpusWorker(() => {})
+    const unsubscribeSecondMount = subscribeCorpusWorker(vi.fn())
     const secondId = createCorpusRequestId()
     postCorpusRequest(request(secondId))
 
@@ -203,9 +203,10 @@ describe('corpusWorkerClient', () => {
     vi.stubGlobal('Worker', FakeWorker)
     resetCorpusWorkerForTests()
     const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
-    const message = FakeWorker.instances.at(-1)?.messages[0]
-    expect(message).toBeDefined()
-    FakeWorker.instances.at(-1)?.respond({ type: 'body', requestId: message!.requestId, body: 'recovered' })
+    const worker = FakeWorker.instances.at(-1)
+    const message = worker?.messages[0]
+    if (!worker || !message) throw new Error('Revision body request was not posted')
+    worker.respond({ type: 'body', requestId: message.requestId, body: 'recovered' })
     await expect(promise).resolves.toBe('recovered')
   })
 
@@ -225,7 +226,7 @@ describe('corpusWorkerClient', () => {
         this.messages.push(message)
       }
 
-      terminate() {}
+      terminate = vi.fn()
     }
     vi.stubGlobal('Worker', RetryWorker)
 

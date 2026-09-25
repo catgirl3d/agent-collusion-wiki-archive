@@ -147,7 +147,7 @@ describe('collectPayloadEvidence', () => {
   })
 
   it('caps entries per flag', () => {
-    const result = collectPayloadEvidence(Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${i}` })), ['tunnel'], { perFlagCap: 2 })
+    const result = collectPayloadEvidence(Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${String(i)}` })), ['tunnel'], { perFlagCap: 2 })
     expect(result.entries).toHaveLength(2)
     expect(result.entries.every((entry) => entry.flag === 'tunnel')).toBe(true)
   })
@@ -188,7 +188,7 @@ describe('collectPayloadEvidence', () => {
   })
 
   it('applies caps independently for each flag', () => {
-    const revisions = Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${i} https://counterapi.dev/${i}` }))
+    const revisions = Array.from({ length: 4 }, (_, i) => revision({ body: `https://x.pinggy.io/${String(i)} https://counterapi.dev/${String(i)}` }))
     const result = collectPayloadEvidence(revisions, ['tunnel', 'beacon'], { perFlagCap: 2 })
     expect(result.entries.filter((entry) => entry.flag === 'tunnel')).toHaveLength(2)
     expect(result.entries.filter((entry) => entry.flag === 'beacon')).toHaveLength(2)
@@ -301,8 +301,8 @@ describe('analyzeRevisionChange', () => {
   })
 
   it('identifies truncated mixed for >600 line fallback diffs', () => {
-    const beforeLines = Array.from({ length: 650 }, (_, i) => `Before line ${i}`)
-    const afterLines = Array.from({ length: 650 }, (_, i) => `After line ${i}`)
+    const beforeLines = Array.from({ length: 650 }, (_, i) => `Before line ${String(i)}`)
+    const afterLines = Array.from({ length: 650 }, (_, i) => `After line ${String(i)}`)
     const before = beforeLines.join('\n')
     const after = afterLines.join('\n')
 
@@ -316,6 +316,40 @@ describe('analyzeRevisionChange', () => {
 })
 
 describe('buildPairTimeline', () => {
+  it('treats null current and baseline bodies as empty strings', () => {
+    const timeline = buildPairTimeline([
+      revision({ seq: 1, label: 'AgentA', body: null }),
+      revision({ seq: 2, label: 'AgentB', body: null }),
+    ], 'AgentA', 'AgentB')
+
+    expect(timeline.events.map((event) => event.analysis.op)).toEqual(['initial', 'unchanged'])
+    expect(timeline.events.every((event) => event.payloadFlags.length === 0)).toBe(true)
+  })
+
+  it('skips sparse and undefined revision entries before sorting', () => {
+    const sparseRevisions = new Array<Revision | undefined>(2)
+    sparseRevisions[1] = revision({ seq: 1, label: 'AgentA', body: 'present' })
+    const undefinedRevisions: (Revision | undefined)[] = [undefined, revision({ seq: 2, label: 'AgentB', body: 'present' })]
+
+    for (const revisions of [sparseRevisions, undefinedRevisions]) {
+      const timeline = buildPairTimeline(revisions, 'AgentA', 'AgentB')
+      expect(timeline.orderedRevisions).toHaveLength(1)
+      expect(timeline.events).toHaveLength(1)
+    }
+  })
+
+  it('skips explicit null revisions without changing pair timeline results', () => {
+    const firstRevision = revision({ seq: 1, label: 'AgentA', body: 'first' })
+    const secondRevision = revision({ seq: 2, label: 'AgentB', body: 'second' })
+    const expectedTimeline = buildPairTimeline([firstRevision, secondRevision], 'AgentA', 'AgentB')
+    const timeline = buildPairTimeline([firstRevision, null, secondRevision], 'AgentA', 'AgentB')
+
+    expect(timeline.orderedRevisions).toEqual(expectedTimeline.orderedRevisions)
+    expect(timeline.events).toEqual(expectedTimeline.events)
+    expect(timeline.orderedRevisions).toHaveLength(2)
+    expect(timeline.events).toHaveLength(2)
+  })
+
   it('filters to pair actors only, preserves chronological order, and counts intervening third-label revisions', () => {
     const revisions: Revision[] = [
       {
@@ -505,8 +539,8 @@ describe('derivePairEvidence', () => {
     expect(evidence.coverageStatus).toBe('complete')
     expect(evidence.pairObservations.some((item) => item.status === 're-added-after-third-party')).toBe(true)
     expect(evidence.artifactObservations).toHaveLength(4)
-    const pinggy = evidence.artifacts.find((item) => item.canonicalValue === 'pinggy.io')!
-    expect(pinggy.refs).toEqual([{ revIndex: 0, label: 'A', seq: 1 }, { revIndex: 2, label: 'B', seq: 3 }])
+    const pinggy = evidence.artifacts.find((item) => item.canonicalValue === 'pinggy.io')
+    expect(pinggy?.refs).toEqual([{ revIndex: 0, label: 'A', seq: 1 }, { revIndex: 2, label: 'B', seq: 3 }])
   })
 
   it('orders shared refs chronologically when the right label added first', () => {
@@ -517,8 +551,8 @@ describe('derivePairEvidence', () => {
     ]
     const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
 
-    const item = evidence.commonHosts.find((entry) => entry.canonicalValue === 'same.example')!
-    expect(item.refs).toEqual([
+    const item = evidence.commonHosts.find((entry) => entry.canonicalValue === 'same.example')
+    expect(item?.refs).toEqual([
       { revIndex: 0, label: 'B', seq: 1 },
       { revIndex: 2, label: 'A', seq: 3 },
     ])
@@ -610,8 +644,8 @@ describe('derivePairEvidence', () => {
     const evidence = derivePairEvidence('page', buildPairTimeline(revisions, 'A', 'B'), 'A', 'B')
     const item = evidence.artifacts.find((entry) => entry.canonicalValue === 'pinggy.io')
     expect(item).toBeDefined()
-    expect(item!.counts).toEqual({ A: 3, B: 1 })
-    expect(new Set(item!.statuses)).toEqual(new Set(['second-actor-added', 're-added-after-third-party']))
+    expect(item?.counts).toEqual({ A: 3, B: 1 })
+    expect(new Set(item?.statuses)).toEqual(new Set(['second-actor-added', 're-added-after-third-party']))
     const byStatus = new Map(evidence.pairObservations.filter((row) => row.artifact === 'domain:pinggy.io').map((row) => [row.status, row.observationRefs]))
     expect(byStatus.get('second-actor-added')).toEqual(['page|2|B|domain|pinggy.io|sig-extractor-v2'])
     expect(byStatus.get('re-added-after-third-party')).toEqual(['page|4|A|domain|pinggy.io|sig-extractor-v2'])

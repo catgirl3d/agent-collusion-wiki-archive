@@ -63,7 +63,7 @@ describe('Dropdown', () => {
   })
 
   it('closes on Tab without returning focus to the trigger', () => {
-    render(<Dropdown value="" options={wikiOptions} onChange={() => {}} />)
+    render(<Dropdown value="" options={wikiOptions} onChange={vi.fn()} />)
 
     const trigger = screen.getByRole('combobox', { name: 'all wikis' })
     fireEvent.click(trigger)
@@ -73,7 +73,7 @@ describe('Dropdown', () => {
   })
 
   it('keeps the active option attached to its value when options reorder', () => {
-    const { rerender } = render(<Dropdown value="dse" options={wikiOptions} onChange={() => {}} />)
+    const { rerender } = render(<Dropdown value="dse" options={wikiOptions} onChange={vi.fn()} />)
     const trigger = screen.getByRole('combobox', { name: 'dse' })
 
     fireEvent.click(trigger)
@@ -85,7 +85,7 @@ describe('Dropdown', () => {
           { value: 'meta', label: 'meta' },
           { value: '', label: 'all wikis' },
         ]}
-        onChange={() => {}}
+        onChange={vi.fn()}
       />,
     )
 
@@ -100,7 +100,7 @@ describe('Dropdown', () => {
           id="min-shared-select"
           value={2}
           options={[{ value: 2, label: '≥ 2 pages' }]}
-          onChange={() => {}}
+          onChange={vi.fn()}
         />
       </>,
     )
@@ -121,7 +121,7 @@ describe('Dropdown', () => {
           { value: 'two', label: 'two' },
           { value: 'three', label: 'three' },
         ]}
-        onChange={() => {}}
+        onChange={vi.fn()}
       />,
     )
 
@@ -134,7 +134,7 @@ describe('Dropdown', () => {
   })
 
   it('shows the controlled value while options are still loading', () => {
-    render(<Dropdown value="dse" options={[{ value: '', label: 'all wikis' }]} onChange={() => {}} />)
+    render(<Dropdown value="dse" options={[{ value: '', label: 'all wikis' }]} onChange={vi.fn()} />)
 
     expect(screen.getByRole('combobox', { name: 'dse' })).toBeInTheDocument()
   })
@@ -185,7 +185,7 @@ describe('Dropdown', () => {
           { value: 'c', label: 'C', disabled: true },
           { value: 'd', label: 'D' },
         ]}
-        onChange={() => {}}
+        onChange={vi.fn()}
       />,
     )
 
@@ -209,7 +209,7 @@ describe('Dropdown', () => {
           { value: 'b', label: 'B' },
           { value: 'c', label: 'C' },
         ]}
-        onChange={() => {}}
+        onChange={vi.fn()}
       />,
     )
 
@@ -227,7 +227,7 @@ describe('Dropdown', () => {
         menuClassName="lang-dropdown-menu"
         options={[{ value: 'en', label: 'English' }]}
         renderTriggerLabel={(opt) => <span>Custom: {opt?.label}</span>}
-        onChange={() => {}}
+        onChange={vi.fn()}
       />,
     )
 
@@ -240,4 +240,3 @@ describe('Dropdown', () => {
     expect(listbox).toHaveClass('lang-dropdown-menu')
   })
 })
-

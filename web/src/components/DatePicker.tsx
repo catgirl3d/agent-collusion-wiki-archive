@@ -10,7 +10,7 @@ export interface DatePickerProps {
   placeholder?: string
   ariaLabel?: string
   /** Initial visible month when value is empty: 'today' or an ISO date. */
-  fallbackMonth?: 'today' | string
+  fallbackMonth?: string
   /** Returns false for days that must be rendered gray and unclickable. */
   isDayEnabled?: (date: string) => boolean
   /** When true, the popup shows a toggle to lift the day-availability restriction; when false, the restriction remains strict. */
@@ -58,7 +58,7 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
     setOpen(true)
   }
 
-  const viewMonth = `${view.y}-${String(view.m + 1).padStart(2, '0')}`
+  const viewMonth = `${String(view.y)}-${String(view.m + 1).padStart(2, '0')}`
   const canPrev = !minMonth || viewMonth > minMonth
   const canNext = !maxMonth || viewMonth < maxMonth
 
@@ -122,14 +122,14 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
             ))}
             {cells.map((date, index) =>
               date === null ? (
-                <span key={`blank-${index}`} />
+                <span key={`blank-${String(index)}`} />
               ) : (
                 <button
                   key={date}
                   type="button"
                   disabled={isDayEnabled && onlyEnabledDays ? !isDayEnabled(date) : false}
                   className={`cal-day${date === value ? ' selected' : ''}`}
-                  aria-label={`${MONTHS[view.m]} ${Number(date.slice(8, 10))}, ${view.y}`}
+                  aria-label={`${MONTHS[view.m]} ${String(Number(date.slice(8, 10)))}, ${String(view.y)}`}
                   aria-pressed={date === value}
                   onClick={() => { pick(date); }}
                 >

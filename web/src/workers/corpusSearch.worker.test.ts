@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CorpusWorkerRequest, CorpusWorkerResponse } from '../utils/corpus'
+import type { CorpusWorkerResponse } from '../utils/corpus'
 
 describe('corpusSearch worker boundary', () => {
   beforeEach(() => {
@@ -21,12 +21,14 @@ describe('corpusSearch worker boundary', () => {
     }
     vi.stubGlobal('fetch', (url: string) => Promise.resolve(responses[url]))
     const posted: CorpusWorkerResponse[] = []
-    const scope = { onmessage: null as ((event: MessageEvent<CorpusWorkerRequest>) => void) | null, postMessage: (message: CorpusWorkerResponse) => posted.push(message) }
+    const scope = { onmessage: null as ((event: MessageEvent<unknown>) => void) | null, postMessage: (message: CorpusWorkerResponse) => posted.push(message) }
     vi.stubGlobal('self', scope)
     await import('./corpusSearch.worker')
-    scope.onmessage!({ data: { type: 'search', requestId: 1, q: 'needle', caseSensitive: false, limit: 1, offset: 0, sort: 'hits', dir: 'desc' } } as MessageEvent<CorpusWorkerRequest>)
+    if (!scope.onmessage) throw new Error('Worker message handler was not registered')
+    scope.onmessage({ data: { type: 'search', requestId: 1, q: 'needle', caseSensitive: false, limit: 1, offset: 0, sort: 'hits', dir: 'desc' } } as MessageEvent<unknown>)
     await vi.waitFor(() => { expect(posted.find((message) => message.type === 'result')).toBeDefined(); })
-    const result = posted.find((message): message is Extract<CorpusWorkerResponse, { type: 'result' }> => message.type === 'result')!
+    const result = posted.find((message): message is Extract<CorpusWorkerResponse, { type: 'result' }> => message.type === 'result')
+    if (!result) throw new Error('Worker result was not posted')
     expect(result.result.matches.map((match) => match.id)).toEqual(['dse/High'])
   })
 
@@ -34,12 +36,42 @@ describe('corpusSearch worker boundary', () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     const posted: CorpusWorkerResponse[] = []
-    const scope = { onmessage: null as ((event: MessageEvent<CorpusWorkerRequest>) => void) | null, postMessage: (message: CorpusWorkerResponse) => posted.push(message) }
+    const scope = { onmessage: null as ((event: MessageEvent<unknown>) => void) | null, postMessage: (message: CorpusWorkerResponse) => posted.push(message) }
     vi.stubGlobal('self', scope)
     await import('./corpusSearch.worker')
-    scope.onmessage!({ data: { type: 'search', requestId: 2, q: 'x', caseSensitive: false, limit: 1, offset: 0 } } as MessageEvent<CorpusWorkerRequest>)
+    if (!scope.onmessage) throw new Error('Worker message handler was not registered')
+    scope.onmessage({ data: { type: 'search', requestId: 2, q: 'x', caseSensitive: false, limit: 1, offset: 0 } } as MessageEvent<unknown>)
     await vi.waitFor(() => { expect(posted).toHaveLength(1); })
     expect(posted[0]).toMatchObject({ type: 'error', code: 'invalid_param' })
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('ignores non-object and unknown worker messages instead of queueing them', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('{}', { headers: { 'content-type': 'application/json' } }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const posted: CorpusWorkerResponse[] = []
+    const scope = {
+      onmessage: null as ((event: MessageEvent<unknown>) => void) | null,
+      postMessage: (message: CorpusWorkerResponse) => posted.push(message),
+    }
+    vi.stubGlobal('self', scope)
+    await import('./corpusSearch.worker')
+    const onmessage = scope.onmessage
+    if (!onmessage) throw new Error('Worker message handler was not registered')
+
+    expect(() => { onmessage({ data: null } as MessageEvent<unknown>); }).not.toThrow()
+    onmessage({ data: 'search' } as MessageEvent<unknown>)
+    onmessage({ data: { type: 'unknown', requestId: 1 } } as MessageEvent<unknown>)
+    onmessage({
+      data: { type: 'body', requestId: 2, w: 'dse', id: 'dse/Page', seq: 1, t: '2026-06-20T00:00:00Z' },
+    } as MessageEvent<unknown>)
+
+    await vi.waitFor(() => {
+      expect(posted.some((message) => message.type === 'error' && message.requestId === 2)).toBe(true)
+    })
+    expect(posted).toEqual([expect.objectContaining({ type: 'error', requestId: 2 })])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

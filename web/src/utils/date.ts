@@ -5,7 +5,7 @@ export function parseYearMonth(date: string): { y: number; m: number } {
 }
 
 export function isoDate(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return `${String(year)}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 /** 7-cell (or padded to 7) month grid: null = blank cell, string = ISO date. */

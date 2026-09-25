@@ -10,12 +10,12 @@ const page: PageRecord = {
 }
 
 function revision(body: string, seq: number): Revision {
-  return { seq, time: `2024-01-0${seq}T00:00:00Z`, label: seq % 2 ? 'agent-a' : 'agent-b', ip16: null, summary: null, len: body.length, body, action: null, round: null }
+  return { seq, time: `2024-01-0${String(seq)}T00:00:00Z`, label: seq % 2 ? 'agent-a' : 'agent-b', ip16: null, summary: null, len: body.length, body, action: null, round: null }
 }
 
 function event(revIndex: number): PairEvent {
   return {
-    revIndex, seq: revIndex + 1, time: `2024-01-0${revIndex + 1}T00:00:00Z`, label: revIndex % 2 ? 'agent-a' : 'agent-b',
+    revIndex, seq: revIndex + 1, time: `2024-01-0${String(revIndex + 1)}T00:00:00Z`, label: revIndex % 2 ? 'agent-a' : 'agent-b',
     summary: revIndex === 0 ? 'initial save' : null, len: 10, action: null, round: null, baselineIndex: revIndex === 0 ? null : revIndex - 1,
     baselineLabel: revIndex === 0 ? null : 'agent-a', baselineSeq: revIndex === 0 ? null : revIndex, interveningOther: 0,
     analysis: revIndex === 0 ? { op: 'initial', delta: 10, added: 0, removed: 0, truncated: false } : { op: 'replace', delta: 1, added: 1, removed: 1, truncated: false },
@@ -25,7 +25,7 @@ function event(revIndex: number): PairEvent {
 }
 
 function timeline(count = 2): PairTimeline {
-  const orderedRevisions = Array.from({ length: count }, (_, i) => revision(i === 1 ? '<script>alert(1)</script>' : `body-${i}`, i + 1))
+  const orderedRevisions = Array.from({ length: count }, (_, i) => revision(i === 1 ? '<script>alert(1)</script>' : `body-${String(i)}`, i + 1))
   return { orderedRevisions, events: Array.from({ length: count }, (_, i) => event(i)) }
 }
 
@@ -137,7 +137,7 @@ describe('PairEvidencePanel', () => {
   })
 
   it('keeps coordination-line React keys unique when lines share the first 24 characters', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const lineA = 'confirmed sequence: alpha bravo charlie delta'
     const lineB = 'confirmed sequence: alpha bravo charlie echo'
     try {
@@ -166,7 +166,7 @@ describe('PairEvidencePanel', () => {
   })
 
   it('renders the full common-host list inside the disclosure without wrapper elements', () => {
-    const hosts = Array.from({ length: 6 }, (_, index) => `https://h${index}.example.test/page`).join(' ')
+    const hosts = Array.from({ length: 6 }, (_, index) => `https://h${String(index)}.example.test/page`).join(' ')
     const revisions: Revision[] = [
       { ...revision(hosts, 1), label: 'agent-a' },
       { ...revision('cleared', 2), label: 'x-party' },
@@ -177,7 +177,8 @@ describe('PairEvidencePanel', () => {
     const summary = screen.getByText('Common hosts (6)')
     expect(summary).toBeInTheDocument()
     expect(screen.queryByText(/\+1 more/)).not.toBeInTheDocument()
-    const disclosure = summary.closest('details')!
+    const disclosure = summary.closest('details')
+    if (!disclosure) throw new Error('Common-host disclosure was not found')
     expect(disclosure.querySelectorAll('.pair-signature-list > .pair-signature-chip')).toHaveLength(6)
     expect(disclosure.querySelectorAll('.pair-signature-list > *:not(.pair-signature-chip)')).toHaveLength(0)
   })
@@ -209,7 +210,7 @@ describe('PairEvidencePanel', () => {
   })
 
   it('renders disclosed coordination lines as the same chips as the compact list', () => {
-    const lines = Array.from({ length: 6 }, (_, index) => `coordination line number ${index} for pair panel`)
+    const lines = Array.from({ length: 6 }, (_, index) => `coordination line number ${String(index)} for pair panel`)
     const body = lines.join('\n')
     const revisions: Revision[] = [
       { ...revision(body, 1), label: 'agent-a' },
@@ -218,7 +219,8 @@ describe('PairEvidencePanel', () => {
     ]
     renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
 
-    const disclosure = screen.getByText('Show 2 more lines').closest('details')!
+    const disclosure = screen.getByText('Show 2 more lines').closest('details')
+    if (!disclosure) throw new Error('Coordination-line disclosure was not found')
     expect(disclosure.querySelectorAll('.pair-signature-list > .pair-technique-chip')).toHaveLength(2)
   })
 
@@ -270,7 +272,8 @@ describe('PairEvidencePanel', () => {
     ]
     renderPanel({ timeline: buildPairTimeline(revisions, 'agent-a', 'agent-b') })
 
-    const chip = document.querySelector('.pair-retained-domains .pair-technique-chip')!
+    const chip = document.querySelector('.pair-retained-domains .pair-technique-chip')
+    if (!chip) throw new Error('Retained-domain chip was not found')
     expect(chip).toHaveTextContent('retained')
     expect(chip).toHaveTextContent('kept by agent-b')
   })

@@ -116,7 +116,7 @@ describe('timeline sorting', () => {
   })
 
   it('sorts time ascending with stable id and sequence tie-breakers', () => {
-    expect(sortTimelineRows(sortingRows, 'time', 'asc').map((row) => `${row.id}:${row.seq}`)).toEqual([
+    expect(sortTimelineRows(sortingRows, 'time', 'asc').map((row) => `${row.id}:${String(row.seq)}`)).toEqual([
       'b/PageB:1',
       'a/PageA:1',
       'a/PageA:2',

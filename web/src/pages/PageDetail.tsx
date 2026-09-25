@@ -26,8 +26,8 @@ function RecoveredBody({ revision }: { revision: Revision }) {
   return (
     <div>
       <p className="muted">Recovered partial revision — full body not retained</p>
-      {(revision.added ?? []).map((line, index) => <div className="mono" key={`a-${index}`}>+{line}</div>)}
-      {(revision.removed ?? []).map((line, index) => <div className="mono" key={`r-${index}`}>-{line}</div>)}
+      {(revision.added ?? []).map((line, index) => <div className="mono" key={`a-${String(index)}`}>+{line}</div>)}
+      {(revision.removed ?? []).map((line, index) => <div className="mono" key={`r-${String(index)}`}>-{line}</div>)}
     </div>
   )
 }
@@ -43,7 +43,7 @@ function AgentGraph({
   onSelectPair,
 }: {
   label: string
-  links: AgentLinks
+  links: Partial<AgentLinks>
   labelsIndex: LabelsIndex | null
   pagesIndex: PagesIndex | null
   pagesById: Map<string, PageRecord[]>
@@ -52,7 +52,7 @@ function AgentGraph({
   onSelectPair: (partner: string) => void
 }) {
   const coAgents = useMemo(() => {
-    const raw = links[label] || []
+    const raw = links[label] ?? []
     return [...raw]
       .sort((a, b) => b.c - a.c || a.o.localeCompare(b.o))
       .slice(0, 10)
@@ -68,7 +68,7 @@ function AgentGraph({
     [labelsIndex, pagesIndex, label],
   )
 
-  const totalIndexedLinks = (links[label] || []).length
+  const totalIndexedLinks = (links[label] ?? []).length
 
   const crossLabelTransitions = useMemo(() => {
     if (!revs || revs.length < 2) return 0
@@ -93,7 +93,7 @@ function AgentGraph({
       const latestEvent = count > 0 ? events[count - 1] : null
       const latestTime = latestEvent?.time ? fmtTime(latestEvent.time) : null
       const signals = derivePatternSignals(events)
-      const chips = formatPatternSignals(signals).map((chip) => `${chip.count} ${chip.label}`)
+      const chips = formatPatternSignals(signals).map((chip) => `${String(chip.count)} ${chip.label}`)
       map.set(agent.o, { count, latestTime, chips })
     }
     return map
@@ -182,7 +182,9 @@ function AgentGraph({
                 // Full exact intersection incl. metadata-missing IDs; preview shows only named pages.
                 const exactShared = exactSharedByLabel.get(agent.o) ?? []
                 const sharedCount = exactShared.length
-                const namedShared = exactShared.filter((s) => s.page !== null)
+                const namedShared = exactShared.filter(
+                  (sharedPage): sharedPage is SharedPageEntry & { page: PageRecord } => sharedPage.page !== null,
+                )
                 const isSelected = selectedPartner === agent.o
                 const evidence = cardEvidenceMap?.get(agent.o)
 
@@ -196,7 +198,7 @@ function AgentGraph({
                         <button
                           type="button"
                           className="syndicate-shared-trigger"
-                          aria-label={`${sharedCount} shared ${sharedCount === 1 ? 'page' : 'pages'}`}
+                          aria-label={`${String(sharedCount)} shared ${sharedCount === 1 ? 'page' : 'pages'}`}
                         >
                           <Badge color="#38bdf8">
                             {sharedCount} shared {sharedCount === 1 ? 'page' : 'pages'}
@@ -207,11 +209,11 @@ function AgentGraph({
                             shared pages
                           </span>
                           {namedShared.map((s) => (
-                            <PageLink key={s.id} id={s.id} name={s.page!.n || s.id} max={40} />
+                            <PageLink key={s.id} id={s.id} name={s.page.n || s.id} max={40} />
                           ))}
                           {sharedCount > namedShared.length && (
                             <span className="muted text-xs">
-                              +{sharedCount - namedShared.length} without page metadata
+                              +{String(sharedCount - namedShared.length)} without page metadata
                             </span>
                           )}
                         </span>
@@ -220,7 +222,7 @@ function AgentGraph({
 
                     {evidence && (
                       <div className="syndicate-card-stats">
-                        <span className="syndicate-stat" title={`${evidence.count} pair event${evidence.count === 1 ? '' : 's'} on this page`}>
+                        <span className="syndicate-stat" title={`${String(evidence.count)} pair event${evidence.count === 1 ? '' : 's'} on this page`}>
                           <span className="syndicate-stat-val mono">{evidence.count}</span>
                           <span className="metric-lbl">pair events</span>
                         </span>
@@ -272,7 +274,7 @@ export default function PageDetail() {
   const params = useParams()
   // React Router v7 already decodes URL parameters in matchRoutes/matchPathImpl;
   // avoiding double-decode prevents URIError and corruption of literal '%' in IDs
-  const decoded = params['*'] || params.pageId || ''
+  const decoded = [params['*'], params.pageId].find((value) => Boolean(value)) ?? ''
 
   // keyed by page id: resets sel/expanded when navigating between /page/* routes
   return <PageDetailView key={decoded} pageId={decoded} />
@@ -334,7 +336,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   )
 
   const [sel, setSel] = useState<{ from: number; to: number } | null>(null)
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({})
+  const [expanded, setExpanded] = useState<Partial<Record<number, boolean>>>({})
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [revLimit, setRevLimit] = useState(REVISIONS_PER_PAGE)
 
@@ -343,8 +345,8 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   const dominantLabel = useMemo(() => {
     if (!revs) return ''
     const counts = new Map<string, number>()
-    for (const rev of revs) if (rev.label) counts.set(rev.label, (counts.get(rev.label) || 0) + 1)
-    return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || ''
+    for (const rev of revs) if (rev.label) counts.set(rev.label, (counts.get(rev.label) ?? 0) + 1)
+    return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? ''
   }, [revs])
 
   const labelPagesById = useMemo(() => {
@@ -445,7 +447,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   if (!revs || (!indexReady && !error)) return <div className="loading">Loading…</div>
   const revisionOptions = revs.map((revision, index) => ({
     value: index,
-    label: `#${index + 1} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
+    label: `#${String(index + 1)} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
   }))
 
   const visibleRevisions: number[] = []
@@ -458,7 +460,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     const needed = revs.length - index
     if (needed > revLimit) setRevLimit(needed)
     requestAnimationFrame(() => {
-      const element = document.getElementById(`rev-${index}`)
+      const element = document.getElementById(`rev-${String(index)}`)
       if (!element) return
       element.focus({ preventScroll: true })
       const reduceMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -511,10 +513,10 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                   {entries.length ? (
                     <div className="pair-snippets-list">
                       {entries.map((entry, entryIndex) => (
-                        <div key={`${entry.flag}-${entry.revIndex}-${entryIndex}`}>
+                        <div key={`${entry.flag}-${String(entry.revIndex)}-${String(entryIndex)}`}>
                           <div className="payload-evidence-meta muted text-sm">
                             <span>#{entry.revIndex + 1} {fmtTime(entry.time)}</span>{entry.label && <span> · {entry.label}</span>}
-                            <Button variant="ghost" size="sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => { openRevision(entry.revIndex); }}>open revision</Button>
+                            <Button variant="ghost" size="sm" aria-label={`Open revision #${String(entry.revIndex + 1)}`} onClick={() => { openRevision(entry.revIndex); }}>open revision</Button>
                           </div>
                           <pre className="pair-snippet" data-flag={flag}>{highlightMatches(entry.text).map((segment, segmentIndex) => segment.flag ? <mark key={segmentIndex} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={segmentIndex}>{segment.text}</span>)}</pre>
                         </div>
@@ -565,7 +567,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         </div>
         {revs[from] && revs[to] && (revs[from].partial || revs[to].partial)
           ? <p className="muted">Recovered partial revision — full body not retained</p>
-          : revs[from] && revs[to] && <DiffView before={revs[from].body} after={revs[to].body} />}
+          : revs[from] && revs[to] && <DiffView before={revs[from].body ?? ''} after={revs[to].body ?? ''} />}
       </Card>
 
       <Card as="section">
@@ -579,7 +581,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
           const r = revs[i]
           const open = isExpanded(i)
           return (
-            <article key={i} id={`rev-${i}`} tabIndex={-1} className="rev">
+            <article key={i} id={`rev-${String(i)}`} tabIndex={-1} className="rev">
               <header className="rev-head">
                 <strong>#{i + 1}</strong>
                 <span className="muted nowrap">{fmtTime(r.time)}</span>
@@ -603,7 +605,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                   </div>
                 ) : (
                   <pre className="body">
-                    {r.body ? <Body body={r.body} enabled={r.body.length <= 200_000 && Boolean(payload?.f.length || detectPayloadFlags(r.body).length)} /> : <i className="muted">(empty)</i>}
+                    {r.body ? <Body body={r.body} enabled={r.body.length <= 200_000 && ((payload?.f.length ?? 0) > 0 || detectPayloadFlags(r.body).length > 0)} /> : <i className="muted">(empty)</i>}
                   </pre>
                 )
               )}

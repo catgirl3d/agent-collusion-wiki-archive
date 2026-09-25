@@ -67,7 +67,7 @@ export default function Dashboard() {
   useEffect(() => {
     loadJson('pages.json')
       .then(() => loadJson('labels.json'))
-      .catch(() => {})
+      .catch(() => undefined)
   }, [])
 
   const { data: summary, error: errSummary } = useData<Summary>('summary.json')
@@ -76,14 +76,14 @@ export default function Dashboard() {
 
   const daily = useMemo(() => {
     if (!byDay) return []
-    const map = new Map<string, { date: string; [k: string]: string | number }>()
+    const map = new Map<string, { date: string; [k: string]: string | number | undefined }>()
     for (const d of byDay) {
       const row = map.get(d.date) ?? { date: d.date }
       row[`s_${d.wiki}`] = (Number(row[`s_${d.wiki}`] ?? 0)) + d.saves
       row.deletes = (Number(row.deletes ?? 0)) + d.deletes
       map.set(d.date, row)
     }
-    return [...map.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
   }, [byDay])
 
   const hours = useMemo(() => {

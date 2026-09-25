@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { SyntheticEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
@@ -100,7 +100,7 @@ function HighlightText({
 }
 
 function rowKey(match: CorpusRevisionKey): string {
-  return `${match.w}\u0000${match.id}\u0000${match.seq ?? ''}\u0000${match.t}`
+  return `${match.w}\u0000${match.id}\u0000${String(match.seq ?? '')}\u0000${match.t}`
 }
 
 type BodyState =
@@ -169,7 +169,7 @@ export default function Search() {
   })
   const [lastUrlKey, setLastUrlKey] = useState(urlKey)
   const [runId, setRunId] = useState(0)
-  const [bodyRows, setBodyRows] = useState<Record<string, BodyState>>({})
+  const [bodyRows, setBodyRows] = useState<Partial<Record<string, BodyState>>>({})
   // Render-time reset (React "adjusting state when props change"): URL is the source of truth for bookmarkable searches.
   // Clearing the previous ready result here prevents showing stale matches under a new URL while the worker answers.
   if (urlKey !== lastUrlKey) {
@@ -202,15 +202,19 @@ export default function Search() {
   useEffect(() => {
     if (workerUnavailable) return
     return subscribeCorpusWorker((message) => {
-      if (!message || message.requestId !== latestRequest.current) return
-      if (message.type === 'progress') setState({ status: 'loading', message: progressMessage(message) })
-      else if (message.type === 'result') {
-        setLoadingMore(false)
-        setState({ status: 'ready', result: message.result })
-      }
-      else if (message.type === 'error') {
-        setLoadingMore(false)
-        setState({ status: 'error', message: message.error, code: message.code })
+      if (message.requestId !== latestRequest.current) return
+      switch (message.type) {
+        case 'progress':
+          setState({ status: 'loading', message: progressMessage(message) })
+          break
+        case 'result':
+          setLoadingMore(false)
+          setState({ status: 'ready', result: message.result })
+          break
+        case 'error':
+          setLoadingMore(false)
+          setState({ status: 'error', message: message.error, code: message.code })
+          break
       }
     })
   }, [workerUnavailable])
@@ -218,19 +222,23 @@ export default function Search() {
   useEffect(() => {
     const q = (searchParams.get('q') ?? '').trim()
     if (!q || workerUnavailable) return
-    const key = `${searchParams.toString()}|${runId}`
+    const key = `${searchParams.toString()}|${String(runId)}`
     if (key === lastRunKey.current) return
     lastRunKey.current = key
     const requestId = createCorpusRequestId()
     latestRequest.current = requestId
+    const wiki = searchParams.get('wiki')
+    const label = searchParams.get('label')?.trim()
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
     const message: CorpusWorkerRequest = {
       type: 'search',
       requestId,
       q,
-      wiki: searchParams.get('wiki') || undefined,
-      label: searchParams.get('label')?.trim() || undefined,
-      from: searchParams.get('from') || undefined,
-      to: searchParams.get('to') || undefined,
+      wiki: wiki === null || wiki.length === 0 ? undefined : wiki,
+      label: label === undefined || label.length === 0 ? undefined : label,
+      from: from === null || from.length === 0 ? undefined : from,
+      to: to === null || to.length === 0 ? undefined : to,
       caseSensitive: searchParams.get('case') === '1',
       wholeWord: searchParams.get('word') === '1',
       limit: (page + 1) * PAGE_SIZE,
@@ -243,7 +251,7 @@ export default function Search() {
 
   const visibleState: SearchState = urlQ.trim() ? state : { status: 'idle' }
 
-  const submit = (event: FormEvent) => {
+  const submit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
     const next = buildSearchParams(form)
     writeSortParams(next, sortState, CORPUS_SORT_DEFAULT)
@@ -343,7 +351,7 @@ export default function Search() {
         <input
           className="input"
           aria-label="Search text"
-          placeholder={`Literal text (${CORPUS_MIN_QUERY}-${CORPUS_MAX_QUERY} characters)…`}
+          placeholder={`Literal text (${String(CORPUS_MIN_QUERY)}-${String(CORPUS_MAX_QUERY)} characters)…`}
           value={form.q}
           onChange={(event) => { setForm({ ...form, q: event.target.value }); }}
         />

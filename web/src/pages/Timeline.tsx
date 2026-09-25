@@ -242,7 +242,7 @@ export default function Timeline() {
           </thead>
           <tbody>
             {shownRows.map((row, index) => (
-              <tr key={`${row.id}-${row.seq}-${row.t}-${index}`}>
+              <tr key={`${row.id}-${String(row.seq)}-${row.t}-${String(index)}`}>
                 <td className="muted nowrap">{fmtTime(row.t)}</td>
                 <td>{row.w}</td>
                 <td><PageLink id={row.id} name={getTimelinePageName(row.id)} max={70} /></td>

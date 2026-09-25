@@ -147,10 +147,9 @@ export interface PayloadEvidenceEntry {
  */
 export function buildPageRecordMap(pagesIndex: PagesIndex | null): Map<string, PageRecord> {
   const map = new Map<string, PageRecord>()
-  if (pagesIndex?.p) {
-    for (const p of pagesIndex.p) {
-      if (p?.id) map.set(p.id, p)
-    }
+  const records: readonly (PageRecord | null | undefined)[] = pagesIndex?.p ?? []
+  for (const p of records) {
+    if (p?.id) map.set(p.id, p)
   }
   return map
 }
@@ -178,10 +177,9 @@ function sharedIdsForPair(
 
 function labelMapOf(labelsIndex: LabelsIndex | null): Map<string, LabelRecord> {
   const map = new Map<string, LabelRecord>()
-  if (labelsIndex?.l) {
-    for (const rec of labelsIndex.l) {
-      if (rec?.x) map.set(rec.x, rec)
-    }
+  const records: readonly (LabelRecord | null | undefined)[] = labelsIndex?.l ?? []
+  for (const rec of records) {
+    if (rec?.x) map.set(rec.x, rec)
   }
   return map
 }
@@ -218,7 +216,8 @@ export function getSharedPagesForAll(
   const pageRecords = buildPageRecordMap(pagesIndex)
   const result = new Map<string, SharedPageEntry[]>()
   if (!labelsIndex?.l || !leftLabel) return result
-  for (const rec of labelsIndex.l) {
+  const records: readonly (LabelRecord | null | undefined)[] = labelsIndex.l
+  for (const rec of records) {
     if (!rec?.x || rec.x === leftLabel) continue
     result.set(
       rec.x,
@@ -234,7 +233,7 @@ export function getSharedPagesForAll(
 /**
  * Compare before and after text to analyze line changes and classify operation type.
  */
-export function analyzeRevisionChange(before: string | null | undefined, after: string): RevisionAnalysis {
+export function analyzeRevisionChange(before: string | null | undefined, after: string | null | undefined): RevisionAnalysis {
   const safeAfter = after ?? ''
   if (before == null) {
     return {
@@ -303,8 +302,10 @@ export function analyzeRevisionChange(before: string | null | undefined, after: 
  * archived timestamps, and finally to original array position — never unconditionally ahead
  * of or behind the known-seq block.
  */
-function stableSortRevisions(revisions: Revision[]): Revision[] {
-  const indexed = (revisions ?? []).map((rev, originalIndex) => ({ rev, seq: rev.seq ?? null, originalIndex }))
+function stableSortRevisions(revisions: readonly (Revision | null | undefined)[] | null | undefined): Revision[] {
+  const indexed = (revisions ?? [])
+    .filter((rev): rev is Revision => rev != null)
+    .map((rev, originalIndex) => ({ rev, seq: rev.seq ?? null, originalIndex }))
   const timeOf = (entry: { rev: Revision }): number => {
     const parsed = entry.rev.time ? Date.parse(entry.rev.time) : NaN
     return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
@@ -335,7 +336,11 @@ function parsedGap(previous: string | null, current: string | null): number | nu
  * Build pair timeline for two labels across page revisions.
  * Events exclude revision bodies and resolve baselines against previous chronological revisions.
  */
-export function buildPairTimeline(revisions: Revision[], leftLabel: string, rightLabel: string): PairTimeline {
+export function buildPairTimeline(
+  revisions: readonly (Revision | null | undefined)[] | null | undefined,
+  leftLabel: string,
+  rightLabel: string,
+): PairTimeline {
   if (!revisions || revisions.length === 0) {
     return { orderedRevisions: [], events: [] }
   }
@@ -346,7 +351,7 @@ export function buildPairTimeline(revisions: Revision[], leftLabel: string, righ
 
   for (let revIndex = 0; revIndex < orderedRevisions.length; revIndex++) {
     const rev = orderedRevisions[revIndex]
-    if (!rev || (rev.label !== leftLabel && rev.label !== rightLabel)) {
+    if (rev.label !== leftLabel && rev.label !== rightLabel) {
       continue
     }
 
@@ -418,13 +423,13 @@ export function derivePairEvidence(
   const coverageStatus = timeline.orderedRevisions[0]?.seq === 1 ? 'complete' : 'unknown-genesis'
   const bodySets = new Map<number, Map<string, TechnicalArtifact>>()
   const getSet = (index: number): Map<string, TechnicalArtifact> => {
-    if (!bodySets.has(index)) {
-      const map = new Map<string, TechnicalArtifact>()
-      for (const artifact of extractTechnicalArtifacts(timeline.orderedRevisions[index]?.body ?? '')) map.set(artifactKey(artifact.artifactType, artifact.canonicalValue), artifact)
-      for (const line of extractLineArtifacts(timeline.orderedRevisions[index]?.body ?? '')) map.set(`line:${line}`, { artifactType: 'line', canonicalValue: line })
-      bodySets.set(index, map)
-    }
-    return bodySets.get(index)!
+    const cached = bodySets.get(index)
+    if (cached) return cached
+    const map = new Map<string, TechnicalArtifact>()
+    for (const artifact of extractTechnicalArtifacts(timeline.orderedRevisions[index]?.body ?? '')) map.set(artifactKey(artifact.artifactType, artifact.canonicalValue), artifact)
+    for (const line of extractLineArtifacts(timeline.orderedRevisions[index]?.body ?? '')) map.set(`line:${line}`, { artifactType: 'line', canonicalValue: line })
+    bodySets.set(index, map)
+    return map
   }
   const artifactObservations: ArtifactObservation[] = []
   const pairObservations: PairObservation[] = []
@@ -441,7 +446,8 @@ export function derivePairEvidence(
     const before = event.baselineIndex === null ? new Map<string, TechnicalArtifact>() : getSet(event.baselineIndex)
     const candidates = new Set([...after.keys(), ...before.keys()])
     for (const key of candidates) {
-      const artifact = after.get(key) ?? before.get(key)!
+      const artifact = after.get(key) ?? before.get(key)
+      if (!artifact) continue
       const beforePresent = before.has(key)
       const afterPresent = after.has(key)
       const eligibleAdd = afterPresent && !beforePresent && (event.revIndex !== 0 || isGenesis)
@@ -482,9 +488,9 @@ export function derivePairEvidence(
   const shared: SharedSignatureObservation[] = []
   const techniques = new Map<string, SharedTechniqueObservation>()
   for (const [key, byActor] of additions) {
-    if (!byActor.has(leftLabel) || !byActor.has(rightLabel)) continue
-    const left = byActor.get(leftLabel)!
-    const right = byActor.get(rightLabel)!
+    const left = byActor.get(leftLabel)
+    const right = byActor.get(rightLabel)
+    if (!left || !right) continue
     const separator = key.indexOf(':')
     const artifactType = key.slice(0, separator) as TechnicalArtifact['artifactType']
     const canonicalValue = key.slice(separator + 1)
@@ -503,7 +509,8 @@ export function derivePairEvidence(
     const left = byActor.get(leftLabel)
     const right = byActor.get(rightLabel)
     if (!left && !right) continue
-    const artifact = (left ?? right)!.artifact
+    const artifact = left?.artifact ?? right?.artifact
+    if (!artifact) continue
     const techniqueKeys = [artifact.techniqueKey, artifact.payloadClass].filter((value): value is string => Boolean(value))
     for (const techniqueKey of techniqueKeys) {
       if (left) {
@@ -525,10 +532,12 @@ export function derivePairEvidence(
     if (!rightValues || rightValues.size === 0) continue
     const fullyShared = leftValues.size === rightValues.size && [...leftValues].every((value) => rightValues.has(value))
     if (fullyShared) continue
-    techniques.set(key, { key, kind: key === 'tunnel' || key === 'redirect' ? 'payload-class' : 'service-family', counts: { [leftLabel]: leftValues.size, [rightLabel]: rightValues.size }, exactValues: [...new Set([...leftValues, ...rightValues])].sort(), firstEvent: techniqueFirstEvent.get(key)! })
+    const firstEvent = techniqueFirstEvent.get(key)
+    if (firstEvent === undefined) continue
+    techniques.set(key, { key, kind: key === 'tunnel' || key === 'redirect' ? 'payload-class' : 'service-family', counts: { [leftLabel]: leftValues.size, [rightLabel]: rightValues.size }, exactValues: [...new Set([...leftValues, ...rightValues])].sort(), firstEvent })
   }
   const allShared = sortedSignatureItems(shared)
-  const artifacts = allShared.filter((item) => (item.artifactType !== 'domain' && item.artifactType !== 'line') || item.techniqueKey || item.payloadClass)
+  const artifacts = allShared.filter((item) => (item.artifactType !== 'domain' && item.artifactType !== 'line') || Boolean(item.techniqueKey) || Boolean(item.payloadClass))
   const coordinationLines = allShared.filter((item) => item.artifactType === 'line')
   const additionsArtifactByKey = new Map<string, TechnicalArtifact>()
   for (const [key, byActor] of additions) {
@@ -543,7 +552,7 @@ export function derivePairEvidence(
     .filter(([key]) => key.startsWith('domain:'))
     .filter(([key]) => {
       const byActor = additions.get(key)
-      return !(byActor?.has(leftLabel) && byActor?.has(rightLabel))
+      return !(byActor?.has(leftLabel) && byActor.has(rightLabel))
     })
     .filter(([key]) => {
       const artifact = additionsArtifactByKey.get(key)
@@ -557,7 +566,7 @@ export function derivePairEvidence(
 /**
  * Compute pattern signals from pair events.
  */
-export function derivePatternSignals(events: PairEvent[]): PatternSignals {
+export function derivePatternSignals(events: PairEvent[] | null | undefined): PatternSignals {
   let additive = 0
   let destructive = 0
   let mixed = 0
@@ -676,7 +685,9 @@ export function collectPayloadEvidence(
     const needed = new Set(flags.filter((flag) => (counts.get(flag) ?? 0) < perFlagCap))
     if (needed.size === 0) break
     const revision = revisions[i]
-    const text = revision.body || (revision.partial ? [...(revision.added ?? []), ...(revision.removed ?? [])].join('\n') : '')
+    const text = revision.body !== null && revision.body !== ''
+      ? revision.body
+      : (revision.partial ? [...(revision.added ?? []), ...(revision.removed ?? [])].join('\n') : '')
     if (!text) continue
     if (scannedChars + text.length > charBudget) break
     scannedRevisions++

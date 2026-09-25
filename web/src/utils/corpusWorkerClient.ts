@@ -80,7 +80,7 @@ function getSharedWorker(): Worker | null {
     }
     created.onmessage = (event: MessageEvent<CorpusWorkerResponse>) => {
       const message = event.data
-      const pending = message ? pendingBodyRequests.get(message.requestId) : undefined
+      const pending = pendingBodyRequests.get(message.requestId)
       if (pending && message.type === 'body') {
         pendingBodyRequests.delete(message.requestId)
         pending.resolve(message.body)
@@ -91,8 +91,8 @@ function getSharedWorker(): Worker | null {
         pending.reject(new Error(message.error))
         return
       }
-      if (message?.type === 'body') return
-      if (message) broadcast(message)
+      if (message.type === 'body') return
+      broadcast(message)
     }
     created.onerror = () => {
       const isCurrent = worker === created

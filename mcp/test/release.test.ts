@@ -127,9 +127,9 @@ describe('MCP interactive release', () => {
       expect(await readFile(args[1])).toEqual(await readFile(tarball.tarballPath))
       return { stdout: '' }
     })
-    const confirm = vi.fn(async ({ packageName, packageVersion }: { packageName: string; packageVersion: string }) => {
+    const confirm = vi.fn(({ packageName, packageVersion }: { packageName: string; packageVersion: string }) => {
       order.push('confirm')
-      return `publish ${packageName}@${packageVersion}`
+      return Promise.resolve(`publish ${packageName}@${packageVersion}`)
     })
 
     await expect(release.runRelease({ runNpm, confirm })).resolves.toEqual({ published: true })
@@ -144,30 +144,32 @@ describe('MCP interactive release', () => {
 
     const tarball = await createCheckedTarball()
     const order: string[] = []
-    const runNpm = vi.fn(async (args: string[]) => {
+    const runNpm = vi.fn((args: string[]) => {
       if (args[0] === 'run') {
         order.push('check')
-        return { stdout: checkOutput(tarball.tarballPath, tarball.integrity) }
+        return Promise.resolve({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) })
       }
       if (args[0] === 'whoami') {
         order.push('whoami')
-        if (order.filter((entry) => entry === 'whoami').length === 1) throw new Error('npm whoami failed with exit code 1')
-        return { stdout: 'catgirl3d\n' }
+        if (order.filter((entry) => entry === 'whoami').length === 1) {
+          return Promise.reject(new Error('npm whoami failed with exit code 1'))
+        }
+        return Promise.resolve({ stdout: 'catgirl3d\n' })
       }
       if (args[0] === 'login') {
         order.push('login')
-        return { stdout: '' }
+        return Promise.resolve({ stdout: '' })
       }
       order.push('publish')
-      return { stdout: '' }
+      return Promise.resolve({ stdout: '' })
     })
-    const confirmLogin = vi.fn(async () => {
+    const confirmLogin = vi.fn(() => {
       order.push('confirmLogin')
-      return true
+      return Promise.resolve(true)
     })
-    const confirm = vi.fn(async ({ packageName, packageVersion }: { packageName: string; packageVersion: string }) => {
+    const confirm = vi.fn(({ packageName, packageVersion }: { packageName: string; packageVersion: string }) => {
       order.push('confirm')
-      return `publish ${packageName}@${packageVersion}`
+      return Promise.resolve(`publish ${packageName}@${packageVersion}`)
     })
 
     await expect(release.runRelease({ runNpm, confirm, confirmLogin })).resolves.toEqual({ published: true })
@@ -181,11 +183,11 @@ describe('MCP interactive release', () => {
     if (!release) return
 
     const tarball = await createCheckedTarball()
-    const runNpm = vi.fn(async (args: string[]) => {
-      if (args[0] === 'run') return { stdout: checkOutput(tarball.tarballPath, tarball.integrity) }
-      throw new Error('npm whoami failed with exit code 1')
+    const runNpm = vi.fn((args: string[]) => {
+      if (args[0] === 'run') return Promise.resolve({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) })
+      return Promise.reject(new Error('npm whoami failed with exit code 1'))
     })
-    const confirmLogin = vi.fn(async () => false)
+    const confirmLogin = vi.fn(() => Promise.resolve(false))
     const confirm = vi.fn()
 
     await expect(release.runRelease({ runNpm, confirm, confirmLogin })).resolves.toEqual({ published: false })
@@ -199,12 +201,12 @@ describe('MCP interactive release', () => {
     if (!release) return
 
     const tarball = await createCheckedTarball()
-    const runNpm = vi.fn(async (args: string[]) => {
-      if (args[0] === 'run') return { stdout: checkOutput(tarball.tarballPath, tarball.integrity) }
-      if (args[0] === 'login') return { stdout: '' }
-      throw new Error('npm whoami failed with exit code 1')
+    const runNpm = vi.fn((args: string[]) => {
+      if (args[0] === 'run') return Promise.resolve({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) })
+      if (args[0] === 'login') return Promise.resolve({ stdout: '' })
+      return Promise.reject(new Error('npm whoami failed with exit code 1'))
     })
-    const confirmLogin = vi.fn(async () => true)
+    const confirmLogin = vi.fn(() => Promise.resolve(true))
     const confirm = vi.fn()
 
     await expect(release.runRelease({ runNpm, confirm, confirmLogin })).rejects.toThrow(/authentication/)
@@ -218,8 +220,8 @@ describe('MCP interactive release', () => {
     if (!release) return
 
     const tarball = await createCheckedTarball()
-    const runNpm = vi.fn(async () => ({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) }))
-    const confirm = vi.fn(async () => 'cancel')
+    const runNpm = vi.fn(() => Promise.resolve({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) }))
+    const confirm = vi.fn(() => Promise.resolve('cancel'))
 
     await expect(release.runRelease({ runNpm, confirm })).resolves.toEqual({ published: false })
     expect(runNpm).toHaveBeenCalledTimes(2)
@@ -231,7 +233,7 @@ describe('MCP interactive release', () => {
     if (!release) return
 
     const tarball = await createCheckedTarball()
-    const runNpm = vi.fn(async () => ({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) }))
+    const runNpm = vi.fn(() => Promise.resolve({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) }))
     const confirm = vi.fn(async ({ tarballPath }: { tarballPath: string }) => {
       await writeFile(tarballPath, 'changed after release check')
       return 'publish @catgirl3d/agent-collusion-archive-mcp@0.1.2'
@@ -246,9 +248,7 @@ describe('MCP interactive release', () => {
     expect(release?.runRelease).toBeTypeOf('function')
     if (!release) return
 
-    const runNpm = vi.fn(async () => {
-      throw new Error('release check failed')
-    })
+    const runNpm = vi.fn(() => Promise.reject(new Error('release check failed')))
     const confirm = vi.fn()
 
     await expect(release.runRelease({ runNpm, confirm })).rejects.toThrow('release check failed')
@@ -263,14 +263,14 @@ describe('MCP interactive release', () => {
 
     const tarball = await createCheckedTarball()
     let failedPublishPath = ''
-    const runNpm = vi.fn(async (args: string[]) => {
-      if (args[0] === 'run') return { stdout: checkOutput(tarball.tarballPath, tarball.integrity) }
-      if (args[0] === 'whoami') return { stdout: 'catgirl3d\n' }
+    const runNpm = vi.fn((args: string[]) => {
+      if (args[0] === 'run') return Promise.resolve({ stdout: checkOutput(tarball.tarballPath, tarball.integrity) })
+      if (args[0] === 'whoami') return Promise.resolve({ stdout: 'catgirl3d\n' })
       failedPublishPath = args[1]
-      throw new Error('npm publish failed')
+      return Promise.reject(new Error('npm publish failed'))
     })
-    const confirm = vi.fn(async ({ packageName, packageVersion }: { packageName: string; packageVersion: string }) =>
-      `publish ${packageName}@${packageVersion}`,
+    const confirm = vi.fn(({ packageName, packageVersion }: { packageName: string; packageVersion: string }) =>
+      Promise.resolve(`publish ${packageName}@${packageVersion}`),
     )
 
     let publishError: unknown

@@ -162,7 +162,7 @@ export function isGzip(bytes: Uint8Array): boolean {
 }
 
 function invalidRow(row: number): Error {
-  return new Error(`corpus row ${row} is malformed`)
+  return new Error(`corpus row ${String(row)} is malformed`)
 }
 
 function parseLine(line: string, row: number): CorpusRecord {
@@ -170,7 +170,7 @@ function parseLine(line: string, row: number): CorpusRecord {
   try {
     raw = JSON.parse(line)
   } catch {
-    throw new Error(`corpus row ${row} is not valid JSON`)
+    throw new Error(`corpus row ${String(row)} is not valid JSON`)
   }
   if (typeof raw !== 'object' || raw === null) throw invalidRow(row)
   const value = raw as Record<string, unknown>

@@ -13,35 +13,35 @@ afterEach(() => {
 })
 
 function textOf(result: CallToolResult): string {
-  const block = result.content[0]
+  const block = result.content.at(0)
   if (block?.type !== 'text') throw new Error('expected a text content block')
   return block.text
 }
 
 function fakeApi() {
   return {
-    getStats: async () => ({ counts: { pages: 1 } }),
-    searchArchive: async (q: string, limit?: number) => ({ q, limit }),
-    listAgents: async (params: unknown) => ({ params }),
-    getAgent: async (name: string) => ({ name }),
-    listPages: async (params: unknown) => ({ params }),
-    getPage: async (slug: string) => ({ slug }),
-    getPageById: async (id: string) => ({ id }),
-    getPageRevisions: async (slug: string, params: unknown) => ({ slug, params }),
-    listEvents: async (params: unknown) => ({ params }),
-    searchFts: async (params: unknown) => ({ params }),
-    searchArtifacts: async (params: unknown) => ({ params }),
-    getAgentLinks: async (params: unknown) => ({ params }),
-    listConflicts: async (params: unknown) => ({ params }),
-    getApiContract: async () => openApiDocument,
+    getStats: () => Promise.resolve({ counts: { pages: 1 } }),
+    searchArchive: (q: string, limit?: number) => Promise.resolve({ q, limit }),
+    listAgents: (params: unknown) => Promise.resolve({ params }),
+    getAgent: (name: string) => Promise.resolve({ name }),
+    listPages: (params: unknown) => Promise.resolve({ params }),
+    getPage: (slug: string) => Promise.resolve({ slug }),
+    getPageById: (id: string) => Promise.resolve({ id }),
+    getPageRevisions: (slug: string, params: unknown) => Promise.resolve({ slug, params }),
+    listEvents: (params: unknown) => Promise.resolve({ params }),
+    searchFts: (params: unknown) => Promise.resolve({ params }),
+    searchArtifacts: (params: unknown) => Promise.resolve({ params }),
+    getAgentLinks: (params: unknown) => Promise.resolve({ params }),
+    listConflicts: (params: unknown) => Promise.resolve({ params }),
+    getApiContract: () => Promise.resolve(openApiDocument),
   }
 }
 
 function fakeResearch() {
   return {
-    listRevisions: async (args: unknown) => ({ args }),
-    searchCorpus: async (args: unknown) => ({ args }),
-    getActivity: async (args: unknown) => ({ args }),
+    listRevisions: (args: unknown) => Promise.resolve({ args }),
+    searchCorpus: (args: unknown) => Promise.resolve({ args }),
+    getActivity: (args: unknown) => Promise.resolve({ args }),
   }
 }
 
@@ -87,7 +87,9 @@ describe('archive MCP server', () => {
     expect(tools.tools.find((tool) => tool.name === 'list_conflict_pages')?.description).toContain('shared pages only')
 
     const listEventsSchema = tools.tools.find((tool) => tool.name === 'list_events')?.inputSchema
-    expect((listEventsSchema as { properties?: { type?: { enum?: string[] } } })?.properties?.type?.enum).toEqual([
+    const eventTypeEnum = (listEventsSchema as { properties?: { type?: { enum?: string[] } } } | undefined)
+      ?.properties?.type?.enum
+    expect(eventTypeEnum).toEqual([
       'save',
       'delete',
       'revert',
@@ -189,11 +191,9 @@ describe('archive MCP server', () => {
     const cases = [
       {
         research: {
-          listRevisions: async () => {
-            throw new ArchiveApiError('no usable query tokens (stop words or shorter than 3 characters)', 400, 'no_usable_tokens')
-          },
-          searchCorpus: async () => ({}),
-          getActivity: async () => ({}),
+          listRevisions: () => Promise.reject(new ArchiveApiError('no usable query tokens (stop words or shorter than 3 characters)', 400, 'no_usable_tokens')),
+          searchCorpus: () => Promise.resolve({}),
+          getActivity: () => Promise.resolve({}),
         },
         tool: 'list_revisions' as const,
         args: {},
@@ -201,11 +201,9 @@ describe('archive MCP server', () => {
       },
       {
         research: {
-          listRevisions: async () => ({}),
-          searchCorpus: async () => {
-            throw new ArchiveDataError('archive_data_invalid', 'corpus row 2 is malformed')
-          },
-          getActivity: async () => ({}),
+          listRevisions: () => Promise.resolve({}),
+          searchCorpus: () => Promise.reject(new ArchiveDataError('archive_data_invalid', 'corpus row 2 is malformed')),
+          getActivity: () => Promise.resolve({}),
         },
         tool: 'search_corpus' as const,
         args: { q: 'abc' },
@@ -213,11 +211,9 @@ describe('archive MCP server', () => {
       },
       {
         research: {
-          listRevisions: async () => {
-            throw new ArchiveQueryError('from must not be after to')
-          },
-          searchCorpus: async () => ({}),
-          getActivity: async () => ({}),
+          listRevisions: () => Promise.reject(new ArchiveQueryError('from must not be after to')),
+          searchCorpus: () => Promise.resolve({}),
+          getActivity: () => Promise.resolve({}),
         },
         tool: 'list_revisions' as const,
         args: { from: '2026-06-22', to: '2026-06-18' },
@@ -240,9 +236,7 @@ describe('archive MCP server', () => {
 
   it('returns safe MCP errors when the API throws', async () => {
     const api = fakeApi()
-    api.searchFts = async () => {
-      throw new Error('private details')
-    }
+    api.searchFts = () => Promise.reject(new Error('private details'))
     const server = createArchiveMcpServer(api, fakeResearch())
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     await server.connect(serverTransport)
@@ -256,7 +250,7 @@ describe('archive MCP server', () => {
 
   it('rejects unknown event types before invoking the API', async () => {
     const api = fakeApi()
-    const listEvents = vi.fn(async (params: unknown) => ({ params }))
+    const listEvents = vi.fn((params: unknown) => Promise.resolve({ params }))
     api.listEvents = listEvents
     const server = createArchiveMcpServer(api, fakeResearch())
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -351,7 +345,7 @@ describe('archive MCP server', () => {
       },
       exit: vi.fn(),
     }
-    const close = vi.fn().mockReturnValue(new Promise(() => {}))
+    const close = vi.fn().mockReturnValue(new Promise<void>(() => undefined))
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
     installShutdownHandlers({ close }, target)
@@ -401,7 +395,7 @@ describe('archive MCP server', () => {
   })
 
   it('refuses oversized tool results instead of flooding the MCP context', async () => {
-    const api = { ...fakeApi(), getStats: async () => ({ body: 'x'.repeat(2_000_001) }) }
+    const api = { ...fakeApi(), getStats: () => Promise.resolve({ body: 'x'.repeat(2_000_001) }) }
     const server = createArchiveMcpServer(api, fakeResearch())
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     await server.connect(serverTransport)

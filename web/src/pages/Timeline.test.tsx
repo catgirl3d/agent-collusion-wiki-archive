@@ -66,7 +66,7 @@ async function openCalendar(label: string) {
 }
 
 function currentSearch(): URLSearchParams {
-  return new URLSearchParams(screen.getByTestId('location').textContent ?? '')
+  return new URLSearchParams(screen.getByTestId('location').textContent)
 }
 
 describe('Timeline', () => {
@@ -169,8 +169,8 @@ describe('Timeline', () => {
     const manyLabels = Array.from({ length: 14 }, (_, index) => ({
       t: '2026-06-20T10:00:00Z',
       w: 'dse',
-      id: `dse/Page${index}`,
-      s: `dse_Page${index}~`,
+      id: `dse/Page${String(index)}`,
+      s: `dse_Page${String(index)}~`,
       seq: index,
       x: `Agent${String(index).padStart(2, '0')}`,
       a: 'form_edit',

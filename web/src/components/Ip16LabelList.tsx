@@ -35,7 +35,7 @@ export function Ip16LabelList({
             className={`ip16-label${active ? ' active' : ''}`}
             aria-pressed={active}
             title={active ? 'Clear the label filter' : `Filter the table by ${stat.x}`}
-            onClick={() => onPickLabel(stat.x)}
+            onClick={() => { onPickLabel(stat.x); }}
           >
             <span>{stat.x}</span>
             <span className="n">{fmtInt(stat.n)}</span>
@@ -43,12 +43,12 @@ export function Ip16LabelList({
         )
       })}
       {hidden > 0 && (
-        <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(true)}>
+        <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => { setExpanded(true); }}>
           +{fmtInt(hidden)} more
         </Button>
       )}
       {expanded && stats.length > IP16_TOP_LABELS && (
-        <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(false)}>
+        <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => { setExpanded(false); }}>
           show top {IP16_TOP_LABELS}
         </Button>
       )}

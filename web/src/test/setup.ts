@@ -10,6 +10,7 @@ afterEach(() => {
 
 Object.defineProperty(window, 'scrollTo', { value: () => undefined, writable: true })
 
-if (!HTMLElement.prototype.scrollIntoView) {
+const scrollIntoView: unknown = Reflect.get(HTMLElement.prototype, 'scrollIntoView')
+if (!scrollIntoView) {
   HTMLElement.prototype.scrollIntoView = () => undefined
 }

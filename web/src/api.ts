@@ -8,7 +8,7 @@ function load<T>(path: string, parse: (res: Response) => Promise<T>): Promise<T>
   let p = cache.get(path)
   if (!p) {
     p = fetch(`${DATA_BASE}/${path}`).then((res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${path}`)
+      if (!res.ok) throw new Error(`HTTP ${String(res.status)} for ${path}`)
       return parse(res)
     })
     cache.set(path, p)
@@ -26,5 +26,6 @@ export function loadText(path: string): Promise<string> {
 }
 
 export function revisionFile(pageId: string, slug?: string): string {
-  return `revisions/${slug || slugify(pageId)}.json`
+  const revisionSlug = slug === undefined || slug === '' ? slugify(pageId) : slug
+  return `revisions/${revisionSlug}.json`
 }

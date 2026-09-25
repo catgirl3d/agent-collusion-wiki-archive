@@ -49,6 +49,15 @@ interface LabelRecord {
 
 interface PayloadRecord { s: string; id: string; u: string[]; f: string[] }
 interface ConflictRecord { id: string; s: string; churn: number; ttd_med_s: number | null; del: number; zzz: boolean; front: boolean }
+interface EventRecord extends Record<string, unknown> {
+  type?: string
+  act?: string
+  wiki?: string
+  t?: string
+  page?: string
+  action?: string | null
+  ip16?: string | null
+}
 
 const BODY_STOP_WORDS = new Set([
   'about', 'after', 'again', 'against', 'also', 'among', 'and', 'are', 'been', 'before',
@@ -61,7 +70,7 @@ export const PAYLOAD_FLAGS = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'hi
 
 // Tokenizer semantics are pinned by data/validation/token_golden.json; keep this in sync with build.py::_body_tokens.
 export function tokenizeBody(text: string): string[] {
-  return [...new Set((text.toLowerCase().match(/[a-z0-9]+/g) || [])
+  return [...new Set((text.toLowerCase().match(/[a-z0-9]+/g) ?? [])
     .filter((token) => token.length >= 3 && token.length <= 25 && !/^\d+$/.test(token) && !BODY_STOP_WORDS.has(token)))]
 }
 
@@ -75,7 +84,7 @@ export class AssetHttpError extends Error {
   readonly path: string
 
   constructor(path: string, status: number) {
-    super(`asset ${path}: HTTP ${status}`)
+    super(`asset ${path}: HTTP ${String(status)}`)
     this.name = 'AssetHttpError'
     this.status = status
     this.path = path
@@ -126,7 +135,7 @@ function isRealDate(value: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
-const SLUG_RE = /^[A-Za-z0-9_.\-]+~(_h[0-9a-f]{8})?$/
+const SLUG_RE = /^[A-Za-z0-9_.-]+~(_h[0-9a-f]{8})?$/
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -171,12 +180,12 @@ export default {
       // GET /api/pages — server-side page filters; source filtering remains client-side, plus total.
       if (url.pathname === '/api/pages') {
         const index = await loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json')
-        const q = (url.searchParams.get('q') || '').trim().toLowerCase()
-        const wiki = url.searchParams.get('wiki') || ''
-        const fam = url.searchParams.get('fam') || ''
+        const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+        const wiki = url.searchParams.get('wiki') ?? ''
+        const fam = url.searchParams.get('fam') ?? ''
         const deleted = url.searchParams.get('deleted') === '1' || url.searchParams.get('deleted') === 'true'
         const minRevs = clampInt(url.searchParams.get('minRevs'), 0, 0, 100000)
-        const sort = url.searchParams.get('sort') || ''
+        const sort = url.searchParams.get('sort') ?? ''
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 100)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
 
@@ -204,7 +213,7 @@ export default {
 
       // GET /api/pages/by-id?id=dse/Foo — page by exact id (the id contains `/`).
       if (url.pathname === '/api/pages/by-id') {
-        const id = url.searchParams.get('id') || ''
+        const id = url.searchParams.get('id') ?? ''
         if (!id) return err(400, 'missing ?id=<page_id>', 'missing_param')
         const index = await loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json')
         const page = index.p.find((p) => p.id === id)
@@ -217,9 +226,9 @@ export default {
       if (revMatch) {
         const slug = decodeURIComponent(revMatch[1])
         if (!SLUG_RE.test(slug)) return err(400, 'invalid slug', 'invalid_slug')
-        const label = url.searchParams.get('label') || ''
+        const label = url.searchParams.get('label') ?? ''
         const containsParam = url.searchParams.get('contains')
-        const contains = containsParam || ''
+        const contains = containsParam ?? ''
         if (contains.length > 200) return err(400, 'contains must be 200 characters or fewer', 'invalid_param')
         const seqParam = url.searchParams.get('seq')
         let seq: number | null = null
@@ -282,8 +291,8 @@ export default {
       // GET /api/agents — list; pgs is dropped to save tokens, a preview is provided.
       if (url.pathname === '/api/agents') {
         const index = await loadAsset<{ l: LabelRecord[]; n_anon: number }>(env, req, '/data/labels.json')
-        const q = (url.searchParams.get('q') || '').trim().toLowerCase()
-        const sort = url.searchParams.get('sort') || ''
+        const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+        const sort = url.searchParams.get('sort') ?? ''
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 100)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
         const rows = q ? index.l.filter((a) => a.x.toLowerCase().includes(q)) : index.l
@@ -321,18 +330,18 @@ export default {
 
       // GET /api/events — full history (recent_events.json without a limit).
       if (url.pathname === '/api/events') {
-        const events = await loadAsset<Record<string, unknown>[]>(env, req, '/data/recent_events.json')
-        const type = url.searchParams.get('type') || ''
-        const act = url.searchParams.get('act') || ''
-        const wiki = url.searchParams.get('wiki') || ''
-        const day = url.searchParams.get('day') || ''
-        const from = url.searchParams.get('from') || ''
-        const to = url.searchParams.get('to') || ''
+        const events = await loadAsset<EventRecord[]>(env, req, '/data/recent_events.json')
+        const type = url.searchParams.get('type') ?? ''
+        const act = url.searchParams.get('act') ?? ''
+        const wiki = url.searchParams.get('wiki') ?? ''
+        const day = url.searchParams.get('day') ?? ''
+        const from = url.searchParams.get('from') ?? ''
+        const to = url.searchParams.get('to') ?? ''
         if (day && !isRealDate(day)) return err(400, 'day must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
         if (from && !isRealDate(from)) return err(400, 'from must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
         if (to && !isRealDate(to)) return err(400, 'to must be a real UTC date (YYYY-MM-DD)', 'invalid_param')
         if (from && to && from > to) return err(400, 'from must not be after to', 'invalid_param')
-        const q = (url.searchParams.get('q') || '').trim().toLowerCase()
+        const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 200)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
         const rows = events.filter((e) => {
@@ -360,16 +369,17 @@ export default {
 
       // GET /api/fts — body-token search against integer postings.
       if (url.pathname === '/api/fts') {
-        const q = url.searchParams.get('q') || ''
+        const q = url.searchParams.get('q') ?? ''
         if (q.length > 200) return err(400, 'q must be 200 characters or fewer', 'invalid_param')
         if (!q.trim()) return err(400, 'missing ?q=', 'missing_param')
         const tokens = tokenizeBody(q).sort()
         if (!tokens.length) return err(400, 'no usable query tokens (stop words or shorter than 3 characters)', 'no_usable_tokens')
         if (tokens.length > 16) return err(400, 'too many query tokens (max 16)', 'too_many_tokens')
-        const modeParam = url.searchParams.get('mode') || 'exact'
+        const requestedMode = url.searchParams.get('mode')
+        const modeParam = requestedMode === null || requestedMode === '' ? 'exact' : requestedMode
         if (modeParam !== 'exact' && modeParam !== 'prefix') return err(400, 'invalid mode', 'invalid_mode')
         const mode = modeParam
-        const wiki = url.searchParams.get('wiki') || ''
+        const wiki = url.searchParams.get('wiki') ?? ''
         const limit = clampInt(url.searchParams.get('limit'), 20, 1, 100)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
         const [fts, pages] = await Promise.all([
@@ -412,12 +422,12 @@ export default {
 
       // GET /api/artifacts — payload findings joined to page metadata.
       if (url.pathname === '/api/artifacts') {
-        const flag = url.searchParams.get('flag') || ''
+        const flag = url.searchParams.get('flag') ?? ''
         if (flag && !PAYLOAD_FLAGS.includes(flag)) return err(400, `unknown flag; allowed: ${PAYLOAD_FLAGS.join(', ')}`, 'invalid_flag')
-        const host = (url.searchParams.get('host') || '').toLowerCase()
-        const slug = url.searchParams.get('slug') || ''
-        const id = url.searchParams.get('id') || ''
-        const wiki = url.searchParams.get('wiki') || ''
+        const host = (url.searchParams.get('host') ?? '').toLowerCase()
+        const slug = url.searchParams.get('slug') ?? ''
+        const id = url.searchParams.get('id') ?? ''
+        const wiki = url.searchParams.get('wiki') ?? ''
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 100)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
         const [payload, pages] = await Promise.all([
@@ -425,19 +435,22 @@ export default {
           loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json'),
         ])
         const pageById = new Map(pages.p.map((page) => [page.id, page]))
-        const rows = payload.map((item) => ({ item, page: pageById.get(item.id) })).filter(({ item, page }) => {
-          if (!page || (flag && !item.f.includes(flag)) || (host && !item.u.some((value) => value.toLowerCase().includes(host)))) return false
-          if (slug && page.s !== slug) return false
-          if (id && page.id !== id) return false
-          if (wiki && page.w !== wiki) return false
-          return true
-        }).map(({ item, page }) => ({ ...pageView(page!), u: item.u, f: item.f }))
+        const rows = payload.map((item) => ({ item, page: pageById.get(item.id) })).filter(
+          (row): row is { item: PayloadRecord; page: PageRecord } => {
+            const { item, page } = row
+            if (!page || (flag && !item.f.includes(flag)) || (host && !item.u.some((value) => value.toLowerCase().includes(host)))) return false
+            if (slug && page.s !== slug) return false
+            if (id && page.id !== id) return false
+            if (wiki && page.w !== wiki) return false
+            return true
+          },
+        ).map(({ item, page }) => ({ ...pageView(page), u: item.u, f: item.f }))
         return json({ total: rows.length, limit, offset, pages: rows.slice(offset, offset + limit) })
       }
 
       // GET /api/links — precomputed navigation links or exact pair intersection.
       if (url.pathname === '/api/links') {
-        const label = url.searchParams.get('label') || ''
+        const label = url.searchParams.get('label') ?? ''
         if (!label) return err(400, 'missing ?label=', 'missing_param')
         const other = url.searchParams.get('other')
         if (other === null) {
@@ -475,7 +488,7 @@ export default {
 
       // GET /api/search — names only (pages + agents). Bodies are never touched.
       if (url.pathname === '/api/search') {
-        const q = (url.searchParams.get('q') || '').trim().toLowerCase()
+        const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
         if (!q) return err(400, 'missing ?q=', 'missing_param')
         const limit = clampInt(url.searchParams.get('limit'), 20, 1, 50)
         const [pages, agents] = await Promise.all([

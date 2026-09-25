@@ -139,7 +139,7 @@ export function SelectionPopup({ containerRef }: SelectionPopupProps) {
     <div
       ref={popupRef}
       className={`selection-popup selection-popup-${state.placement}`}
-      style={{ top: `${state.top}px`, left: `${state.left}px` }}
+      style={{ top: `${String(state.top)}px`, left: `${String(state.left)}px` }}
       onMouseDown={(e) => {
         // Prevent click from collapsing text selection
         e.preventDefault()

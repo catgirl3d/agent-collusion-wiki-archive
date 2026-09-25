@@ -10,10 +10,14 @@ import Mcp from './Mcp'
 interface OpenApiParameter { $ref?: string; name?: string; in?: string; schema?: { enum?: unknown[] } }
 interface WorkerOpenApi {
   paths: Record<string, { parameters?: OpenApiParameter[]; get?: { parameters?: OpenApiParameter[] } }>
-  components: { parameters: Record<string, OpenApiParameter> }
+  components: { parameters: Partial<Record<string, OpenApiParameter>> }
 }
 
 const workerOpenApi = openapiDocument as WorkerOpenApi
+type CatalogTool = Omit<(typeof toolCatalog.tools)[number], 'description'> & { description?: string }
+
+const tools: CatalogTool[] = toolCatalog.tools
+const toolPresentations: Partial<typeof MCP_TOOL_PRESENTATION> = MCP_TOOL_PRESENTATION
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -34,8 +38,8 @@ const documentedQueryParameters = new Map(
     new Map(
       [...(item.parameters ?? []), ...(item.get?.parameters ?? [])]
         .map(resolveParameter)
-        .filter((parameter) => parameter.in === 'query' && parameter.name !== undefined)
-        .map((parameter) => [parameter.name!, parameter])
+        .filter((parameter): parameter is OpenApiParameter & { name: string } => parameter.in === 'query' && parameter.name !== undefined)
+        .map((parameter) => [parameter.name, parameter])
     ),
   ])
 )
@@ -67,7 +71,7 @@ const expectDocumentedApiExample = (exampleUrl: string) => {
   const parameters = documentedQueryParameters.get(documented?.[0] ?? '')
   for (const [name, value] of url.searchParams) {
     const parameter = parameters?.get(name)
-    expect(parameter, `${documented?.[0]} does not document query parameter ${name}`).toBeDefined()
+    expect(parameter, `${String(documented?.[0])} does not document query parameter ${name}`).toBeDefined()
     const allowed = parameter?.schema?.enum
     if (allowed !== undefined) expect(allowed).toContain(value)
   }
@@ -110,12 +114,14 @@ describe('Mcp page', () => {
   })
 
   it('allows copying the npx command', async () => {
+    const writeText = vi.fn().mockImplementation(() => Promise.resolve())
+    Object.assign(navigator, { clipboard: { writeText } })
     renderComponent()
 
     const copyBtn = screen.getByLabelText('Copy npx command')
     fireEvent.click(copyBtn)
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+    expect(writeText).toHaveBeenCalledWith(
       `npx --yes ${toolCatalog.packageName}@latest`
     )
     expect(await screen.findByText('Copied')).toBeInTheDocument()
@@ -215,15 +221,15 @@ describe('Mcp page', () => {
     const { container } = renderComponent()
     const cards = Array.from(container.querySelectorAll('.mcp-tool-card'))
 
-    expect(cards).toHaveLength(toolCatalog.tools.length)
-    expect(screen.getByRole('heading', { name: `Available Tools & Endpoints (${toolCatalog.tools.length})` })).toBeInTheDocument()
+    expect(cards).toHaveLength(tools.length)
+    expect(screen.getByRole('heading', { name: `Available Tools & Endpoints (${String(tools.length)})` })).toBeInTheDocument()
     expect(cards.map((card) => card.querySelector('.mcp-tool-name')?.textContent)).toEqual(
-      toolCatalog.tools.map((tool) => tool.name)
+      tools.map((tool) => tool.name)
     )
 
-    for (const [index, tool] of toolCatalog.tools.entries()) {
-      const card = cards[index]
-      const presentation = MCP_TOOL_PRESENTATION[tool.name]
+    for (const [index, tool] of tools.entries()) {
+      const card = cards.at(index)
+      const presentation = toolPresentations[tool.name]
 
       expect(card?.querySelector('.mcp-tool-desc')?.textContent).toBe(
         tool.description ?? 'No description is available for this tool.'
@@ -244,7 +250,7 @@ describe('Mcp page', () => {
   it('keeps presentation keys aligned with the generated catalog and examples for all 17 tools', () => {
     const toolNames = new Set(toolCatalog.tools.map((tool) => tool.name))
     const unknownPresentationKeys = Object.keys(MCP_TOOL_PRESENTATION).filter((name) => !toolNames.has(name))
-    const missingExamples = toolCatalog.tools
+    const missingExamples = tools
       .filter((tool) => !Object.hasOwn(MCP_TOOL_PRESENTATION, tool.name)
         || !Object.hasOwn(MCP_TOOL_PRESENTATION[tool.name], 'exampleArguments'))
       .map((tool) => tool.name)
@@ -252,7 +258,7 @@ describe('Mcp page', () => {
     expect(toolCatalog.tools).toHaveLength(17)
     expect(unknownPresentationKeys).toEqual([])
     expect(missingExamples).toEqual([])
-    expect(MCP_TOOL_PRESENTATION.get_agent.exampleArguments).toEqual({ name: 'MapHelper' })
+    expect(toolPresentations.get_agent?.exampleArguments).toEqual({ name: 'MapHelper' })
   })
 
   it('keeps REST examples within the documented Worker API surface', () => {
@@ -264,7 +270,7 @@ describe('Mcp page', () => {
       .filter((endpoint) => endpoint.startsWith('/api/'))
 
     const curlSnippet = Array.from(container.querySelectorAll('pre'))
-      .map((block) => block.textContent ?? '')
+      .map((block) => block.textContent)
       .find((text) => text.includes('curl -s'))
     expect(curlSnippet, 'the page must render the curl examples').toBeDefined()
     for (const match of curlSnippet?.matchAll(/(?:https?:\/\/[^\s"']+)?\/api\/[^\s"']*/g) ?? []) {
@@ -281,8 +287,8 @@ describe('Mcp page', () => {
   })
 
   it('keeps example arguments within the generated MCP tool schemas', () => {
-    for (const tool of toolCatalog.tools) {
-      const presentation = MCP_TOOL_PRESENTATION[tool.name]
+    for (const tool of tools) {
+      const presentation = toolPresentations[tool.name]
       expect(presentation, `missing presentation for ${tool.name}`).toBeDefined()
 
       const properties =
@@ -291,18 +297,17 @@ describe('Mcp page', () => {
         const property = properties[name] as { enum?: unknown[] } | undefined
         expect(property, `${tool.name} does not declare argument ${name}`).toBeDefined()
         const allowed = property?.enum
-        if (allowed !== undefined) expect(allowed).toContain(value)
+        expect(allowed === undefined || allowed.includes(value)).toBe(true)
       }
     }
   })
 
   it('renders a server tool with generic metadata when its presentation is missing', () => {
-    const tool = toolCatalog.tools[0]
+    const tool = tools.at(0)
     if (!tool) throw new Error('The generated MCP tool catalog is empty')
 
-    const presentations = MCP_TOOL_PRESENTATION as Partial<Record<string, unknown>>
-    const previousPresentation = presentations[tool.name]
-    delete presentations[tool.name]
+    const previousPresentation = toolPresentations[tool.name]
+    Reflect.deleteProperty(toolPresentations, tool.name)
 
     try {
       const { container } = renderComponent()
@@ -317,22 +322,22 @@ describe('Mcp page', () => {
         JSON.stringify({ name: tool.name, arguments: {} })
       )
     } finally {
-      if (previousPresentation !== undefined) presentations[tool.name] = previousPresentation
+      if (previousPresentation !== undefined) toolPresentations[tool.name] = previousPresentation
     }
   })
 
   it('filters generated tools by their presentation category', () => {
     const { container } = renderComponent()
-    const firstTool = toolCatalog.tools[0]
+    const firstTool = tools.at(0)
     if (!firstTool) throw new Error('The generated MCP tool catalog is empty')
 
-    const category = MCP_TOOL_PRESENTATION[firstTool.name]?.category ?? 'Other'
+    const category = toolPresentations[firstTool.name]?.category ?? 'Other'
     fireEvent.click(screen.getByRole('button', { name: category }))
 
     const visibleToolNames = Array.from(container.querySelectorAll('.mcp-tool-name'))
       .map((item) => item.textContent)
-    const expectedToolNames = toolCatalog.tools
-      .filter((tool) => (MCP_TOOL_PRESENTATION[tool.name]?.category ?? 'Other') === category)
+    const expectedToolNames = tools
+      .filter((tool) => (toolPresentations[tool.name]?.category ?? 'Other') === category)
       .map((tool) => tool.name)
 
     expect(visibleToolNames).toEqual(expectedToolNames)
@@ -340,11 +345,11 @@ describe('Mcp page', () => {
 
   it('shares one pressed-button state across category and platform filters', () => {
     renderComponent()
-    const firstTool = toolCatalog.tools[0]
+    const firstTool = tools.at(0)
     if (!firstTool) throw new Error('The generated MCP tool catalog is empty')
 
     const allCategory = screen.getByRole('button', { name: 'All' })
-    const categoryName = MCP_TOOL_PRESENTATION[firstTool.name]?.category ?? 'Other'
+    const categoryName = toolPresentations[firstTool.name]?.category ?? 'Other'
     const category = screen.getByRole('button', { name: categoryName })
 
     expect(allCategory).toHaveAttribute('aria-pressed', 'true')

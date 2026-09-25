@@ -9,6 +9,10 @@ export interface Ip16LabelStat {
   n: number
 }
 
+type SparseLabelsIp16Index = Omit<LabelsIp16Index, 'prefixes'> & {
+  prefixes: Partial<LabelsIp16Index['prefixes']>
+}
+
 export interface Ip16SliceSummary {
   prefixes: string[]
   labels: number
@@ -37,8 +41,8 @@ export function matchIp16Prefixes(index: LabelsIp16Index | null, ip: string): st
   return Object.keys(index.prefixes).filter((prefix) => ip16Matches(prefix, query)).sort()
 }
 
-export function ip16PrefixesByLabel(index: LabelsIp16Index | null): Map<string, Array<[prefix: string, weight: number]>> {
-  const prefixesByLabel = new Map<string, Array<[string, number]>>()
+export function ip16PrefixesByLabel(index: LabelsIp16Index | null): Map<string, [prefix: string, weight: number][]> {
+  const prefixesByLabel = new Map<string, [string, number][]>()
   if (!index) return prefixesByLabel
 
   for (const [prefix, record] of Object.entries(index.prefixes)) {
@@ -57,7 +61,7 @@ export function ip16PrefixesByLabel(index: LabelsIp16Index | null): Map<string, 
 }
 
 /** Aggregates the matched prefix records; revision weights stay disjoint per prefix. */
-export function summarizeIp16Slice(index: LabelsIp16Index, prefixes: string[]): Ip16SliceSummary {
+export function summarizeIp16Slice(index: SparseLabelsIp16Index, prefixes: string[]): Ip16SliceSummary {
   const weights = new Map<string, number>()
   const wikis = new Set<string>()
   let revisions = 0

@@ -9,8 +9,8 @@ describe('NetworkCanvas', () => {
   beforeEach(() => {
     cytoscapeMock.mockReset()
     vi.stubGlobal('ResizeObserver', class {
-      observe() {}
-      disconnect() {}
+      observe = vi.fn()
+      disconnect = vi.fn()
     })
   })
 

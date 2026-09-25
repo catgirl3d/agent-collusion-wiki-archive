@@ -34,7 +34,9 @@ describe('NavDropdown', () => {
     renderDropdown()
 
     const trigger = screen.getByRole('button', { name: /explore/i })
-    fireEvent.mouseEnter(trigger.closest('.nav-dropdown')!)
+    const dropdown = trigger.closest('.nav-dropdown')
+    if (!dropdown) throw new Error('Dropdown container was not found')
+    fireEvent.mouseEnter(dropdown)
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
 

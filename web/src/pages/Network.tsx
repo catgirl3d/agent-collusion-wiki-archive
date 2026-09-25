@@ -58,7 +58,7 @@ export default function Network() {
   // Pick active root agent (from URL, or top preset). Unknown ?agent= stays unresolved.
   const activeAgent = useMemo(() => {
     if (!links) return ''
-    if (agentParam) return links[agentParam] ? agentParam : ''
+    if (agentParam) return Object.hasOwn(links, agentParam) ? agentParam : ''
     return presets[0] ?? ''
   }, [agentParam, links, presets])
 
@@ -84,9 +84,9 @@ export default function Network() {
       const lab = labelsMap.get(node.id)
       return {
         ...node,
-        wikis: lab?.w || [],
-        revs: lab?.r || 0,
-        pagesCount: lab?.p || 0,
+        wikis: lab?.w ?? [],
+        revs: lab?.r ?? 0,
+        pagesCount: lab?.p ?? 0,
       }
     })
     return { nodes, edges: data.edges }
@@ -227,11 +227,11 @@ export default function Network() {
   if (errorLinks) return <div className="error">Error loading network data: {errorLinks}</div>
   if (loadingLinks || loadingLabels || loadingPages || !links) return <div className="loading">Loading network explorer…</div>
 
-  if (agentParam && !links[agentParam]) {
+  if (agentParam && !Object.hasOwn(links, agentParam)) {
     return (
       <div className="page network-page">
         <div className="error">
-          Agent "{agentParam}" not found in the network index.
+          Agent &quot;{agentParam}&quot; not found in the network index.
           {presets.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <Button size="sm" onClick={() => { setFocalAgent(presets[0]); }}>
@@ -244,9 +244,11 @@ export default function Network() {
     )
   }
 
-  const inspectedAgent = (selParam && links[selParam]) ? selParam : activeAgent
+  const inspectedAgent = (selParam && Object.hasOwn(links, selParam)) ? selParam : activeAgent
   const inspectedMeta = labelsMap.get(inspectedAgent)
-  const inspectedLinks = (links[inspectedAgent] || []).filter((a) => a.c >= minShared)
+  const inspectedLinks = Object.hasOwn(links, inspectedAgent)
+    ? links[inspectedAgent].filter((a) => a.c >= minShared)
+    : []
 
   const handleNodeSelect = (nodeId: string) => {
     const next = new URLSearchParams(searchParams)
@@ -309,7 +311,7 @@ export default function Network() {
             aria-controls="network-search-suggestions"
             aria-activedescendant={
               isOpen && activeIndex >= 0 && suggestions[activeIndex]
-                ? `suggestion-option-${activeIndex}`
+                ? `suggestion-option-${String(activeIndex)}`
                 : undefined
             }
             value={searchInput}
@@ -339,7 +341,7 @@ export default function Network() {
             {suggestions.map((sug, idx) => (
               <button
                 key={sug}
-                id={`suggestion-option-${idx}`}
+                id={`suggestion-option-${String(idx)}`}
                 type="button"
                 role="option"
                 aria-selected={activeIndex === idx}

@@ -42,7 +42,7 @@ export default function EditsByDay() {
             {days.map((day) => (
               <tr key={day.date}>
                 <td className="mono nowrap">{day.date}</td>
-                <td><div className="daybar-track"><div className="daybar" style={{ width: `${(day.saves / maxSaves) * 100}%` }} /></div></td>
+                <td><div className="daybar-track"><div className="daybar" style={{ width: `${String((day.saves / maxSaves) * 100)}%` }} /></div></td>
                 <td className="num">{fmtInt(day.saves)}</td>
                 <td className="num">{fmtInt(day.deletes)}</td>
                 <td className="num">{fmtInt(day.count)}{day.rec > 0 && <span className="muted"> (incl. {fmtInt(day.rec)} recovered)</span>}</td>

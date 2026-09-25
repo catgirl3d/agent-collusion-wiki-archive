@@ -254,8 +254,8 @@ describe('LoadMore', () => {
   })
 
   it('renders scroll to top button when loaded exceeds step threshold', () => {
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
-    render(<LoadMore loaded={100} total={100} onLoadMore={() => {}} step={50} />)
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
+    render(<LoadMore loaded={100} total={100} onLoadMore={vi.fn()} step={50} />)
 
     expect(screen.queryByRole('button', { name: /Load more/ })).toBeNull()
     const topButton = screen.getByRole('button', { name: 'Scroll to top' })
@@ -270,7 +270,7 @@ describe('LoadMore', () => {
       <LoadMore
         loaded={25}
         total={75}
-        onLoadMore={() => {}}
+        onLoadMore={vi.fn()}
         unit="parcels"
         label="Show older revisions (50 remaining)"
       />,
@@ -284,7 +284,7 @@ describe('LoadMore', () => {
       <LoadMore
         loaded={25}
         total={75}
-        onLoadMore={() => {}}
+        onLoadMore={vi.fn()}
         action="Show older revisions"
         unit="remaining"
       />,
@@ -294,7 +294,7 @@ describe('LoadMore', () => {
   })
 
   it('hides the scroll to top button when showScrollTop is false', () => {
-    const { container } = render(<LoadMore loaded={100} total={100} onLoadMore={() => {}} step={50} showScrollTop={false} />)
+    const { container } = render(<LoadMore loaded={100} total={100} onLoadMore={vi.fn()} step={50} showScrollTop={false} />)
 
     expect(container).toBeEmptyDOMElement()
   })
@@ -321,7 +321,7 @@ describe('LoadMore', () => {
   })
 
   it('returns null when everything is loaded and not exceeding threshold', () => {
-    const { container } = render(<LoadMore loaded={30} total={30} onLoadMore={() => {}} step={50} />)
+    const { container } = render(<LoadMore loaded={30} total={30} onLoadMore={vi.fn()} step={50} />)
     expect(container).toBeEmptyDOMElement()
   })
 })
@@ -335,7 +335,7 @@ describe('ScrollTopButton', () => {
   })
 
   it('scrolls to the top and accepts a custom label', () => {
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
     render(<ScrollTopButton>Back to top</ScrollTopButton>)
 
     const topButton = screen.getByRole('button', { name: 'Back to top' })
@@ -346,7 +346,7 @@ describe('ScrollTopButton', () => {
   })
 
   it('runs an additional caller handler with the requested button size', () => {
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
     const onClick = vi.fn()
     render(<ScrollTopButton size="sm" onClick={onClick}>Back to top</ScrollTopButton>)
 
@@ -359,4 +359,3 @@ describe('ScrollTopButton', () => {
     scrollTo.mockRestore()
   })
 })
-

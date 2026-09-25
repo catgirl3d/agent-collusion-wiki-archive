@@ -12,8 +12,8 @@ interface OpenApiParameter { name: string; in: string }
 type ParameterReference = OpenApiParameter | { $ref: string }
 interface OpenApiOperation { parameters?: ParameterReference[] }
 interface OpenApiContract {
-  paths: Record<string, { get?: OpenApiOperation }>
-  components: { parameters: Record<string, OpenApiParameter> }
+  paths: Partial<Record<string, { get?: OpenApiOperation }>>
+  components: { parameters: Partial<Record<string, OpenApiParameter>> }
   'x-data-assets': { path: string }[]
 }
 
@@ -76,11 +76,13 @@ function findGetOperation(pathname: string): OpenApiOperation {
     return new RegExp(`^${expression}$`).test(pathname)
   })
 
-  if (matches.length !== 1 || !matches[0][1].get) {
-    throw new Error(`Expected one GET OpenAPI operation for ${pathname}; found ${matches.length}`)
+  const match = matches.at(0)
+  const operation = match?.[1]?.get
+  if (matches.length !== 1 || !operation) {
+    throw new Error(`Expected one GET OpenAPI operation for ${pathname}; found ${String(matches.length)}`)
   }
 
-  return matches[0][1].get
+  return operation
 }
 
 function resolveParameters(operation: OpenApiOperation): OpenApiParameter[] {
@@ -151,13 +153,11 @@ describe('MCP tool presentation contract', () => {
     for (const [tool, presentation] of Object.entries(MCP_TOOL_PRESENTATION)) {
       const kind = endpointKind(presentation.httpEndpoint)
       const url = endpointUrl(presentation.httpEndpoint)
+      const isDataAssetValid = kind !== 'data' || isDocumentedDataAsset(url.pathname)
+      expect(isDataAssetValid, `${tool}: ${url.pathname} must be a documented data asset`).toBe(true)
 
       if (kind === 'data') {
         dataTools.push(tool)
-        expect(
-          isDocumentedDataAsset(url.pathname),
-          `${tool}: ${url.pathname} must be a documented data asset`,
-        ).toBe(true)
         continue
       }
 

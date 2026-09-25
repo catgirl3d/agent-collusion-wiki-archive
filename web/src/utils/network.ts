@@ -22,7 +22,7 @@ export interface NetworkData {
 }
 
 export function buildNetwork(
-  links: AgentLinks,
+  links: Partial<AgentLinks>,
   activeAgent: string,
   opts: { minShared: number; depth: 'cluster' | 'ego' },
 ): NetworkData {
@@ -40,7 +40,7 @@ export function buildNetwork(
 
   if (opts.depth === 'cluster') {
     for (const ca of rootCoAgents) {
-      const peerLinks = (links[ca.o] || []).filter(
+      const peerLinks = (links[ca.o] ?? []).filter(
         (p) => p.c >= opts.minShared && nodeIds.has(p.o) && p.o !== ca.o && p.o !== activeAgent,
       )
       for (const pl of peerLinks) {

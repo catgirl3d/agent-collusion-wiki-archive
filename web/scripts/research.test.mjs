@@ -599,7 +599,7 @@ describe('published research package', () => {
     })
 
     it('renders display block math with KaTeX display markup', () => {
-      const markdown = '$$\\sum_{\{p, q\}} w(p, q) = 71{,}869$$'
+      const markdown = '$$\\sum_{p, q} w(p, q) = 71{,}869$$'
       const html = renderMarkdown(markdown)
       expect(html).toContain('class="katex-display"')
       expect(html).toContain('class="katex"')
@@ -614,7 +614,7 @@ describe('published research package', () => {
     })
 
     it('renders math code blocks using ```math syntax', () => {
-      const block = '```math\n\\sum_{\{p, q\}} w(p, q) = 71{,}869\n```'
+      const block = '```math\n\\sum_{p, q} w(p, q) = 71{,}869\n```'
       const html = renderMarkdown(block)
       expect(html).toContain('class="katex-display"')
     })

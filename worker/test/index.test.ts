@@ -8,7 +8,7 @@ import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
 import { PAYLOAD_FLAGS, tokenizeBody } from '../src/index'
 
-type AssetValue = unknown | Response
+type AssetValue = unknown
 type UnknownRecord = Record<string, unknown>
 type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject
 interface JsonObject {
@@ -224,7 +224,7 @@ function responseSchema(document: OpenApiDocument, path: string, status: number)
     response = document.components.responses[response.$ref.slice(responsePrefix.length)]
   }
   const schema = response?.content?.['application/json']?.schema
-  if (!schema) throw new Error(`missing documented JSON response schema for ${path} ${status}`)
+  if (!schema) throw new Error(`missing documented JSON response schema for ${path} ${String(status)}`)
 
   const rewriteComponentRefs = (value: JsonValue): JsonValue => {
     if (Array.isArray(value)) return value.map(rewriteComponentRefs)
@@ -257,7 +257,7 @@ const payload = [
 ]
 const conflicts = [
   { id: 'low/id', s: 'low~', churn: 1, ttd_med_s: 2, del: 0, zzz: true, front: false },
-  ...Array.from({ length: 501 }, (_, index) => ({ id: `high/${index}`, s: `high_${index}~`, churn: 10, ttd_med_s: 3, del: 0, zzz: false, front: false })),
+  ...Array.from({ length: 501 }, (_, index) => ({ id: `high/${String(index)}`, s: `high_${String(index)}~`, churn: 10, ttd_med_s: 3, del: 0, zzz: false, front: false })),
 ]
 
 const assets: Record<string, AssetValue> = {
@@ -281,13 +281,13 @@ async function handlerForTest() {
 function environment(overrides: Record<string, AssetValue> = {}) {
   const calls: string[] = []
   const values = { ...assets, ...overrides }
-  const fetch = vi.fn(async (request: Request) => {
+  const fetch = vi.fn((request: Request): Promise<Response> => {
     const path = new URL(request.url).pathname
     calls.push(path)
     const value = values[path]
-    if (value instanceof Response) return value
-    if (value === undefined) return new Response('missing', { status: 404 })
-    return Response.json(value)
+    if (value instanceof Response) return Promise.resolve(value)
+    if (value === undefined) return Promise.resolve(new Response('missing', { status: 404 }))
+    return Promise.resolve(Response.json(value))
   })
   return { env: { ASSETS: { fetch } }, calls, fetch }
 }
@@ -541,6 +541,7 @@ describe('Worker API default fetch handler', () => {
     ]
     expect(fixtures.map(({ path }) => path).sort()).toEqual([...expectedOpenApiPaths].sort())
 
+    let revisionsFixtureBody: UnknownRecord = {}
     for (const fixture of fixtures) {
       const result = await request(fixture.url, undefined, fixture.assets)
       expect(result.response.status, fixture.path).toBe(200)
@@ -549,12 +550,11 @@ describe('Worker API default fetch handler', () => {
       const validate = responseSchema(contract, fixture.path, result.response.status)
       expect(validate(body), `${fixture.path}: ${JSON.stringify(validate.errors)}`).toBe(true)
 
-      if (fixture.path === '/api/pages/{slug}/revisions') {
-        expect(body.withBody).toBe(false)
-        expect(records(body.revisions)[0]).toMatchObject({ partial: true, added: ['recovered line'], removed: ['old line'] })
-        expect(records(body.revisions)[0]).not.toHaveProperty('body')
-      }
+      if (fixture.path === '/api/pages/{slug}/revisions') revisionsFixtureBody = body
     }
+    expect(revisionsFixtureBody.withBody).toBe(false)
+    expect(records(revisionsFixtureBody.revisions)[0]).toMatchObject({ partial: true, added: ['recovered line'], removed: ['old line'] })
+    expect(records(revisionsFixtureBody.revisions)[0]).not.toHaveProperty('body')
 
     const pairLinks = await request('/api/links?label=Alice&other=Bob')
     expect(pairLinks.response.status).toBe(200)
@@ -615,7 +615,7 @@ describe('Worker API default fetch handler', () => {
 
     try {
       invalidDocuments.forEach((document, index) => {
-        const filePath = join(fixtureDirectory, `invalid-${index}.json`)
+        const filePath = join(fixtureDirectory, `invalid-${String(index)}.json`)
         writeFileSync(filePath, JSON.stringify(document))
         const result = spawnSync(process.execPath, [redoclyCli, 'lint', filePath, '--extends=spec'], {
           cwd: process.cwd(),
@@ -802,7 +802,7 @@ describe('Worker API default fetch handler', () => {
     const prototype = await request('/api/fts?q=constructor')
     expect(await json(prototype.response)).toMatchObject({ truncated: false, total: 0, pages: [] })
     expect((await request('/api/fts?q=' + 'a'.repeat(201))).response.status).toBe(400)
-    const manyTokens = Array.from({ length: 17 }, (_, index) => `tok${index}`).join('+')
+    const manyTokens = Array.from({ length: 17 }, (_, index) => `tok${String(index)}`).join('+')
     expect((await request(`/api/fts?q=${manyTokens}`)).response.status).toBe(400)
   })
 
@@ -924,7 +924,7 @@ describe('Worker API default fetch handler', () => {
     expect(await json(reversed.response)).toEqual({ error: 'from must not be after to', code: 'invalid_param' })
   })
 
-  it('matches tokenizer golden fixture and advertises new routes', async () => {
+  it('matches tokenizer golden fixture and advertises new routes', () => {
     const fixtureValue: unknown = JSON.parse(readFileSync(new URL('../../data/validation/token_golden.json', import.meta.url), 'utf8'))
     if (!isTokenFixture(fixtureValue)) throw new Error('Expected a valid tokenizer fixture')
     const fixture = fixtureValue

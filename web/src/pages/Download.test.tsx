@@ -53,14 +53,13 @@ describe('Download', () => {
   })
 
   it('uses stable en-US formatting for archive counts', async () => {
-    const originalToLocaleString = Number.prototype.toLocaleString
     const localeSpy = vi.spyOn(Number.prototype, 'toLocaleString').mockImplementation(function (
       this: number,
       locales?: Intl.LocalesArgument,
       options?: Intl.NumberFormatOptions,
     ) {
       if (locales === undefined) return String(this).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-      return originalToLocaleString.call(this, locales, options)
+      return new Intl.NumberFormat(locales, options).format(this)
     })
     loadJsonMock.mockResolvedValue({
       ...summary,
