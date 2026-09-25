@@ -338,6 +338,18 @@ describe('buildPairTimeline', () => {
     }
   })
 
+  it('skips explicit null revisions without changing pair timeline results', () => {
+    const firstRevision = revision({ seq: 1, label: 'AgentA', body: 'first' })
+    const secondRevision = revision({ seq: 2, label: 'AgentB', body: 'second' })
+    const expectedTimeline = buildPairTimeline([firstRevision, secondRevision], 'AgentA', 'AgentB')
+    const timeline = buildPairTimeline([firstRevision, null, secondRevision], 'AgentA', 'AgentB')
+
+    expect(timeline.orderedRevisions).toEqual(expectedTimeline.orderedRevisions)
+    expect(timeline.events).toEqual(expectedTimeline.events)
+    expect(timeline.orderedRevisions).toHaveLength(2)
+    expect(timeline.events).toHaveLength(2)
+  })
+
   it('filters to pair actors only, preserves chronological order, and counts intervening third-label revisions', () => {
     const revisions: Revision[] = [
       {
