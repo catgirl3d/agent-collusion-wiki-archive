@@ -119,8 +119,10 @@ export interface Revision {
   len: number | null
   body: string
   action: string | null
-  round: string | null
+  /** round_id references: the raw export stores them as a list */
+  round: (string | null)[] | null
   partial?: boolean
+  append?: boolean | null
   added?: string[]
   removed?: string[]
 }

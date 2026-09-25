@@ -320,6 +320,38 @@ describe('Worker API default fetch handler', () => {
       .toContain('Sorted by churn descending, then deletions descending.')
   })
 
+  it('declares every served contract root key in the OpenApiEnvelope schema', async () => {
+    const contract = await json((await request('/api/openapi')).response)
+    const declared = Object.keys(contract.components.schemas.OpenApiEnvelope.properties)
+
+    for (const key of Object.keys(contract)) {
+      expect(declared, `root key ${key} is not declared in OpenApiEnvelope`).toContain(key)
+    }
+  })
+
+  it('allows a null append on recovered revisions', async () => {
+    const contract = await json((await request('/api/openapi')).response)
+    const revision = {
+      seq: 1, time: '2026-01-01T00:00:00Z', label: null, ip16: '1122', summary: null, len: null,
+      body: '', action: null, round: null, partial: true, append: null,
+    }
+    const validateRevisions = responseSchema(contract, '/api/pages/{slug}/revisions', 200)
+
+    const withNullAppend = await request('/api/pages/Page~/revisions?body=1', undefined, {
+      '/data/revisions/Page~.json': [revision],
+    })
+    expect(withNullAppend.response.status).toBe(200)
+    const nullBody = await json(withNullAppend.response)
+    expect(nullBody.revisions[0].append).toBeNull()
+    expect(validateRevisions(nullBody), JSON.stringify(validateRevisions.errors)).toBe(true)
+
+    const withStringAppend = await request('/api/pages/Page~/revisions?body=1', undefined, {
+      '/data/revisions/Page~.json': [{ ...revision, append: 'yes' }],
+    })
+    const stringBody = await json(withStringAppend.response)
+    expect(validateRevisions(stringBody)).toBe(false)
+  })
+
   it('serves OpenAPI with or without a trailing slash', async () => {
     const canonical = await request('/api/openapi')
     const trailingSlash = await request('/api/openapi/')

@@ -54,6 +54,27 @@ describe('PairEvidencePanel', () => {
     expect(screen.getByText('No pair events observed on this page for these labels.')).toBeInTheDocument()
   })
 
+  it('formats revision round references and hides null-only rounds', () => {
+    const tl = timeline()
+    tl.events[0] = { ...tl.events[0], round: ['dse~Page#round-1'] }
+    tl.events[1] = { ...tl.events[1], round: ['dse~Page#round-2', 'dse~Other#round-3', null] }
+
+    const { container } = renderPanel({ timeline: tl })
+
+    expect(screen.getByText('r1')).toBeInTheDocument()
+    expect(screen.getByText('r2, r3')).toBeInTheDocument()
+    expect(container.querySelectorAll('.pair-round-badge')).toHaveLength(2)
+  })
+
+  it('omits the round badge when only null references remain', () => {
+    const tl = timeline()
+    tl.events[0] = { ...tl.events[0], round: [null] }
+
+    const { container } = renderPanel({ timeline: tl })
+
+    expect(container.querySelectorAll('.pair-round-badge')).toHaveLength(0)
+  })
+
   it('shows selected page metadata and calls the page selection callback', () => {
     const onSelectPage = vi.fn()
     const secondPage = { ...page, id: 'wiki/Other', n: 'Other' }

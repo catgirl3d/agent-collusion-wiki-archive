@@ -378,7 +378,29 @@
             },
             "additionalProperties": true
           },
-          "paths": { "type": "object" }
+          "servers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["url"],
+              "properties": { "url": { "type": "string" } },
+              "additionalProperties": true
+            }
+          },
+          "paths": { "type": "object" },
+          "components": { "type": "object" },
+          "x-data-assets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["path", "purpose"],
+              "properties": {
+                "path": { "type": "string" },
+                "purpose": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
         },
         "additionalProperties": true
       },
@@ -550,7 +572,7 @@
           "summary": { "type": ["string", "null"] },
           "len": { "type": ["integer", "null"] },
           "round": { "type": ["array", "null"], "items": { "type": ["string", "null"] } },
-          "append": { "type": "boolean" },
+          "append": { "type": ["boolean", "null"] },
           "body": { "type": "string" },
           "snippet": { "type": "string" },
           "t": { "type": "string" },
