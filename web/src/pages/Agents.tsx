@@ -1,7 +1,7 @@
 import { Fragment, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
-import { Badge, Button, Card, LoadMore, PageLink } from '../components/ui'
+import { Badge, Button, Card, LoadMore, PageLink, SortHeader } from '../components/ui'
 import { Ip16LabelList } from '../components/Ip16LabelList'
 import type { LabelsIndex, LabelsIp16Index } from '../types'
 import { filterLabels, fmtInt, toCsv } from '../utils/format'
@@ -11,6 +11,8 @@ import {
   summarizeIp16Slice,
   type Ip16SliceSummary,
 } from '../utils/ip16'
+import { AGENTS_SORT_DEFAULT, AGENTS_SORT_DEFAULTS, AGENTS_SORT_KEYS, sortAgentLabels, type AgentsSortKey } from '../utils/agents'
+import { resolveSort, updateSortSearchParams, writeSortParams } from '../utils/sort'
 import { downloadBlob } from '../utils/download'
 
 const RESULT_LIMIT = 50
@@ -63,6 +65,12 @@ export default function Agents() {
   const urlQ = searchParams.get('q') ?? ''
   const rawIp = searchParams.get('ip')
   const ip = rawIp?.trim() ?? ''
+  const rawSort = searchParams.get('sort')
+  const rawDir = searchParams.get('dir')
+  const sortState = useMemo(
+    () => resolveSort(rawSort, rawDir, AGENTS_SORT_KEYS, AGENTS_SORT_DEFAULTS),
+    [rawSort, rawDir],
+  )
   const [query, setQuery] = useState(urlQ)
   const [lastUrlQ, setLastUrlQ] = useState(urlQ)
   const [limit, setLimit] = useState(RESULT_LIMIT)
@@ -84,14 +92,26 @@ export default function Agents() {
     setLimit(RESULT_LIMIT)
   }
 
+  const toggleSort = (key: AgentsSortKey) => {
+    const next = updateSortSearchParams(searchParams, sortState, key, AGENTS_SORT_DEFAULTS, AGENTS_SORT_DEFAULT)
+    setSearchParams(next, { replace: true })
+    setLimit(RESULT_LIMIT)
+  }
+
   // Legacy or hand-edited links self-heal like the timeline: a whitespace-only ip is dropped.
   useEffect(() => {
-    if (rawIp === null || rawIp === ip) return
     const next = new URLSearchParams(searchParams)
-    if (ip) next.set('ip', ip)
-    else next.delete('ip')
-    setSearchParams(next, { replace: true })
-  }, [rawIp, ip, searchParams, setSearchParams])
+    let changed = false
+    if (rawIp !== null && rawIp !== ip) {
+      if (ip) next.set('ip', ip)
+      else next.delete('ip')
+      changed = true
+    }
+    const beforeSort = next.toString()
+    writeSortParams(next, sortState, AGENTS_SORT_DEFAULT)
+    if (next.toString() !== beforeSort) changed = true
+    if (changed) setSearchParams(next, { replace: true })
+  }, [rawIp, ip, searchParams, setSearchParams, sortState])
 
   // The ip16 index is an enhancement: it may still be loading or may fail without
   // taking the label index down with it. While it is not ready the filter stays
@@ -112,11 +132,15 @@ export default function Agents() {
     () => (data ? filterLabels(data.l, deferredQuery, allowedLabels) : []),
     [data, deferredQuery, allowedLabels],
   )
-  const shown = filtered.slice(0, limit)
+  const sorted = useMemo(
+    () => sortAgentLabels(filtered, sortState.sort, sortState.dir),
+    [filtered, sortState],
+  )
+  const shown = sorted.slice(0, limit)
 
   const exportCsv = () => {
     const timestamp = Math.floor(Date.now() / 1000)
-    const rows = filtered.map(({ x, r, p, f, t, h }) => ({ label: x, revs: r, pages: p, first: f, last: t, h }))
+    const rows = sorted.map(({ x, r, p, f, t, h }) => ({ label: x, revs: r, pages: p, first: f, last: t, h }))
     downloadBlob(`agents-slice-${timestamp}.csv`, toCsv(rows), 'text/csv;charset=utf-8')
   }
 
@@ -176,11 +200,11 @@ export default function Agents() {
         <table className="tbl">
           <thead>
             <tr>
-              <th>Label</th>
-              <th className="num">Revs</th>
-              <th className="num">Pages</th>
-              <th>First</th>
-              <th>Last</th>
+              <SortHeader label="Label" sortKey="label" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="Revs" sortKey="revs" current={sortState} numeric onToggle={toggleSort} />
+              <SortHeader label="Pages" sortKey="pages" current={sortState} numeric onToggle={toggleSort} />
+              <SortHeader label="First" sortKey="first" current={sortState} onToggle={toggleSort} />
+              <SortHeader label="Last" sortKey="last" current={sortState} onToggle={toggleSort} />
               <th>Wikis</th>
               <th>Kind</th>
               <th aria-label="Actions" />

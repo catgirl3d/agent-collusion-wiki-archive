@@ -12,6 +12,7 @@ const labels = {
     { x: 'AgentRelent', r: 14, f: '2026-05-24', t: '2026-07-02', p: 9, h: false, w: ['dse'], pgs: ['dse/PageA'] },
     { x: 'LinkHelper', r: 4, f: '2026-05-01', t: '2026-05-02', p: 2, h: false, w: ['dse'], pgs: [] },
     { x: 'MapHelper', r: 3, f: '2026-06-01', t: '2026-06-02', p: 1, h: true, w: ['probier'], pgs: [] },
+    { x: 'ZetaBot', r: 40, f: '2026-08-01', t: '2026-08-01', p: 12, h: false, w: ['dse'], pgs: [] },
   ],
 }
 
@@ -232,5 +233,144 @@ describe('Agents', () => {
     expect(rows.getByText('MapHelper')).toBeInTheDocument()
     expect(screen.getByLabelText('Filter by IP16')).toBeDisabled()
     expect(screen.getByText('loading ip16 index…')).toBeInTheDocument()
+  })
+
+  it('sorts by revisions descending on the first click and writes the URL', async () => {
+    stubAgentsData()
+    renderAgents()
+
+    const rows = await findTable()
+    fireEvent.click(screen.getByRole('button', { name: 'Revs' }))
+
+    await waitFor(() => {
+      expect(currentSearch().get('sort')).toBe('revs')
+      expect(currentSearch().get('dir')).toBe('desc')
+    })
+    const tableRows = rows.getAllByRole('row')
+    expect(tableRows[1]).toHaveTextContent('ZetaBot')
+    expect(tableRows[2]).toHaveTextContent('AgentRelent')
+    expect(tableRows[3]).toHaveTextContent('LinkHelper')
+    expect(tableRows[4]).toHaveTextContent('MapHelper')
+  })
+
+  it('toggles the active sort column to ascending on the second click', async () => {
+    stubAgentsData()
+    renderAgents()
+
+    const rows = await findTable()
+    const revsHeader = screen.getByRole('button', { name: 'Revs' })
+    fireEvent.click(revsHeader)
+    await waitFor(() => expect(currentSearch().get('dir')).toBe('desc'))
+    fireEvent.click(revsHeader)
+
+    await waitFor(() => expect(currentSearch().get('dir')).toBe('asc'))
+    const tableRows = rows.getAllByRole('row')
+    expect(tableRows[1]).toHaveTextContent('MapHelper')
+    expect(tableRows[2]).toHaveTextContent('LinkHelper')
+    expect(tableRows[3]).toHaveTextContent('AgentRelent')
+    expect(tableRows[4]).toHaveTextContent('ZetaBot')
+  })
+
+  it('uses each column default direction and clears sort params for canonical order', async () => {
+    stubAgentsData()
+    renderAgents()
+
+    const rows = await findTable()
+    fireEvent.click(screen.getByRole('button', { name: 'First' }))
+    await waitFor(() => {
+      expect(currentSearch().get('sort')).toBe('first')
+      expect(currentSearch().get('dir')).toBe('asc')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Last' }))
+    await waitFor(() => {
+      expect(currentSearch().get('sort')).toBe('last')
+      expect(currentSearch().get('dir')).toBe('desc')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Label' }))
+    await waitFor(() => {
+      expect(currentSearch().has('sort')).toBe(false)
+      expect(currentSearch().has('dir')).toBe(false)
+    })
+    const tableRows = rows.getAllByRole('row')
+    expect(tableRows[1]).toHaveTextContent('AgentRelent')
+    expect(tableRows[2]).toHaveTextContent('LinkHelper')
+    expect(tableRows[3]).toHaveTextContent('MapHelper')
+    expect(tableRows[4]).toHaveTextContent('ZetaBot')
+  })
+
+  it('sorts the filtered subset after applying the ip16 filter', async () => {
+    stubAgentsData()
+    renderAgents('/agents?ip=20.165')
+
+    const rows = await findTable()
+    fireEvent.click(screen.getByRole('button', { name: 'First' }))
+
+    await waitFor(() => expect(currentSearch().get('sort')).toBe('first'))
+    const tableRows = rows.getAllByRole('row')
+    expect(tableRows[1]).toHaveTextContent('LinkHelper')
+    expect(tableRows[1]).toHaveTextContent('2026-05-01')
+    expect(tableRows[2]).toHaveTextContent('AgentRelent')
+    expect(tableRows[2]).toHaveTextContent('2026-05-24')
+    expect(rows.queryByText('ZetaBot')).toBeNull()
+  })
+
+  it('exposes aria-sort only on the active column', async () => {
+    stubAgentsData()
+    renderAgents()
+    await findTable()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revs' }))
+
+    expect(screen.getByRole('columnheader', { name: 'Revs' })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('columnheader', { name: 'Label' })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('resets the load limit when sorting changes', async () => {
+    const manyLabels = Array.from({ length: 60 }, (_, i) => ({
+      x: 'Bot' + String(i).padStart(2, '0'),
+      r: i,
+      f: '2026-06-01',
+      t: '2026-06-02',
+      p: 1,
+      h: false,
+      w: ['dse'],
+      pgs: [],
+    }))
+    loadJsonMock.mockImplementation((path: string) => {
+      if (path === 'labels.json') return Promise.resolve({ n_anon: 0, l: manyLabels })
+      if (path === 'labels_ip16.json') return Promise.resolve({ meta: { schema_version: 1, prefixes: 0 }, prefixes: {} })
+      return Promise.reject(new Error(`Unexpected data request: ${path}`))
+    })
+    renderAgents()
+
+    const rows = await findTable()
+    await waitFor(() => expect(rows.getAllByRole('row')).toHaveLength(51))
+    fireEvent.click(screen.getByRole('button', { name: /^Load more\b/ }))
+    await waitFor(() => expect(rows.getAllByRole('row')).toHaveLength(61))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revs' }))
+
+    await waitFor(() => expect(rows.getAllByRole('row')).toHaveLength(51))
+    expect(rows.getAllByRole('row')[1]).toHaveTextContent('Bot59')
+    expect(currentSearch().get('sort')).toBe('revs')
+    expect(currentSearch().get('dir')).toBe('desc')
+  })
+
+  it('drops invalid sort params from the URL and keeps canonical row order', async () => {
+    stubAgentsData()
+    renderAgents('/agents?sort=bogus&dir=desc')
+
+    const rows = await findTable()
+    await waitFor(() => {
+      expect(currentSearch().has('sort')).toBe(false)
+      expect(currentSearch().has('dir')).toBe(false)
+    })
+    const tableRows = rows.getAllByRole('row')
+    expect(tableRows[1]).toHaveTextContent('AgentRelent')
+    expect(tableRows[2]).toHaveTextContent('LinkHelper')
+    expect(tableRows[3]).toHaveTextContent('MapHelper')
+    expect(tableRows[4]).toHaveTextContent('ZetaBot')
   })
 })
