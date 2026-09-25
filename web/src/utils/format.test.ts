@@ -4,6 +4,7 @@ import {
   EVENT_FILTER_OPTIONS,
   EVENT_METADATA,
   WIKIS,
+  countPayloadFlagPages,
   eventColor,
   eventPageId,
   filterEventsByDay,
@@ -17,6 +18,7 @@ import {
   fmtRoundLabel,
   fmtTime,
   fmtTimeSeconds,
+  pagePayloadFlags,
   toCsv,
   wikiColor,
 } from './format'
@@ -231,6 +233,70 @@ describe('filterPages with tokenSlugs and payloadFlags', () => {
     // without a flag filter — all pages
     const all = filterPages(rows, { query: '', wiki: '', deletedOnly: false, minRevs: 0 })
     expect(all.length).toBe(3)
+  })
+})
+
+describe('pagePayloadFlags', () => {
+  it('gets flags by page id', () => {
+    const page = p({ id: 'dse/ById', s: 'by-id~' })
+    expect(pagePayloadFlags(page, new Map([['dse/ById', ['hex']]]))).toEqual(['hex'])
+  })
+
+  it('falls back to the page slug when its id has no entry', () => {
+    const page = p({ id: 'dse/BySlug', s: 'by-slug~' })
+    expect(pagePayloadFlags(page, new Map([['by-slug~', ['redirect']]]))).toEqual(['redirect'])
+  })
+
+  it('returns no flags when neither the id nor slug has an entry', () => {
+    const page = p({ id: 'dse/Missing' })
+    expect(pagePayloadFlags(page, new Map())).toEqual([])
+  })
+
+  it('preserves an explicit empty id entry instead of falling back to the slug', () => {
+    const page = p({ id: 'dse/EmptyId', s: 'empty-id~' })
+    const payloadFlags = new Map([['dse/EmptyId', []], ['empty-id~', ['hex']]])
+    expect(pagePayloadFlags(page, payloadFlags)).toEqual([])
+  })
+
+  it('prefers id flags when both id and slug entries exist', () => {
+    const page = p({ id: 'dse/BothKeys', s: 'both-keys~' })
+    const payloadFlags = new Map([['dse/BothKeys', ['hex']], ['both-keys~', ['redirect']]])
+    expect(pagePayloadFlags(page, payloadFlags)).toEqual(['hex'])
+  })
+})
+
+describe('countPayloadFlagPages', () => {
+  it('counts each flag once per page and ignores pages without flags', () => {
+    const rows = [p({ id: 'dse/One' }), p({ id: 'dse/Two' }), p({ id: 'dse/Empty' })]
+    const payloadFlags = new Map([
+      ['dse/One', ['hex', 'hex', 'custom']],
+      ['dse/Two', ['hex', 'custom', 'custom']],
+      ['dse/Empty', []],
+    ])
+
+    expect(countPayloadFlagPages(rows, payloadFlags)).toEqual(new Map([['hex', 2], ['custom', 2]]))
+  })
+
+  it('counts fallback and unknown flags with the same membership as filterPages', () => {
+    const rows = [
+      p({ id: 'dse/Direct', s: 'direct~' }),
+      p({ id: 'dse/Fallback', s: 'fallback~' }),
+      p({ id: 'dse/Empty', s: 'empty~' }),
+      p({ id: 'dse/Missing', s: 'missing~' }),
+    ]
+    const payloadFlags = new Map([
+      ['dse/Direct', ['hex', 'hex', 'redirect']],
+      ['fallback~', ['hex', 'unknown']],
+      ['dse/Empty', []],
+      ['empty~', ['hex']],
+    ])
+
+    for (const flag of ['hex', 'redirect', 'unknown']) {
+      expect(countPayloadFlagPages(rows, payloadFlags).get(flag) ?? 0).toBe(
+        filterPages(rows, { query: '', wiki: '', deletedOnly: false, minRevs: 0, payloadFlag: flag, payloadFlags: payloadFlags }).length,
+      )
+    }
+    expect(countPayloadFlagPages(rows, payloadFlags)).toEqual(new Map([['hex', 2], ['redirect', 1], ['unknown', 1]]))
   })
 })
 

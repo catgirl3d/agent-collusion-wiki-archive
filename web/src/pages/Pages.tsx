@@ -8,6 +8,7 @@ import type { DayActivity, PagesIndex, PayloadRecord, SearchIndex } from '../typ
 import {
   WIKIS,
   aggregateDays,
+  countPayloadFlagPages,
   filterPages,
   filterPagesByDay,
   fmtInt,
@@ -62,6 +63,11 @@ export default function Pages() {
     }
     return map
   }, [payloadIndex])
+
+  const payloadFlagCounts = useMemo(
+    () => data ? countPayloadFlagPages(data.p, payloadByPage) : new Map<string, number>(),
+    [data, payloadByPage],
+  )
 
   const tokenSlugs = useMemo(
     () => (needsIndex ? lookupTokenPostings(searchIndex, deferredQuery) : null),
@@ -150,7 +156,7 @@ export default function Pages() {
             { value: '', label: 'all payload flags' },
             ...PAYLOAD_FLAG_ORDER.map((flag) => ({
               value: flag,
-              label: `${flag} (${String(data.p.filter((p) => (payloadByPage.get(p.id) ?? []).includes(flag)).length)})`,
+              label: `${flag} (${String(payloadFlagCounts.get(flag) ?? 0)})`,
             })),
           ]}
           onChange={(value) => { setPayloadFlag(value); setLimit(PAGE_LIMIT) }}
