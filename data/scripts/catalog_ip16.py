@@ -22,6 +22,8 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from ip16 import accepted_prefix
+
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RAW = ROOT / "data" / "raw"
 DEFAULT_OUT = ROOT / "data" / "processed"
@@ -68,16 +70,6 @@ def load_other_wikis(path: Path) -> list[dict]:
     return rows
 
 
-def _prefix(row: dict) -> str | None:
-    value = row.get("ip16")
-    if not value:
-        return None
-    parts = str(value).split(".")
-    if len(parts) != 2 or not all(p.isdigit() for p in parts):
-        return None
-    return str(value)
-
-
 def _time(row: dict, *keys: str) -> str | None:
     for key in keys:
         if row.get(key):
@@ -117,7 +109,7 @@ def build_catalog(revisions: list[dict], events: list[dict], other: list[dict] =
                 item["last"] = when
 
     for row in revisions:
-        prefix = _prefix(row)
+        prefix = accepted_prefix(row.get("ip16"))
         if not prefix:
             continue
         item = entry(prefix)
@@ -130,7 +122,7 @@ def build_catalog(revisions: list[dict], events: list[dict], other: list[dict] =
             item["pages"].add(row["page_id"])
 
     for row in events:
-        prefix = _prefix(row)
+        prefix = accepted_prefix(row.get("ip16"))
         if not prefix:
             continue
         item = entry(prefix)
@@ -144,7 +136,7 @@ def build_catalog(revisions: list[dict], events: list[dict], other: list[dict] =
             item["event_pages"].add(row["page"])
 
     for row in other:
-        prefix = _prefix(row)
+        prefix = accepted_prefix(row.get("ip16"))
         if not prefix:
             continue
         item = entry(prefix)
@@ -205,11 +197,11 @@ def build_catalog(revisions: list[dict], events: list[dict], other: list[dict] =
 def build_label_networks(revisions: list[dict], other: list[dict] = ()) -> dict:
     edges: Counter = Counter()
     for row in revisions:
-        prefix = _prefix(row)
+        prefix = accepted_prefix(row.get("ip16"))
         if prefix and row.get("label"):
             edges[(prefix, str(row["label"]))] += 1
     for row in other:
-        prefix = _prefix(row)
+        prefix = accepted_prefix(row.get("ip16"))
         if prefix and row.get("label"):
             edges[(prefix, str(row["label"]))] += 1
 

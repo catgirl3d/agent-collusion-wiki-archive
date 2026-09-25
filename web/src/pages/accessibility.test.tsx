@@ -19,9 +19,14 @@ function renderPage(page: ReactNode) {
 
 describe('owned page filter accessibility', () => {
   it('names the Agents search input and action column', () => {
-    useDataMock.mockReturnValue({ data: { l: [], n_anon: 0 }, error: null, loading: false })
+    useDataMock.mockImplementation((path: string) => ({
+      data: path === 'labels_ip16.json' ? { meta: { schema_version: 1, prefixes: 0 }, prefixes: {} } : { l: [], n_anon: 0 },
+      error: null,
+      loading: false,
+    }))
     renderPage(<Agents />)
     expect(screen.getByRole('textbox', { name: 'Search agents' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Filter by IP16' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeInTheDocument()
   })
 

@@ -44,7 +44,7 @@ npm run build      # production build in web/dist (data synced to public/data pr
 npm test           # utility unit tests
 ```
 
-Beyond the existing dashboards, the viewer includes a cross-page **Timeline** page (`/timeline`, filters by agent label, wiki, and date; `?label=` links are shareable) and a **Text search** page (`/search`) that performs literal substring search over all revision bodies. Text search runs entirely in a browser Web Worker: the first search downloads the published `revisions.jsonl.gz` (~3.2 MB) and scans it locally, so the Worker API never scans revision bodies.
+Beyond the existing dashboards, the viewer includes a cross-page **Timeline** page (`/timeline`, filters by agent label, wiki, and date; `?label=` links are shareable), an **Agent labels** page (`/agents`) that can slice the label index by an ip16 `/16` prefix (`?ip=`, matched as a substring like on the timeline), and a **Text search** page (`/search`) that performs literal substring search over all revision bodies. Text search runs entirely in a browser Web Worker: the first search downloads the published `revisions.jsonl.gz` (~3.2 MB) and scans it locally, so the Worker API never scans revision bodies.
 
 A **Research** page (`/research`) publishes a staged selection of the
 preliminary reports from `data/validation/`. The current stage publishes the

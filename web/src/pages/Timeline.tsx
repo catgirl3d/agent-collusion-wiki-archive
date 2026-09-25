@@ -21,9 +21,9 @@ import {
 } from '../utils/timeline'
 import { resolveSort, updateSortSearchParams, writeSortParams } from '../utils/sort'
 import { applyDateBound } from '../utils/dateRange'
+import { IP16_CAVEAT, IP16_TOP_LABELS } from '../utils/ip16'
 
 const MAX_PAGE = 5_000
-const IP16_TOP_LABELS = 12
 
 function Ip16Dossier({
   ip,
@@ -90,7 +90,7 @@ function Ip16Dossier({
         )}
       </div>
 
-      <span className="muted ip16-caveat">ip16 is a truncated /16 network indicator; it cannot identify a host, organization, or person.</span>
+      <span className="muted ip16-caveat">{IP16_CAVEAT}</span>
     </Card>
   )
 }

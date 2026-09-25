@@ -192,6 +192,14 @@ describe('filterLabels', () => {
   it('returns everything for an empty query', () => {
     expect(filterLabels(labels, '')).toHaveLength(2)
   })
+
+  it('keeps only the labels allowed by the ip16 slice, combined with the query', () => {
+    const allowed = new Set(['AgentDataHelperX'])
+
+    expect(filterLabels(labels, '', allowed).map((label) => label.x)).toEqual(['AgentDataHelperX'])
+    expect(filterLabels(labels, 'alpha', allowed)).toHaveLength(0)
+    expect(filterLabels(labels, 'helper', null)).toHaveLength(1)
+  })
 })
 
 describe('filterPages with tokenSlugs and payloadFlags', () => {

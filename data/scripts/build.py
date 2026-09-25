@@ -35,6 +35,8 @@ from datetime import datetime
 from pathlib import Path
 from statistics import median
 
+from ip16 import accepted_prefix
+
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "raw"
 OUT = ROOT / "processed"
@@ -676,6 +678,94 @@ def build_agent_links(labels: list[dict], top_n: int = 20, min_shared: int = 2) 
     }
 
 
+def build_label_ip16_index(revisions: list[dict]) -> dict:
+    """Groups labeled canonical revisions by their observed /16 prefix.
+
+    Anonymous rows, recovered rows, and malformed ip16 values are skipped;
+    weights are labeled revision counts per prefix, so the agents view can
+    slice its label index by a prefix substring.
+    """
+    weights: dict[str, Counter] = defaultdict(Counter)
+    wikis: dict[str, set[str]] = defaultdict(set)
+    first: dict[str, str] = {}
+    last: dict[str, str] = {}
+
+    for revision in revisions:
+        prefix = accepted_prefix(revision.get("ip16"))
+        label = revision.get("label")
+        if not prefix or not label:
+            continue
+        weights[prefix][str(label)] += 1
+        wikis[prefix].add(revision.get("wiki") or revision["page_id"].partition("/")[0])
+        when = revision.get("write_date") or revision.get("time") or ""
+        if when:
+            if prefix not in first or when < first[prefix]:
+                first[prefix] = when
+            if prefix not in last or when > last[prefix]:
+                last[prefix] = when
+
+    prefixes = {}
+    for prefix in sorted(weights):
+        labels = sorted(weights[prefix].items(), key=lambda item: (-item[1], item[0]))
+        prefixes[prefix] = {
+            "r": sum(weights[prefix].values()),
+            "l": [[label, count] for label, count in labels],
+            "w": sorted(wikis[prefix]),
+            "f": first.get(prefix, ""),
+            "t": last.get(prefix, ""),
+        }
+
+    return {"meta": {"schema_version": 1, "prefixes": len(prefixes)}, "prefixes": prefixes}
+
+
+def verify_label_ip16_totals(revisions: list[dict], labels: list[dict], label_ip16_index: dict) -> None:
+    """Fails the build before any output write when label counts would disagree.
+
+    labels.json comes from labels.jsonl.gz while the ip16 index counts labeled
+    rows in revisions.jsonl.gz, and the agents view renders both on one page.
+    An input divergence and a labeled revision that cannot be placed on any
+    accepted prefix are reported separately so the failure names the real cause.
+    Counts are compared over the union of label keys with absence treated as
+    zero, so a declared label without revisions is not a mismatch.
+    """
+    labeled: dict[str, int] = defaultdict(int)
+    for revision in revisions:
+        label = revision.get("label")
+        if label:
+            labeled[str(label)] += 1
+    weights: dict[str, int] = defaultdict(int)
+    for record in label_ip16_index["prefixes"].values():
+        for label, count in record["l"]:
+            weights[label] += count
+
+    declared: dict[str, int] = {}
+    seen_labels: set[str] = set()
+    for row in labels:
+        label = row.get("label")
+        if not label:
+            continue
+        if label in seen_labels:
+            raise RuntimeError(f"duplicate label row for {label!r} in labels.jsonl.gz")
+        seen_labels.add(label)
+        declared[label] = row["stored_revisions"]
+
+    def count_diff(expected: dict[str, int], actual: dict[str, int]) -> str:
+        keys = set(expected) | set(actual)
+        mismatched = sorted(label for label in keys if expected.get(label, 0) != actual.get(label, 0))[:5]
+        return f"(label, declared_rows, indexed_rows)={[(label, expected.get(label, 0), actual.get(label, 0)) for label in mismatched]}"
+
+    if dict(labeled) != {label: count for label, count in declared.items() if count}:
+        raise RuntimeError(
+            "labels.jsonl.gz and revisions.jsonl.gz disagree on per-label revision counts "
+            + count_diff(declared, dict(labeled))
+        )
+    if dict(weights) != dict(labeled):
+        raise RuntimeError(
+            "labeled revisions without an accepted ip16 cannot be indexed "
+            + count_diff(dict(labeled), dict(weights))
+        )
+
+
 def _parse_revision_time(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -757,6 +847,10 @@ def main() -> int:
         print(f"WARNING: supplement wiki overlap without page overlap: {', '.join(sorted(wiki_overlap))}")
     all_pages = pages + sorted(supplement_pages, key=lambda page: page["page_id"])
     all_revisions = revisions + supplement_revisions
+
+    # Validated before any output write: a failed build must not leave processed/ half updated.
+    label_ip16_index = build_label_ip16_index(revisions)
+    verify_label_ip16_totals(revisions, labels, label_ip16_index)
 
     _, slug_map = build_revision_files(all_revisions)
 
@@ -932,6 +1026,7 @@ def main() -> int:
         ("activity_by_hour.json", activity_by_hour),
         ("pages.json", pages_index),
         ("labels.json", labels_index),
+        ("labels_ip16.json", label_ip16_index),
         ("recent_events.json", recent_events),
         ("events_head.json", recent_events[:EVENTS_HEAD_LIMIT]),
         ("timeline.json", timeline),

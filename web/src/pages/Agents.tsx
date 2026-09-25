@@ -1,18 +1,74 @@
-import { Fragment, useDeferredValue, useMemo, useState } from 'react'
+import { Fragment, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useData } from '../components/useQuery'
-import { Badge, Button, LoadMore, PageLink } from '../components/ui'
-import type { LabelsIndex } from '../types'
+import { Badge, Button, Card, LoadMore, PageLink } from '../components/ui'
+import type { LabelsIndex, LabelsIp16Index } from '../types'
 import { filterLabels, fmtInt, toCsv } from '../utils/format'
+import {
+  IP16_CAVEAT,
+  IP16_TOP_LABELS,
+  matchIp16Prefixes,
+  summarizeIp16Slice,
+  type Ip16SliceSummary,
+} from '../utils/ip16'
 import { downloadBlob } from '../utils/download'
 
 const RESULT_LIMIT = 50
 
+function Ip16PrefixSummary({ ip, summary }: { ip: string; summary: Ip16SliceSummary }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? summary.labelWeights : summary.labelWeights.slice(0, IP16_TOP_LABELS)
+  const hidden = summary.labelWeights.length - shown.length
+
+  return (
+    <Card as="section" className="ip16-dossier" aria-label={`IP16 ${ip} summary`}>
+      <div className="ip16-dossier-head">
+        <h2 className="ip16-dossier-title">IP16 <span className="mono">{ip}</span></h2>
+        <span className="muted">aggregated over the labels observed from the matched /16 prefixes; the name search is excluded</span>
+      </div>
+
+      <div className="ip16-metrics">
+        <span className="ip16-metric"><b>{fmtInt(summary.labels)}</b> labels</span>
+        <span className="ip16-metric"><b>{fmtInt(summary.revisions)}</b> labeled revisions</span>
+        <span className="ip16-metric" title={summary.prefixes.join(', ')}><b>{fmtInt(summary.prefixes.length)}</b> prefixes</span>
+        <span className="ip16-metric" title={summary.wikis.join(', ')}><b>{fmtInt(summary.wikis.length)}</b> wikis</span>
+        {summary.first && summary.last && (
+          <span className="ip16-metric"><b>{summary.first.slice(0, 10)}</b> → <b>{summary.last.slice(0, 10)}</b></span>
+        )}
+      </div>
+
+      <div className={`ip16-labels${expanded ? ' is-expanded' : ''}`} role="group" aria-label="Labels on the matched prefixes">
+        {shown.map((stat) => (
+          <span key={stat.x} className="ip16-label">
+            <span>{stat.x}</span>
+            <span className="n">{fmtInt(stat.n)}</span>
+          </span>
+        ))}
+        {hidden > 0 && (
+          <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(true)}>
+            +{fmtInt(hidden)} more
+          </Button>
+        )}
+        {expanded && summary.labelWeights.length > IP16_TOP_LABELS && (
+          <Button type="button" variant="ghost" size="sm" className="ip16-label ip16-label-more" onClick={() => setExpanded(false)}>
+            show top {IP16_TOP_LABELS}
+          </Button>
+        )}
+      </div>
+
+      <span className="muted ip16-caveat">{IP16_CAVEAT}</span>
+    </Card>
+  )
+}
+
 export default function Agents() {
   const { data, error } = useData<LabelsIndex>('labels.json')
-  const [searchParams] = useSearchParams()
+  const { data: ip16Index, error: ip16Error } = useData<LabelsIp16Index>('labels_ip16.json')
+  const [searchParams, setSearchParams] = useSearchParams()
   // URL ?q= is the external source of truth: applied as a key-reset when the param changes
   const urlQ = searchParams.get('q') ?? ''
+  const rawIp = searchParams.get('ip')
+  const ip = rawIp?.trim() ?? ''
   const [query, setQuery] = useState(urlQ)
   const [lastUrlQ, setLastUrlQ] = useState(urlQ)
   const [limit, setLimit] = useState(RESULT_LIMIT)
@@ -24,8 +80,44 @@ export default function Agents() {
     setLimit(RESULT_LIMIT)
   }
 
+  const update = (changes: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams)
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value)
+      else next.delete(key)
+    }
+    setSearchParams(next, { replace: true })
+    setLimit(RESULT_LIMIT)
+  }
+
+  // Legacy or hand-edited links self-heal like the timeline: a whitespace-only ip is dropped.
+  useEffect(() => {
+    if (rawIp === null || rawIp === ip) return
+    const next = new URLSearchParams(searchParams)
+    if (ip) next.set('ip', ip)
+    else next.delete('ip')
+    setSearchParams(next, { replace: true })
+  }, [rawIp, ip, searchParams, setSearchParams])
+
+  // The ip16 index is an enhancement: it may still be loading or may fail without
+  // taking the label index down with it. While it is not ready the filter stays
+  // disabled instead of silently showing unfiltered rows for an ?ip= request.
+  const ip16Status: 'ready' | 'loading' | 'error' = ip16Error ? 'error' : ip16Index ? 'ready' : 'loading'
+  const matchedPrefixes = useMemo(() => (ip16Index ? matchIp16Prefixes(ip16Index, ip) : []), [ip16Index, ip])
+  const ipSummary = useMemo(
+    () => (ip16Index && ip ? summarizeIp16Slice(ip16Index, matchedPrefixes) : null),
+    [ip16Index, ip, matchedPrefixes],
+  )
+  const allowedLabels = useMemo(
+    () => (ip && ipSummary ? new Set(ipSummary.labelWeights.map((stat) => stat.x)) : null),
+    [ip, ipSummary],
+  )
+
   const deferredQuery = useDeferredValue(query)
-  const filtered = useMemo(() => (data ? filterLabels(data.l, deferredQuery) : []), [data, deferredQuery])
+  const filtered = useMemo(
+    () => (data ? filterLabels(data.l, deferredQuery, allowedLabels) : []),
+    [data, deferredQuery, allowedLabels],
+  )
   const shown = filtered.slice(0, limit)
 
   const exportCsv = () => {
@@ -52,9 +144,28 @@ export default function Agents() {
             setLimit(RESULT_LIMIT)
           }}
         />
+        <input
+          className="input"
+          aria-label="Filter by IP16"
+          placeholder="IP16…"
+          value={ip}
+          disabled={ip16Status !== 'ready'}
+          onChange={(event) => update({ ip: event.target.value || null })}
+        />
+        {ip16Status === 'error' && (
+          <span className="error" role="status">ip16 index failed to load; the ip16 filter is disabled</span>
+        )}
+        {ip16Status === 'error' && ip && (
+          <Button variant="ghost" size="sm" onClick={() => update({ ip: null })}>clear ip16 filter</Button>
+        )}
+        {ip16Status === 'loading' && (
+          <span className="muted" role="status">loading ip16 index…</span>
+        )}
         <span className="muted result-count">{fmtInt(filtered.length)}</span>
         <Button onClick={exportCsv}>Export CSV</Button>
       </div>
+
+      {ipSummary && ipSummary.labels > 0 && <Ip16PrefixSummary key={ip} ip={ip} summary={ipSummary} />}
 
       <div className="table-wrap">
         <table className="tbl">

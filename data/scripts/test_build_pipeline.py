@@ -40,7 +40,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
             "wiki": "wiki",
             "write_date": "2026-02-03T04:05:06Z",
             "label": "agent-b",
-            "ip16": "2001:db8::/64",
+            "ip16": "203.0",
             "change_summary": "second",
             "body_len": 12,
             "body": "second body",
@@ -54,7 +54,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
             "wiki": "wiki",
             "write_date": "2026-02-02T03:04:05Z",
             "label": "agent-a",
-            "ip16": None,
+            "ip16": "198.51",
             "change_summary": None,
             "body_len": 5,
             "body": "later",
@@ -68,7 +68,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
             "wiki": "wiki",
             "write_date": "2026-02-01T01:02:03Z",
             "label": "agent-a",
-            "ip16": "192.0.2.1",
+            "ip16": "198.51",
             "change_summary": "first",
             "body_len": 7,
             "body": "first",
@@ -156,6 +156,7 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
         "activity_by_hour.json",
         "pages.json",
         "labels.json",
+        "labels_ip16.json",
         "recent_events.json",
         "events_head.json",
         "timeline.json",
@@ -228,6 +229,27 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     assert label_index["n_anon"] == 1
     assert len(label_index["l"][0]["pgs"]) == 2000
     assert label_index["l"][0]["pgs"] == [f"page-{index}" for index in range(2000)]
+    # Per-label weight sums must equal the label index counts, so the viewer never
+    # shows contradictory revision totals on one page.
+    assert _read_json(out / "labels_ip16.json") == {
+        "meta": {"schema_version": 1, "prefixes": 2},
+        "prefixes": {
+            "198.51": {
+                "r": 2,
+                "l": [["agent-a", 2]],
+                "w": ["wiki"],
+                "f": "2026-02-01T01:02:03Z",
+                "t": "2026-02-02T03:04:05Z",
+            },
+            "203.0": {
+                "r": 1,
+                "l": [["agent-b", 1]],
+                "w": ["wiki"],
+                "f": "2026-02-03T04:05:06Z",
+                "t": "2026-02-03T04:05:06Z",
+            },
+        },
+    }
 
     summary = _read_json(out / "summary.json")
     corpus = summary.pop("corpus")
@@ -250,19 +272,201 @@ def test_main_builds_golden_outputs_and_syncs_public(tmp_path, monkeypatch):
     assert corpus["decoded_sha256"] == hashlib.sha256(decoded_corpus).hexdigest()
 
 
+def test_label_ip16_index_counts_only_accepted_prefixes_and_labeled_revisions():
+    revisions = [
+        {"page_id": "wiki/A", "wiki": "wiki", "label": "agent-b", "ip16": "20.165", "write_date": "2026-05-14T13:54:53Z"},
+        {"page_id": "wiki/A", "wiki": "wiki", "label": "agent-a", "ip16": "20.165", "write_date": "2026-05-10T00:00:00Z"},
+        {"page_id": "wiki/B", "wiki": "wiki", "label": "agent-a", "ip16": "20.165", "time": "2026-06-01T00:00:00Z"},
+        {"page_id": "wiki/B", "wiki": "wiki", "label": "agent-a", "ip16": "2.202", "write_date": "2026-06-02T00:00:00Z"},
+        {"page_id": "wiki/C", "wiki": "wiki", "label": "agent-a", "ip16": "192.0.2.1", "write_date": "2026-06-03T00:00:00Z"},
+        {"page_id": "wiki/C", "wiki": "wiki", "label": "agent-b", "ip16": None, "write_date": "2026-06-03T00:00:00Z"},
+        {"page_id": "wiki/C", "wiki": "wiki", "label": None, "ip16": "20.94", "write_date": "2026-06-03T00:00:00Z"},
+        {"page_id": "wiki/C", "wiki": "wiki", "label": "", "ip16": "20.94", "write_date": "2026-06-03T00:00:00Z"},
+        {"page_id": "other/D", "wiki": "other", "label": None, "ip16": "192.0.2", "time": "2026-06-04T00:00:00Z", "partial": True},
+    ]
+
+    index = build.build_label_ip16_index(revisions)
+
+    assert index["meta"] == {"schema_version": 1, "prefixes": 2}
+    assert list(index["prefixes"]) == ["2.202", "20.165"]
+    assert index["prefixes"]["20.165"] == {
+        "r": 3,
+        "l": [["agent-a", 2], ["agent-b", 1]],
+        "w": ["wiki"],
+        "f": "2026-05-10T00:00:00Z",
+        "t": "2026-06-01T00:00:00Z",
+    }
+    assert index["prefixes"]["2.202"] == {
+        "r": 1,
+        "l": [["agent-a", 1]],
+        "w": ["wiki"],
+        "f": "2026-06-02T00:00:00Z",
+        "t": "2026-06-02T00:00:00Z",
+    }
+
+
+def test_label_ip16_index_orders_label_weights_desc_then_name():
+    revisions = [
+        {"page_id": "wiki/A", "wiki": "wiki", "label": "zeta", "ip16": "10.1", "write_date": "2026-05-11T00:00:00Z"},
+        {"page_id": "wiki/A", "wiki": "wiki", "label": "alpha", "ip16": "10.1", "write_date": "2026-05-11T00:00:00Z"},
+        {"page_id": "wiki/A", "wiki": "wiki", "label": "alpha", "ip16": "10.1", "write_date": "2026-05-11T00:00:00Z"},
+    ]
+
+    index = build.build_label_ip16_index(revisions)
+
+    assert index["prefixes"]["10.1"]["l"] == [["alpha", 2], ["zeta", 1]]
+
+
+def test_label_ip16_index_is_empty_without_labeled_prefixes():
+    index = build.build_label_ip16_index([
+        {"page_id": "wiki/A", "wiki": "wiki", "label": None, "ip16": "20.94"},
+        {"page_id": "wiki/A", "wiki": "wiki", "label": "agent-a", "ip16": "not-an-ip"},
+    ])
+
+    assert index == {"meta": {"schema_version": 1, "prefixes": 0}, "prefixes": {}}
+
+
+def test_main_rejects_label_ip16_index_disagreeing_with_label_counts(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    out = tmp_path / "processed"
+    public = tmp_path / "public" / "data"
+    raw.mkdir()
+    revision = {"page_id": "wiki/Page", "seq": 1, "rev_id": "r1", "wiki": "wiki",
+                "write_date": "2026-05-11T00:00:00Z", "label": "agent-a", "ip16": "20.1",
+                "change_summary": None, "body_len": 1, "body": "x", "request_action": None, "round_id": None}
+    page = {"page_id": "wiki/Page", "wiki": "wiki", "name": "Page", "n_revs": 1,
+            "first_write": revision["write_date"], "last_write": revision["write_date"],
+            "deleted_live": False, "n_deletions": 0, "page_family": None, "n_labels": 1, "labels": ["agent-a"]}
+    # The label index claims two stored revisions while the revision dump carries one.
+    labels = [{"label": "agent-a", "stored_revisions": 2, "first_write": "2026-05-10T00:00:00Z",
+               "last_write": "2026-05-11T00:00:00Z", "stored_revision_pages": ["wiki/Page"],
+               "is_human_handle": False, "wikis": ["wiki"], "pages": ["wiki/Page"]}]
+    for name, rows in (("revisions.jsonl.gz", [revision]), ("pages.jsonl.gz", [page]),
+                       ("events.jsonl.gz", []), ("labels.jsonl.gz", labels)):
+        _write_gzip_jsonl(raw / name, rows)
+    _write_gzip_json(raw / "manifest.json.gz", {"generated_at": "2026-05-12T00:00:00Z", "per_wiki": {}})
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", out)
+    monkeypatch.setattr(build, "PUBLIC", public)
+
+    import pytest
+    with pytest.raises(RuntimeError, match="disagree on per-label revision counts"):
+        build.main()
+    # Validation runs before any output write, so a failed build leaves no partial artifacts.
+    assert not (out / "labels_ip16.json").exists()
+    assert not (out / "revisions").exists()
+
+
+def test_main_rejects_labeled_revision_without_accepted_ip16(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    out = tmp_path / "processed"
+    public = tmp_path / "public" / "data"
+    raw.mkdir()
+    revision = {"page_id": "wiki/Page", "seq": 1, "rev_id": "r1", "wiki": "wiki",
+                "write_date": "2026-05-11T00:00:00Z", "label": "agent-a", "ip16": "192.0.2.1",
+                "change_summary": None, "body_len": 1, "body": "x", "request_action": None, "round_id": None}
+    page = {"page_id": "wiki/Page", "wiki": "wiki", "name": "Page", "n_revs": 1,
+            "first_write": revision["write_date"], "last_write": revision["write_date"],
+            "deleted_live": False, "n_deletions": 0, "page_family": None, "n_labels": 1, "labels": ["agent-a"]}
+    # Raw inputs agree on one revision, but its ip16 is malformed and cannot be indexed.
+    labels = [{"label": "agent-a", "stored_revisions": 1, "first_write": "2026-05-11T00:00:00Z",
+               "last_write": "2026-05-11T00:00:00Z", "stored_revision_pages": ["wiki/Page"],
+               "is_human_handle": False, "wikis": ["wiki"], "pages": ["wiki/Page"]}]
+    for name, rows in (("revisions.jsonl.gz", [revision]), ("pages.jsonl.gz", [page]),
+                       ("events.jsonl.gz", []), ("labels.jsonl.gz", labels)):
+        _write_gzip_jsonl(raw / name, rows)
+    _write_gzip_json(raw / "manifest.json.gz", {"generated_at": "2026-05-12T00:00:00Z", "per_wiki": {}})
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", out)
+    monkeypatch.setattr(build, "PUBLIC", public)
+
+    import pytest
+    with pytest.raises(RuntimeError, match="accepted ip16"):
+        build.main()
+    assert not (out / "revisions").exists()
+
+
+def test_main_accepts_zero_revision_label_rows(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    out = tmp_path / "processed"
+    public = tmp_path / "public" / "data"
+    raw.mkdir()
+    revision = {"page_id": "wiki/Page", "seq": 1, "rev_id": "r1", "wiki": "wiki",
+                "write_date": "2026-05-11T00:00:00Z", "label": "agent-a", "ip16": "20.1",
+                "change_summary": None, "body_len": 1, "body": "x", "request_action": None, "round_id": None}
+    page = {"page_id": "wiki/Page", "wiki": "wiki", "name": "Page", "n_revs": 1,
+            "first_write": revision["write_date"], "last_write": revision["write_date"],
+            "deleted_live": False, "n_deletions": 0, "page_family": None, "n_labels": 1, "labels": ["agent-a"]}
+    labels = [
+        {"label": "agent-a", "stored_revisions": 1, "first_write": revision["write_date"],
+         "last_write": revision["write_date"], "stored_revision_pages": ["wiki/Page"],
+         "is_human_handle": False, "wikis": ["wiki"], "pages": ["wiki/Page"]},
+        # A declared label without revisions agrees with the revision dump at count zero.
+        {"label": "agent-zero", "stored_revisions": 0, "first_write": "", "last_write": "",
+         "stored_revision_pages": [], "is_human_handle": False, "wikis": [], "pages": []},
+    ]
+    for name, rows in (("revisions.jsonl.gz", [revision]), ("pages.jsonl.gz", [page]),
+                       ("events.jsonl.gz", []), ("labels.jsonl.gz", labels)):
+        _write_gzip_jsonl(raw / name, rows)
+    _write_gzip_json(raw / "manifest.json.gz", {"generated_at": "2026-05-12T00:00:00Z", "per_wiki": {}})
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", out)
+    monkeypatch.setattr(build, "PUBLIC", public)
+
+    assert build.main() == 0
+    index = _read_json(out / "labels_ip16.json")
+    assert index["prefixes"] == {
+        "20.1": {"r": 1, "l": [["agent-a", 1]], "w": ["wiki"],
+                 "f": "2026-05-11T00:00:00Z", "t": "2026-05-11T00:00:00Z"},
+    }
+    label_rows = {row["x"]: row["r"] for row in _read_json(out / "labels.json")["l"]}
+    assert label_rows == {"agent-a": 1, "agent-zero": 0}
+
+
+def test_main_rejects_duplicate_label_rows(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    out = tmp_path / "processed"
+    public = tmp_path / "public" / "data"
+    raw.mkdir()
+    revision = {"page_id": "wiki/Page", "seq": 1, "rev_id": "r1", "wiki": "wiki",
+                "write_date": "2026-05-11T00:00:00Z", "label": "agent-a", "ip16": "20.1",
+                "change_summary": None, "body_len": 1, "body": "x", "request_action": None, "round_id": None}
+    page = {"page_id": "wiki/Page", "wiki": "wiki", "name": "Page", "n_revs": 1,
+            "first_write": revision["write_date"], "last_write": revision["write_date"],
+            "deleted_live": False, "n_deletions": 0, "page_family": None, "n_labels": 1, "labels": ["agent-a"]}
+    label_row = {"label": "agent-a", "stored_revisions": 1, "first_write": "2026-05-11T00:00:00Z",
+                 "last_write": "2026-05-11T00:00:00Z", "stored_revision_pages": ["wiki/Page"],
+                 "is_human_handle": False, "wikis": ["wiki"], "pages": ["wiki/Page"]}
+    for name, rows in (("revisions.jsonl.gz", [revision]), ("pages.jsonl.gz", [page]),
+                       ("events.jsonl.gz", []), ("labels.jsonl.gz", [label_row, label_row])):
+        _write_gzip_jsonl(raw / name, rows)
+    _write_gzip_json(raw / "manifest.json.gz", {"generated_at": "2026-05-12T00:00:00Z", "per_wiki": {}})
+    monkeypatch.setattr(build, "RAW", raw)
+    monkeypatch.setattr(build, "OUT", out)
+    monkeypatch.setattr(build, "PUBLIC", public)
+
+    import pytest
+    with pytest.raises(RuntimeError, match="duplicate"):
+        build.main()
+    assert not (out / "revisions").exists()
+
+
 def test_main_merges_recovered_layer_and_is_idempotent(tmp_path, monkeypatch):
     raw = tmp_path / "raw"
     out = tmp_path / "processed"
     public = tmp_path / "public" / "data"
     raw.mkdir()
     revision = {"page_id": "wiki/Canonical", "seq": 1, "rev_id": "r1", "wiki": "wiki",
-                "write_date": "2026-05-11T00:00:00Z", "label": "a", "ip16": None,
+                "write_date": "2026-05-11T00:00:00Z", "label": "a", "ip16": "10.0",
                 "change_summary": None, "body_len": 1, "body": "x", "request_action": None, "round_id": None}
     page = {"page_id": "wiki/Canonical", "wiki": "wiki", "name": "Canonical", "n_revs": 1,
             "first_write": revision["write_date"], "last_write": revision["write_date"],
             "deleted_live": False, "n_deletions": 0, "page_family": None, "n_labels": 1, "labels": ["a"]}
+    labels = [{"label": "a", "stored_revisions": 1, "first_write": revision["write_date"],
+               "last_write": revision["write_date"], "stored_revision_pages": ["wiki/Canonical"],
+               "is_human_handle": False, "wikis": ["wiki"], "pages": ["wiki/Canonical"]}]
     for name, rows in (("revisions.jsonl.gz", [revision]), ("pages.jsonl.gz", [page]),
-                       ("events.jsonl.gz", []), ("labels.jsonl.gz", [])):
+                       ("events.jsonl.gz", []), ("labels.jsonl.gz", labels)):
         _write_gzip_jsonl(raw / name, rows)
     _write_gzip_json(raw / "manifest.json.gz", {"generated_at": "2026-05-12T00:00:00Z", "per_wiki": {}})
     supplement = {"pages": [{"page_id": "other/Recovered", "wiki": "other", "name": "Recovered",
