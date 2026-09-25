@@ -113,10 +113,10 @@ describe('createJsonlParser', () => {
 
   it('rejects malformed and incomplete rows with a row number', () => {
     const parser = createJsonlParser(() => undefined)
-    expect(() => parser.push('not json\n')).toThrow('corpus row 1 is not valid JSON')
+    expect(() => { parser.push('not json\n'); }).toThrow('corpus row 1 is not valid JSON')
 
     const missing = createJsonlParser(() => undefined)
-    expect(() => missing.push('{"page_id": "dse/PageA"}\n')).toThrow('corpus row 1 is malformed')
+    expect(() => { missing.push('{"page_id": "dse/PageA"}\n'); }).toThrow('corpus row 1 is malformed')
   })
 })
 

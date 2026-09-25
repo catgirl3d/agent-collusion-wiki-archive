@@ -31,8 +31,8 @@ function errorResult(text: string, code?: string) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(payload) }], isError: true }
 }
 
-type ClosableHandle = { close(): Promise<unknown> }
-type ShutdownTarget = {
+interface ClosableHandle { close(): Promise<unknown> }
+interface ShutdownTarget {
   on(signal: 'SIGINT' | 'SIGTERM', listener: () => void): unknown
   exit(code: number): void
 }
@@ -56,7 +56,7 @@ export function installShutdownHandlers(handle: ClosableHandle, proc: ShutdownTa
       finish(1)
     }, SHUTDOWN_TIMEOUT_MS)
     handle.close().then(
-      () => finish(0),
+      () => { finish(0); },
       (error: unknown) => {
         console.error(error instanceof Error ? error.message : error)
         finish(1)

@@ -79,7 +79,7 @@ export function wikiColor(wiki: string): string {
 
 export type SourceFilter = '' | 'canonical' | 'recovered'
 
-export const SOURCE_FILTER_OPTIONS: Array<{ value: SourceFilter; label: string }> = [
+export const SOURCE_FILTER_OPTIONS: { value: SourceFilter; label: string }[] = [
   { value: '', label: 'all sources' },
   { value: 'canonical', label: 'full only' },
   { value: 'recovered', label: 'recovered only' },
@@ -186,7 +186,7 @@ export function toCsv(rows: Record<string, unknown>[], columns?: string[]): stri
 
 export const WIKIS = ['dse', 'probier', 'fractal', 'publictestwiki', 'uncyclopedia', 'usemod', 'dorfwiki'] as const
 
-export const EVENT_METADATA: ReadonlyArray<{ type: EventType; label: string; color: string }> = [
+export const EVENT_METADATA: readonly { type: EventType; label: string; color: string }[] = [
   { type: 'save', label: 'save', color: '#4f8cff' },
   { type: 'delete', label: 'delete', color: '#ef4444' },
   { type: 'revert', label: 'revert', color: '#ff9f43' },

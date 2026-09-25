@@ -200,7 +200,7 @@ export default function Agents() {
                   <td className="nowrap">
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {l.pgs.length > 0 && (
-                        <Button variant="ghost" size="sm" onClick={() => setOpen(open === l.x ? null : l.x)}>
+                        <Button variant="ghost" size="sm" onClick={() => { setOpen(open === l.x ? null : l.x); }}>
                           {open === l.x ? 'hide' : 'pages'}
                         </Button>
                       )}
@@ -239,7 +239,7 @@ export default function Agents() {
       <LoadMore
         loaded={shown.length}
         total={filtered.length}
-        onLoadMore={() => setLimit((n) => n + RESULT_LIMIT)}
+        onLoadMore={() => { setLimit((n) => n + RESULT_LIMIT); }}
         step={RESULT_LIMIT}
         unit="remaining"
       />

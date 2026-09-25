@@ -28,7 +28,7 @@ function LatestEvents() {
     return (
       <div className="error">
         Error loading latest events: {error}{' '}
-        <Button variant="ghost" size="sm" onClick={() => setAttempt((n) => n + 1)}>retry</Button>
+        <Button variant="ghost" size="sm" onClick={() => { setAttempt((n) => n + 1); }}>retry</Button>
       </div>
     )
   }

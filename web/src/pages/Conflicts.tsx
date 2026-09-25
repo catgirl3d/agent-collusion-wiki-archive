@@ -55,18 +55,18 @@ export default function Conflicts() {
           aria-label="Search shared pages"
           placeholder="Search page / id…"
           value={query}
-          onChange={(event) => resetLimit(setQuery, event.target.value)}
+          onChange={(event) => { resetLimit(setQuery, event.target.value); }}
         />
         <label className="check">
-          <input type="checkbox" checked={sharedOnly} onChange={(event) => resetLimit(setSharedOnly, event.target.checked)} />
+          <input type="checkbox" checked={sharedOnly} onChange={(event) => { resetLimit(setSharedOnly, event.target.checked); }} />
           shared only
         </label>
         <label className="check">
-          <input type="checkbox" checked={frontOnly} onChange={(event) => resetLimit(setFrontOnly, event.target.checked)} />
+          <input type="checkbox" checked={frontOnly} onChange={(event) => { resetLimit(setFrontOnly, event.target.checked); }} />
           front only
         </label>
         <label className="check">
-          <input type="checkbox" checked={zzzOnly} onChange={(event) => resetLimit(setZzzOnly, event.target.checked)} />
+          <input type="checkbox" checked={zzzOnly} onChange={(event) => { resetLimit(setZzzOnly, event.target.checked); }} />
           zzz only
         </label>
         <span className="muted result-count">{filtered.length === 0 ? 'no matches' : `showing ${fmtInt(shown.length)} of ${fmtInt(filtered.length)} shared pages`}</span>
@@ -104,7 +104,7 @@ export default function Conflicts() {
       <LoadMore
         loaded={shown.length}
         total={filtered.length}
-        onLoadMore={() => setLimit((value) => value + PAGE_SIZE)}
+        onLoadMore={() => { setLimit((value) => value + PAGE_SIZE); }}
         step={PAGE_SIZE}
       />
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Check,
@@ -117,12 +117,14 @@ export default function Research() {
   const [isNavCollapsed, setIsNavCollapsed] = useState(false)
   const [isTocCollapsed, setIsTocCollapsed] = useState(false)
   const [isMobileTocOpen, setIsMobileTocOpen] = useState(false)
+  const [trackedDocSlug, setTrackedDocSlug] = useState(active?.slug)
   const isClickScrollingRef = useRef(false)
   const clickScrollTimerRef = useRef<number | null>(null)
 
-  useEffect(() => {
+  if (trackedDocSlug !== active?.slug) {
+    setTrackedDocSlug(active?.slug)
     setIsMobileTocOpen(false)
-  }, [active?.slug])
+  }
 
   useEffect(() => {
     if (!isMobileTocOpen) return
@@ -130,7 +132,7 @@ export default function Research() {
       if (e.key === 'Escape') setIsMobileTocOpen(false)
     }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => { window.removeEventListener('keydown', onKeyDown); }
   }, [isMobileTocOpen])
 
   const metaInfo = active?.meta ?? null
@@ -199,7 +201,7 @@ export default function Research() {
     }
   }, [toc, content.loading])
 
-  const scrollToHeading = (event: React.MouseEvent<HTMLElement>, id: string) => {
+  const scrollToHeading = (event: Pick<MouseEvent, 'preventDefault'>, id: string) => {
     event.preventDefault()
     const el = document.getElementById(id)
     if (!el) return
@@ -221,13 +223,16 @@ export default function Research() {
   }
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true)
+      setTimeout(() => { setCopied(false); }, 2000)
+    }).catch((error: unknown) => {
+      console.error('Unable to copy research document link', error)
+    })
   }
 
-  const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = (e.target as HTMLElement).closest('a')
+  const handleContentClick = useEffectEvent((e: MouseEvent) => {
+    const target = e.target instanceof Element ? e.target.closest('a') : null
     if (!target) return
     const href = target.getAttribute('href')
     if (!href) return
@@ -239,9 +244,20 @@ export default function Research() {
 
     if (href.startsWith('/page/') || href.startsWith('/search') || href.startsWith('/agents')) {
       e.preventDefault()
-      navigate(href)
+      Promise.resolve(navigate(href)).catch((error: unknown) => {
+        console.error('Unable to navigate from research document link', error)
+      })
     }
-  }
+  })
+
+  useEffect(() => {
+    const container = docRef.current
+    if (!container) return
+    container.addEventListener('click', handleContentClick)
+    return () => {
+      container.removeEventListener('click', handleContentClick)
+    }
+  }, [active?.html])
 
   if (error) return <div className="error">Error: {error}</div>
   if (!data) return <div className="loading">Loading…</div>
@@ -333,7 +349,9 @@ export default function Research() {
                     onChange={(lang) => {
                       const slug = translationsByLang.get(lang)
                       if (slug && slug !== active.slug) {
-                        navigate(`/research?doc=${slug}`)
+                        Promise.resolve(navigate(`/research?doc=${slug}`)).catch((error: unknown) => {
+                          console.error('Unable to open the selected research translation', error)
+                        })
                       }
                     }}
                   />
@@ -363,7 +381,7 @@ export default function Research() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => setIsNavCollapsed((prev) => !prev)}
+                  onClick={() => { setIsNavCollapsed((prev) => !prev); }}
                   title={isNavCollapsed ? 'Expand reports list' : 'Collapse reports list'}
                   aria-label={isNavCollapsed ? 'Expand reports list' : 'Collapse reports list'}
                   aria-pressed={isNavCollapsed}
@@ -397,7 +415,6 @@ export default function Research() {
             <div
               className="markdown-body"
               dangerouslySetInnerHTML={{ __html: enrichedHtml }}
-              onClick={handleContentClick}
             />
           )}
           <SelectionPopup containerRef={docRef} />
@@ -422,7 +439,7 @@ export default function Research() {
                       href={`#${item.id}`}
                       aria-label={`Jump to ${item.text}`}
                       className={isActive ? 'active' : undefined}
-                      onClick={(e) => scrollToHeading(e, item.id)}
+                      onClick={(e) => { scrollToHeading(e, item.id); }}
                     >
                       <span className="toc-node" aria-hidden="true">
                         <span className="toc-node-dot" />
@@ -445,7 +462,7 @@ export default function Research() {
           <>
             <div
               className="mobile-drawer-backdrop research-toc-backdrop"
-              onClick={() => setIsMobileTocOpen(false)}
+              onClick={() => { setIsMobileTocOpen(false); }}
               aria-hidden="true"
             />
             <aside
@@ -461,7 +478,7 @@ export default function Research() {
                   variant="ghost"
                   size="icon"
                   aria-label="Close table of contents"
-                  onClick={() => setIsMobileTocOpen(false)}
+                  onClick={() => { setIsMobileTocOpen(false); }}
                 >
                   <X size={18} aria-hidden="true" />
                 </Button>
@@ -495,7 +512,7 @@ export default function Research() {
                   <ScrollTopButton
                     size="sm"
                     className="btn-back-top"
-                    onClick={() => setIsMobileTocOpen(false)}
+                    onClick={() => { setIsMobileTocOpen(false); }}
                   >
                     Back to top ↑
                   </ScrollTopButton>

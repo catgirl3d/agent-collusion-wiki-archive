@@ -36,7 +36,7 @@ describe('useJson', () => {
       const state = useJson(() => load(key), [key])
       return (
         <>
-          <button type="button" onClick={() => setKey('second')}>switch request</button>
+          <button type="button" onClick={() => { setKey('second'); }}>switch request</button>
           {state.loading && <span>loading</span>}
           {state.data && <span>value: {state.data}</span>}
         </>
@@ -46,7 +46,7 @@ describe('useJson', () => {
     render(<ChangingProbe />)
     expect(screen.getByText('loading')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'switch request' }))
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+    await waitFor(() => { expect(load).toHaveBeenCalledTimes(2); })
     expect(screen.getByText('loading')).toBeInTheDocument()
 
     await act(async () => {
@@ -74,7 +74,7 @@ describe('useJson', () => {
       const state = useJson(() => load(key), [key])
       return (
         <>
-          <button type="button" onClick={() => setKey('second')}>switch request</button>
+          <button type="button" onClick={() => { setKey('second'); }}>switch request</button>
           {state.loading && <span>loading</span>}
           {state.data && <span>value: {state.data}</span>}
         </>

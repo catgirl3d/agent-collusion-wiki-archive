@@ -145,7 +145,15 @@ describe('archive MCP server', () => {
     expect(JSON.parse(textOf(await client.callTool({ name: 'list_conflict_pages', arguments: calls[3][1] })))).toEqual({
       params: { minChurn: 1, zzz: true, front: false, limit: 10, offset: 2 },
     })
-    const contract = JSON.parse(textOf(await client.callTool({ name: 'get_api_contract', arguments: calls[4][1] })))
+    const contract: unknown = JSON.parse(textOf(await client.callTool({ name: 'get_api_contract', arguments: calls[4][1] })))
+    if (
+      typeof contract !== 'object' ||
+      contract === null ||
+      !('openapi' in contract) ||
+      typeof contract.openapi !== 'string'
+    ) {
+      throw new Error('expected a valid OpenAPI contract')
+    }
     expect(contract.openapi).toBe('3.1.0')
     expect(contract).toEqual(openApiDocument)
     expect(JSON.parse(textOf(await client.callTool({ name: 'get_page_revisions', arguments: { slug: 'Page', contains: 'needle' } })))).toEqual({
@@ -315,7 +323,7 @@ describe('archive MCP server', () => {
   })
 
   it('closes the stdio server and exits 0 on SIGINT or SIGTERM', async () => {
-    const listeners = new Map<string, Array<() => void>>()
+    const listeners = new Map<string, (() => void)[]>()
     const target = {
       on(signal: string, listener: () => void) {
         listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
@@ -328,7 +336,7 @@ describe('archive MCP server', () => {
     expect([...listeners.keys()].sort()).toEqual(['SIGINT', 'SIGTERM'])
 
     for (const listener of listeners.get('SIGTERM') ?? []) listener()
-    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(0))
+    await vi.waitFor(() => { expect(target.exit).toHaveBeenCalledWith(0); })
     expect(close).toHaveBeenCalledTimes(1)
 
     for (const listener of listeners.get('SIGINT') ?? []) listener()
@@ -336,7 +344,7 @@ describe('archive MCP server', () => {
   })
 
   it('exits 1 when the shutdown close hangs', async () => {
-    const listeners = new Map<string, Array<() => void>>()
+    const listeners = new Map<string, (() => void)[]>()
     const target = {
       on(signal: string, listener: () => void) {
         listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
@@ -348,12 +356,12 @@ describe('archive MCP server', () => {
 
     installShutdownHandlers({ close }, target)
     for (const listener of listeners.get('SIGTERM') ?? []) listener()
-    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(1), { timeout: 8000 })
+    await vi.waitFor(() => { expect(target.exit).toHaveBeenCalledWith(1); }, { timeout: 8000 })
     expect(error).toHaveBeenCalledWith('MCP server shutdown timed out')
   }, 15_000)
 
   it('calls exit only once when close settles after the timeout', async () => {
-    const listeners = new Map<string, Array<() => void>>()
+    const listeners = new Map<string, (() => void)[]>()
     const target = {
       on(signal: string, listener: () => void) {
         listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
@@ -369,14 +377,14 @@ describe('archive MCP server', () => {
 
     installShutdownHandlers({ close }, target)
     for (const listener of listeners.get('SIGTERM') ?? []) listener()
-    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(1), { timeout: 8000 })
+    await vi.waitFor(() => { expect(target.exit).toHaveBeenCalledWith(1); }, { timeout: 8000 })
     release()
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(target.exit).toHaveBeenCalledTimes(1)
   }, 15_000)
 
   it('exits 1 when the shutdown close fails', async () => {
-    const listeners = new Map<string, Array<() => void>>()
+    const listeners = new Map<string, (() => void)[]>()
     const target = {
       on(signal: string, listener: () => void) {
         listeners.set(signal, [...(listeners.get(signal) ?? []), listener])
@@ -388,7 +396,7 @@ describe('archive MCP server', () => {
 
     installShutdownHandlers({ close }, target)
     for (const listener of listeners.get('SIGINT') ?? []) listener()
-    await vi.waitFor(() => expect(target.exit).toHaveBeenCalledWith(1))
+    await vi.waitFor(() => { expect(target.exit).toHaveBeenCalledWith(1); })
     expect(error).toHaveBeenCalledWith('close failed')
   })
 

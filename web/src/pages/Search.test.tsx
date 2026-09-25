@@ -129,7 +129,7 @@ describe('Search', () => {
 
   it('clears the range start when a new end date would invert the range', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID&from=2026-06-20']}>
@@ -140,14 +140,14 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ from: '2026-06-20' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'June 16, 2026' }))
 
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     const request = requireSearchRequest(worker.messages[1])
     expect(request.from).toBeUndefined()
     expect(request.to).toBe('2026-06-16')
@@ -156,7 +156,7 @@ describe('Search', () => {
 
   it('clears the range end when a new start date would invert the range', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID&to=2026-06-16']}>
@@ -167,14 +167,14 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ to: '2026-06-16' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter from date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter from date' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     const request = requireSearchRequest(worker.messages[1])
     expect(request.to).toBeUndefined()
     expect(request.from).toBe('2026-06-20')
@@ -183,7 +183,7 @@ describe('Search', () => {
 
   it('keeps both range bounds when they stay ordered', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID&from=2026-06-16']}>
@@ -194,19 +194,19 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter to date' }))
     expect(await screen.findByRole('dialog', { name: 'Filter to date' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'June 20, 2026' }))
 
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })
   })
 
   it('keeps the opposite bound when a date picker is cleared', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID&from=2026-06-16&to=2026-06-20']}>
@@ -217,7 +217,7 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ from: '2026-06-16', to: '2026-06-20' })
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toBeEnabled())
@@ -225,7 +225,7 @@ describe('Search', () => {
     expect(await screen.findByRole('dialog', { name: 'Filter from date' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'clear' }))
 
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     const request = requireSearchRequest(worker.messages[1])
     expect(request.from).toBeUndefined()
     expect(request.to).toBe('2026-06-20')
@@ -234,7 +234,7 @@ describe('Search', () => {
 
   it('renders matches as inert text after a submitted search', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search']}>
@@ -248,7 +248,7 @@ describe('Search', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     const request = worker.messages[0]
     expect(request).toMatchObject({ q: 'STATE5-ID', caseSensitive: false, limit: 20, offset: 0 })
 
@@ -290,7 +290,7 @@ describe('Search', () => {
 
   it('sorts the full result set through the worker and toggles direction', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
       initialEntries: ['/search?q=STATE5-ID&page=2'],
@@ -298,7 +298,7 @@ describe('Search', () => {
     render(<RouterProvider router={router} />)
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ sort: 'time', dir: 'desc', offset: 0, limit: 60 })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
@@ -306,7 +306,7 @@ describe('Search', () => {
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Hits' }))
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(router.state.location.search).toBe('?q=STATE5-ID&sort=hits&dir=desc')
     expect(worker.messages[1]).toMatchObject({ sort: 'hits', dir: 'desc', offset: 0 })
     act(() => {
@@ -316,7 +316,7 @@ describe('Search', () => {
     expect(screen.getByRole('columnheader', { name: /Time/ })).not.toHaveAttribute('aria-sort')
 
     fireEvent.click(screen.getByRole('button', { name: 'Hits' }))
-    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    await waitFor(() => { expect(worker.messages).toHaveLength(3); })
     expect(router.state.location.search).toBe('?q=STATE5-ID&sort=hits&dir=asc')
     expect(worker.messages[2]).toMatchObject({ sort: 'hits', dir: 'asc', offset: 0 })
     act(() => {
@@ -327,7 +327,7 @@ describe('Search', () => {
 
   it('preserves the selected sort when a search filter changes', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID&sort=hits&dir=desc']}>
@@ -338,7 +338,7 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ sort: 'hits', dir: 'desc' })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
@@ -346,13 +346,13 @@ describe('Search', () => {
     await screen.findByText(/1 matching revisions/)
 
     fireEvent.click(screen.getByLabelText(/case sensitive/))
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1]).toMatchObject({ sort: 'hits', dir: 'desc', caseSensitive: true })
   })
 
   it('clears stale matches when the URL query changes', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
       initialEntries: ['/search?q=STATE5-ID'],
@@ -360,7 +360,7 @@ describe('Search', () => {
     render(<RouterProvider router={router} />)
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond({
         type: 'result',
@@ -398,7 +398,7 @@ describe('Search', () => {
     expect(screen.queryByRole('link', { name: 'PageA' })).toBeNull()
     expect(screen.getByText('starting…')).toBeInTheDocument()
 
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     act(() => {
       worker.respond({
         type: 'result',
@@ -411,7 +411,7 @@ describe('Search', () => {
 
   it('shows worker errors with their code', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=state5-id']}>
@@ -422,7 +422,7 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond({
         type: 'error',
@@ -438,7 +438,7 @@ describe('Search', () => {
 
   it('normalizes invalid sort and page URL state without misleading display', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
       initialEntries: ['/search?q=STATE5-ID&sort=bogus&dir=sideways&page=-2.5'],
@@ -446,25 +446,25 @@ describe('Search', () => {
     render(<RouterProvider router={router} />)
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages.length).toBeGreaterThan(0))
+    await waitFor(() => { expect(worker.messages.length).toBeGreaterThan(0); })
     expect(worker.messages.at(-1)).toMatchObject({ sort: 'time', dir: 'desc', offset: 0 })
-    await waitFor(() => expect(router.state.location.search).toBe('?q=STATE5-ID'))
+    await waitFor(() => { expect(router.state.location.search).toBe('?q=STATE5-ID'); })
   })
 
   it('keeps the newest search result when an older response arrives later', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
     const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
       initialEntries: ['/search?q=AAA'],
     })
     render(<RouterProvider router={router} />)
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     await act(async () => { await router.navigate('/search?q=BBB') })
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
-    act(() => worker.respond(matchResult(worker.messages[1].requestId, 'B-result', 'BBB')))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
+    act(() => { worker.respond(matchResult(worker.messages[1].requestId, 'B-result', 'BBB')); })
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
-    act(() => worker.respond(matchResult(worker.messages[0].requestId, 'A-result', 'AAA')))
+    act(() => { worker.respond(matchResult(worker.messages[0].requestId, 'A-result', 'AAA')); })
     expect(screen.getByText('B-result')).toBeInTheDocument()
     expect(screen.queryByText('A-result')).toBeNull()
   })
@@ -478,7 +478,7 @@ describe('Search', () => {
 
   it('triggers search with wholeWord and caseSensitive filters when toggled', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=user']}>
@@ -489,21 +489,21 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ q: 'user', caseSensitive: false, wholeWord: false })
 
     fireEvent.click(screen.getByLabelText(/whole word/i))
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1]).toMatchObject({ q: 'user', caseSensitive: false, wholeWord: true })
 
     fireEvent.click(screen.getByLabelText(/case sensitive/i))
-    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    await waitFor(() => { expect(worker.messages).toHaveLength(3); })
     expect(worker.messages[2]).toMatchObject({ q: 'user', caseSensitive: true, wholeWord: true })
   })
 
   it('re-runs an identical search instead of hanging on starting…', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
@@ -514,7 +514,7 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
     })
@@ -522,7 +522,7 @@ describe('Search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(screen.getByText('starting…')).toBeInTheDocument()
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1]).toMatchObject({ q: 'STATE5-ID', offset: 0 })
 
     act(() => {
@@ -534,7 +534,7 @@ describe('Search', () => {
 
   it('highlights only whole-word matches in the snippet', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=user&word=1']}>
@@ -545,7 +545,7 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'username user superuser', 'user'))
     })
@@ -558,7 +558,7 @@ describe('Search', () => {
 
   it('highlights only case-sensitive matches in the snippet', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=User&case=1']}>
@@ -569,7 +569,7 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'user User', 'User'))
     })
@@ -582,7 +582,7 @@ describe('Search', () => {
 
   it('highlights queries whose whitespace was collapsed in the snippet', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=a%20%20b']}>
@@ -593,7 +593,7 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ q: 'a  b' })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'a b', 'a  b'))
@@ -607,7 +607,7 @@ describe('Search', () => {
 
   it('loads the full revision body on demand and collapses it again', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
@@ -618,14 +618,14 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
     })
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /full text/ }))
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1]).toMatchObject({
       type: 'body',
       w: 'dse',
@@ -655,7 +655,7 @@ describe('Search', () => {
 
   it('retries loading the full revision body after a worker error', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
@@ -666,14 +666,14 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
     })
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /full text/ }))
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     await act(async () => {
       worker.respond({
         type: 'error',
@@ -687,7 +687,7 @@ describe('Search', () => {
     expect(screen.queryByText(/revision not found in corpus/)).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: /full text/ }))
-    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    await waitFor(() => { expect(worker.messages).toHaveLength(3); })
     await act(async () => {
       worker.respond({
         type: 'body',
@@ -700,7 +700,7 @@ describe('Search', () => {
 
   it('ignores a late revision body response after the search changes', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     render(
       <MemoryRouter initialEntries={['/search?q=STATE5-ID']}>
@@ -711,18 +711,18 @@ describe('Search', () => {
     )
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond(matchResult(worker.messages[0].requestId, 'STATE5-ID', 'STATE5-ID'))
     })
     expect(await screen.findByText(/1 matching revisions/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /full text/ }))
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1]).toMatchObject({ type: 'body' })
 
     fireEvent.click(screen.getByLabelText(/case sensitive/))
-    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    await waitFor(() => { expect(worker.messages).toHaveLength(3); })
     act(() => {
       worker.respond(matchResult(worker.messages[2].requestId, 'STATE5-ID', 'STATE5-ID'))
     })
@@ -738,7 +738,7 @@ describe('Search', () => {
 
   it('keeps one worker alive when leaving and returning to the search page', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const router = createMemoryRouter(
       [
@@ -750,7 +750,7 @@ describe('Search', () => {
     render(<RouterProvider router={router} />)
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     act(() => {
       worker.respond({
         type: 'result',
@@ -772,7 +772,7 @@ describe('Search', () => {
     expect(FakeWorker.instances).toHaveLength(1)
     expect(worker.terminated).toBe(false)
 
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1].requestId).not.toBe(worker.messages[0].requestId)
     act(() => {
       worker.respond({
@@ -786,7 +786,7 @@ describe('Search', () => {
 
   it('loads cumulatively, disables LoadMore during requests, and cleans up on browser back', async () => {
     stubSearchData()
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const router = createMemoryRouter([{ path: '/search', element: <Search /> }], {
       initialEntries: ['/search?q=STATE5-ID'],
@@ -794,7 +794,7 @@ describe('Search', () => {
     render(<RouterProvider router={router} />)
 
     const worker = FakeWorker.instances[0]
-    await waitFor(() => expect(worker.messages).toHaveLength(1))
+    await waitFor(() => { expect(worker.messages).toHaveLength(1); })
     expect(worker.messages[0]).toMatchObject({ offset: 0, limit: 20 })
 
     act(() => {
@@ -834,7 +834,7 @@ describe('Search', () => {
     expect(loadMoreBtn).toHaveTextContent('Loading…')
     expect(loadMoreBtn).toBeDisabled()
 
-    await waitFor(() => expect(worker.messages).toHaveLength(2))
+    await waitFor(() => { expect(worker.messages).toHaveLength(2); })
     expect(worker.messages[1]).toMatchObject({ offset: 0, limit: 40 })
 
     act(() => {
@@ -886,7 +886,7 @@ describe('Search', () => {
     await act(async () => {
       await router.navigate(-1)
     })
-    await waitFor(() => expect(worker.messages).toHaveLength(3))
+    await waitFor(() => { expect(worker.messages).toHaveLength(3); })
     expect(worker.messages[2]).toMatchObject({ offset: 0, limit: 20 })
 
     act(() => {
@@ -918,7 +918,7 @@ describe('Search', () => {
       })
     })
 
-    await waitFor(() => expect(screen.queryByText('Page 2')).toBeNull())
+    await waitFor(() => { expect(screen.queryByText('Page 2')).toBeNull(); })
     expect(screen.getByText('Page 1')).toBeInTheDocument()
   })
 })

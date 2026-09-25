@@ -35,7 +35,7 @@ export function Dropdown<Value extends string | number>({
   const [activeValue, setActiveValue] = useState<Value | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([])
   const instanceId = useId().replaceAll(':', '')
   const triggerId = id ?? `dropdown-trigger-${instanceId}`
   const listboxId = `dropdown-options-${instanceId}`
@@ -175,7 +175,7 @@ export function Dropdown<Value extends string | number>({
         aria-controls={open ? listboxId : undefined}
         aria-activedescendant={open && options[activeOptionIndex] ? `${listboxId}-option-${activeOptionIndex}` : undefined}
         disabled={disabled || options.length === 0}
-        onClick={() => (open ? close() : openWithIndex(fallbackIndex))}
+        onClick={() => { open ? close() : openWithIndex(fallbackIndex); }}
         onKeyDown={handleTriggerKeyDown}
       >
         <span>{displayedLabel}</span>
@@ -203,7 +203,7 @@ export function Dropdown<Value extends string | number>({
               onMouseEnter={() => {
                 if (!option.disabled) setActiveValue(option.value)
               }}
-              onClick={() => select(option)}
+              onClick={() => { select(option); }}
             >
               {option.label}
             </button>

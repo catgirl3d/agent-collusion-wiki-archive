@@ -104,7 +104,7 @@ export default function Timeline() {
 
   // The exact day and the date range are mutually exclusive: picking one clears the other,
   // and a freshly picked bound wins over a stale bound that would invert the range.
-  const pickDay = (date: string) => update(date ? { day: date, from: null, to: null } : { day: null })
+  const pickDay = (date: string) => { update(date ? { day: date, from: null, to: null } : { day: null }); }
   const pickFrom = (date: string) => {
     const range = applyDateBound({ from, to }, 'from', date)
     update(date ? { from: date, to: range.to || null, day: null } : { from: null })
@@ -173,7 +173,7 @@ export default function Timeline() {
   )
   const ipSummary = useMemo(() => (ip ? summarizeTimeline(ipSlice) : null), [ip, ipSlice])
 
-  const pickIpLabel = (value: string) => update({ label: value === label ? null : value })
+  const pickIpLabel = (value: string) => { update({ label: value === label ? null : value }); }
 
   const toggleSort = (key: TimelineSortKey) => {
     const next = updateSortSearchParams(searchParams, sortState, key, TIMELINE_SORT_DEFAULTS, TIMELINE_SORT_DEFAULT)
@@ -196,26 +196,26 @@ export default function Timeline() {
           aria-label="Filter by agent label"
           placeholder="Agent label…"
           value={label}
-          onChange={(event) => update({ label: event.target.value || null })}
+          onChange={(event) => { update({ label: event.target.value || null }); }}
         />
         <input
           className="input"
           aria-label="Filter by IP16"
           placeholder="IP16…"
           value={ip}
-          onChange={(event) => update({ ip: event.target.value || null })}
+          onChange={(event) => { update({ ip: event.target.value || null }); }}
         />
         <Dropdown<SourceFilter>
           value={src}
           ariaLabel="Filter by source"
           options={SOURCE_FILTER_OPTIONS}
-          onChange={(value) => update({ src: value || null })}
+          onChange={(value) => { update({ src: value || null }); }}
         />
         <Dropdown
           value={wiki}
           ariaLabel="Filter by wiki"
           options={[{ value: '', label: 'all wikis' }, ...wikis.map((name) => ({ value: name, label: name }))]}
-          onChange={(value) => update({ wiki: value || null })}
+          onChange={(value) => { update({ wiki: value || null }); }}
         />
         <ArchiveCalendar ariaLabel="Filter by day" placeholder="day" value={day} onChange={pickDay} />
         <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={from} onChange={pickFrom} />
@@ -259,7 +259,7 @@ export default function Timeline() {
       <LoadMore
         loaded={shownRows.length}
         total={filtered.length}
-        onLoadMore={() => update({ page: String(page + 1) }, false)}
+        onLoadMore={() => { update({ page: String(page + 1) }, false); }}
         step={TIMELINE_PAGE_SIZE}
       />
     </div>

@@ -7,13 +7,17 @@ import toolCatalog from '../data/mcp-tool-catalog.generated.json'
 import { MCP_TOOL_PRESENTATION } from '../data/mcpToolPresentation'
 import Mcp from './Mcp'
 
-type OpenApiParameter = { $ref?: string; name?: string; in?: string; schema?: { enum?: unknown[] } }
-type WorkerOpenApi = {
+interface OpenApiParameter { $ref?: string; name?: string; in?: string; schema?: { enum?: unknown[] } }
+interface WorkerOpenApi {
   paths: Record<string, { parameters?: OpenApiParameter[]; get?: { parameters?: OpenApiParameter[] } }>
   components: { parameters: Record<string, OpenApiParameter> }
 }
 
 const workerOpenApi = openapiDocument as WorkerOpenApi
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
 const resolveParameter = (parameter: OpenApiParameter): OpenApiParameter => {
   if (parameter.$ref === undefined) return parameter
@@ -31,7 +35,7 @@ const documentedQueryParameters = new Map(
       [...(item.parameters ?? []), ...(item.get?.parameters ?? [])]
         .map(resolveParameter)
         .filter((parameter) => parameter.in === 'query' && parameter.name !== undefined)
-        .map((parameter) => [parameter.name as string, parameter])
+        .map((parameter) => [parameter.name!, parameter])
     ),
   ])
 )
@@ -90,8 +94,11 @@ describe('Mcp page', () => {
     )
   }
 
-  const getDisplayedConfig = (container: HTMLElement) =>
-    JSON.parse(container.querySelector('.mcp-code-block pre code')?.textContent ?? 'null')
+  const getDisplayedConfig = (container: HTMLElement): Record<string, unknown> => {
+    const parsed: unknown = JSON.parse(container.querySelector('.mcp-code-block pre code')?.textContent ?? 'null')
+    if (!isRecord(parsed)) throw new Error('Displayed configuration must be a JSON object')
+    return parsed
+  }
 
   it('renders the header, badges, and npx command', () => {
     renderComponent()
@@ -112,6 +119,29 @@ describe('Mcp page', () => {
       `npx --yes ${toolCatalog.packageName}@latest`
     )
     expect(await screen.findByText('Copied')).toBeInTheDocument()
+  })
+
+  it('does not show copied success when clipboard writing fails', async () => {
+    const failure = new Error('Clipboard unavailable')
+    const loggedErrors: unknown[][] = []
+    const errorReported = new Promise<void>((resolve) => {
+      vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+        loggedErrors.push(args)
+        resolve()
+      })
+    })
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockRejectedValue(failure),
+      },
+    })
+    renderComponent()
+
+    fireEvent.click(screen.getByLabelText('Copy npx command'))
+
+    await errorReported
+    expect(loggedErrors).toContainEqual(['Clipboard write failed', failure])
+    expect(screen.queryByText('Copied')).not.toBeInTheDocument()
   })
 
   it('switches client tabs and formats client configurations correctly', () => {

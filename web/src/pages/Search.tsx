@@ -36,7 +36,7 @@ type SearchState =
   | { status: 'ready'; result: CorpusSearchResult }
   | { status: 'error'; message: string; code?: string }
 
-type SearchForm = {
+interface SearchForm {
   q: string
   wiki: string
   label: string
@@ -345,28 +345,28 @@ export default function Search() {
           aria-label="Search text"
           placeholder={`Literal text (${CORPUS_MIN_QUERY}-${CORPUS_MAX_QUERY} characters)…`}
           value={form.q}
-          onChange={(event) => setForm({ ...form, q: event.target.value })}
+          onChange={(event) => { setForm({ ...form, q: event.target.value }); }}
         />
         <Dropdown
           value={form.wiki}
           ariaLabel="Filter by wiki"
           options={[{ value: '', label: 'all wikis' }, ...wikis.map((name) => ({ value: name, label: name }))]}
-          onChange={(value) => updateFilter({ wiki: value })}
+          onChange={(value) => { updateFilter({ wiki: value }); }}
         />
         <input
           className="input"
           aria-label="Filter by agent label"
           placeholder="Agent label…"
           value={form.label}
-          onChange={(event) => setForm({ ...form, label: event.target.value })}
+          onChange={(event) => { setForm({ ...form, label: event.target.value }); }}
         />
-        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={form.from} onChange={(date) => updateFilter({ from: date })} />
-        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={form.to} onChange={(date) => updateFilter({ to: date })} />
+        <ArchiveCalendar ariaLabel="Filter from date" placeholder="from" value={form.from} onChange={(date) => { updateFilter({ from: date }); }} />
+        <ArchiveCalendar ariaLabel="Filter to date" placeholder="to" value={form.to} onChange={(date) => { updateFilter({ to: date }); }} />
         <label className="muted">
           <input
             type="checkbox"
             checked={form.caseSensitive}
-            onChange={(event) => updateFilter({ caseSensitive: event.target.checked })}
+            onChange={(event) => { updateFilter({ caseSensitive: event.target.checked }); }}
           />{' '}
           case sensitive
         </label>
@@ -374,7 +374,7 @@ export default function Search() {
           <input
             type="checkbox"
             checked={form.wholeWord}
-            onChange={(event) => updateFilter({ wholeWord: event.target.checked })}
+            onChange={(event) => { updateFilter({ wholeWord: event.target.checked }); }}
           />{' '}
           whole word
         </label>
@@ -465,7 +465,7 @@ export default function Search() {
           <LoadMore
             loaded={visibleState.result.matches.length}
             total={visibleState.result.total}
-            onLoadMore={() => goToPage(page + 1)}
+            onLoadMore={() => { goToPage(page + 1); }}
             step={PAGE_SIZE}
             loading={loadingMore}
           />

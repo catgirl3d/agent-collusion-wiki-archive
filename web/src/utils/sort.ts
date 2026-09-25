@@ -1,6 +1,6 @@
 export type SortDir = 'asc' | 'desc'
 
-export type SortState<K extends string> = {
+export interface SortState<K extends string> {
   sort: K
   dir: SortDir
 }

@@ -24,7 +24,7 @@ describe('NetworkCanvas', () => {
       destroy,
       elements: () => ({ empty: () => true }),
       add: vi.fn(),
-      batch: vi.fn((callback: () => void) => callback()),
+      batch: vi.fn((callback: () => void) => { callback(); }),
       layout: vi.fn(() => ({ run: vi.fn() })),
     }
     cytoscapeMock.mockReturnValue(instance)
@@ -45,7 +45,7 @@ describe('NetworkCanvas', () => {
       />,
     )
 
-    await waitFor(() => expect(cytoscapeMock).toHaveBeenCalled())
+    await waitFor(() => { expect(cytoscapeMock).toHaveBeenCalled(); })
     handlers.get('tap:node')?.({ target: { id: () => 'agent-b' } })
     handlers.get('tap:edge')?.({ target: { source: () => ({ id: () => 'agent-a' }), target: () => ({ id: () => 'agent-b' }) } })
     handlers.get('tap:canvas')?.({ target: instance })
@@ -68,14 +68,14 @@ describe('NetworkCanvas', () => {
       edges: () => ({ removeClass: edgesRemoveClass, filter: vi.fn(() => ({ addClass: vi.fn() })) }),
       getElementById: vi.fn(() => ({ length: 0 })),
       add: vi.fn(),
-      batch: vi.fn((callback: () => void) => callback()),
+      batch: vi.fn((callback: () => void) => { callback(); }),
       layout: layoutSpy,
     }
     cytoscapeMock.mockReturnValue(instance)
     const graph = { nodes: [{ id: 'agent-a', label: 'agent-a', isCenter: true, wikis: [], revs: 1, pagesCount: 1 }], edges: [] }
     const view = render(<NetworkCanvas networkData={graph} layoutName="cose" activeAgent="agent-a" validatedPair={null} selParam={null} onNodeSelect={vi.fn()} onEdgeSelect={vi.fn()} onBackgroundTap={vi.fn()} />)
 
-    await waitFor(() => expect(edgesRemoveClass).toHaveBeenCalled())
+    await waitFor(() => { expect(edgesRemoveClass).toHaveBeenCalled(); })
     expect(layoutSpy).toHaveBeenCalledTimes(1)
     view.unmount()
   })
@@ -95,18 +95,18 @@ describe('NetworkCanvas', () => {
       elements,
       edges: () => ({ removeClass: vi.fn(), filter: vi.fn(() => ({ addClass: vi.fn() })) }),
       add: vi.fn(() => { hasElements = true }),
-      batch: vi.fn((callback: () => void) => callback()),
+      batch: vi.fn((callback: () => void) => { callback(); }),
       layout: vi.fn(() => ({ run: vi.fn() })),
     }
     cytoscapeMock.mockReturnValue(instance)
     const graph = { nodes: [{ id: 'agent-a', label: 'agent-a', isCenter: true, wikis: [], revs: 1, pagesCount: 1 }], edges: [] }
     const view = render(<NetworkCanvas networkData={graph} layoutName="cose" activeAgent="agent-a" validatedPair={null} selParam={null} onNodeSelect={vi.fn()} onEdgeSelect={vi.fn()} onBackgroundTap={vi.fn()} />)
 
-    await waitFor(() => expect(cytoscapeMock).toHaveBeenCalled())
+    await waitFor(() => { expect(cytoscapeMock).toHaveBeenCalled(); })
     expect(hasElements).toBe(true)
     view.rerender(<NetworkCanvas networkData={{ nodes: [], edges: [] }} layoutName="cose" activeAgent="agent-a" validatedPair={null} selParam={null} onNodeSelect={vi.fn()} onEdgeSelect={vi.fn()} onBackgroundTap={vi.fn()} />)
 
-    await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
+    await waitFor(() => { expect(remove).toHaveBeenCalledTimes(1); })
     expect(hasElements).toBe(false)
     view.unmount()
   })

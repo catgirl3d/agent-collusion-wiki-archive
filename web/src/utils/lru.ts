@@ -1,4 +1,4 @@
-export type LruCache<K, V> = {
+export interface LruCache<K, V> {
   get(key: K): V | undefined
   set(key: K, value: V): void
   clear(): void

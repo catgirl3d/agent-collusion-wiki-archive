@@ -40,7 +40,7 @@ function replaceExactlyOnce(
   let replacements = 0
   const updated = text.replace(pattern, (...matches: string[]) => {
     replacements += 1
-    return replacement(matches[1]!, ...matches.slice(2, -2))
+    return replacement(matches[1], ...matches.slice(2, -2))
   })
 
   if (replacements !== 1) throw new Error(`Expected one ${label} in the source document, found ${replacements}`)
@@ -59,16 +59,16 @@ function readSection(text: string, heading: string, level: number, stopLevel = l
   const matches = lines.flatMap((line, index) => line.trim() === `${'#'.repeat(level)} ${heading}` ? [index] : [])
   if (matches.length !== 1) throw new Error(`${readmePath}: expected one ${heading} section, found ${matches.length}`)
 
-  const start = matches[0]! + 1
+  const start = matches[0] + 1
   const end = lines.findIndex((line, index) => index >= start && new RegExp(`^#{1,${stopLevel}} `).test(line))
   return lines.slice(start, end === -1 ? undefined : end).join('\n')
 }
 
 function readExample(section: string, language: 'bash' | 'json' | 'jsonc', marker: string, label: string, startsWith = false): string {
   const blocks = [...section.matchAll(/^```(bash|jsonc|json)\s*\n([\s\S]*?)^```\s*$/gm)]
-    .filter((match) => match[1] === language && (startsWith ? match[2]!.trimStart().startsWith(marker) : match[2]!.includes(marker)))
+    .filter((match) => match[1] === language && (startsWith ? match[2].trimStart().startsWith(marker) : match[2].includes(marker)))
   if (blocks.length !== 1) throw new Error(`${readmePath}: expected one ${label} example, found ${blocks.length}`)
-  return blocks[0]![2]!.trim()
+  return blocks[0][2].trim()
 }
 
 function checkExample(label: string, actual: unknown, expected: unknown): void {
@@ -77,12 +77,12 @@ function checkExample(label: string, actual: unknown, expected: unknown): void {
   }
 }
 
-function validateReadme(text: string, packageName: string, tools: Array<{ name: string }>): string {
+function validateReadme(text: string, packageName: string, tools: { name: string }[]): string {
   const toolLines = readSection(text, 'Tools', 2, 3).split('\n')
   const names: string[] = []
   for (const line of toolLines) {
-    const entry = line.match(/^- `([^`]+)`(?:\s|$)/)
-    if (entry) names.push(entry[1]!)
+    const entry = /^- `([^`]+)`(?:\s|$)/.exec(line)
+    if (entry) names.push(entry[1])
     else if (line.startsWith('- `')) throw new Error(`${readmePath}: malformed Tools entry: ${line}`)
   }
   const expectedNames = new Set(tools.map(({ name }) => name))
@@ -104,7 +104,7 @@ function validateReadme(text: string, packageName: string, tools: Array<{ name: 
 
   const kilo = readSection(text, 'Kilo Code', 3)
   const claude = readSection(text, 'Claude Desktop', 3)
-  type Example = { mcp?: Record<string, { command?: unknown }>; mcpServers?: Record<string, { command?: unknown; args?: unknown }>; command?: unknown; args?: unknown }
+  interface Example { mcp?: Record<string, { command?: unknown }>; mcpServers?: Record<string, { command?: unknown; args?: unknown }>; command?: unknown; args?: unknown }
   const parse = (snippet: string, label: string, fragment = false): Example => {
     try {
       return JSON.parse(fragment ? `{${snippet}}` : snippet) as Example

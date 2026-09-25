@@ -99,12 +99,12 @@ const activityDays = [
 
 const activityHours = [{ hour: '04', saves: 1 }]
 
-type FakeState = {
+interface FakeState {
   summary: ReturnType<typeof makeSummary>
   calls: string[]
   failCorpus: boolean
   pages: unknown
-  timeline: typeof timeline | typeof combinedTimeline
+  timeline: typeof timeline
   activityDays: unknown
   activityHours: unknown
 }
@@ -505,7 +505,7 @@ describe('ArchiveResearch listRevisions and getActivity', () => {
     const summaryState = makeSummary()
     let releaseFirst: (() => void) | null = null
     const firstGate = new Promise<void>((resolve) => {
-      releaseFirst = () => resolve()
+      releaseFirst = () => { resolve(); }
     })
     let corpusCalls = 0
 

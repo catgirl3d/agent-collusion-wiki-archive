@@ -90,7 +90,7 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
               className="cal-nav"
               aria-label="Previous month"
               disabled={!canPrev}
-              onClick={() => setView(({ y, m }) => stepMonth(y, m, -1))}
+              onClick={() => { setView(({ y, m }) => stepMonth(y, m, -1)); }}
             >
               ←
             </Button>
@@ -101,7 +101,7 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
               className="cal-nav"
               aria-label="Next month"
               disabled={!canNext}
-              onClick={() => setView(({ y, m }) => stepMonth(y, m, 1))}
+              onClick={() => { setView(({ y, m }) => stepMonth(y, m, 1)); }}
             >
               →
             </Button>
@@ -111,7 +111,7 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
               <input
                 type="checkbox"
                 checked={onlyEnabledDays}
-                onChange={(event) => setOnlyEnabledDays(event.target.checked)}
+                onChange={(event) => { setOnlyEnabledDays(event.target.checked); }}
               />
               {restrictionLabel}
             </label>
@@ -131,7 +131,7 @@ export function DatePicker({ value, onChange, placeholder = 'date…', ariaLabel
                   className={`cal-day${date === value ? ' selected' : ''}`}
                   aria-label={`${MONTHS[view.m]} ${Number(date.slice(8, 10))}, ${view.y}`}
                   aria-pressed={date === value}
-                  onClick={() => pick(date)}
+                  onClick={() => { pick(date); }}
                 >
                   {Number(date.slice(8, 10))}
                 </button>

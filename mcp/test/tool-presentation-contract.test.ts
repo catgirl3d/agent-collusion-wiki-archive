@@ -6,18 +6,18 @@ import { MCP_TOOL_PRESENTATION } from '../../web/src/data/mcpToolPresentation.js
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
-type RecentEvent = { type?: unknown; act?: unknown }
+interface RecentEvent { type?: unknown; act?: unknown }
 
-type OpenApiParameter = { name: string; in: string }
+interface OpenApiParameter { name: string; in: string }
 type ParameterReference = OpenApiParameter | { $ref: string }
-type OpenApiOperation = { parameters?: ParameterReference[] }
-type OpenApiContract = {
+interface OpenApiOperation { parameters?: ParameterReference[] }
+interface OpenApiContract {
   paths: Record<string, { get?: OpenApiOperation }>
   components: { parameters: Record<string, OpenApiParameter> }
-  'x-data-assets': Array<{ path: string }>
+  'x-data-assets': { path: string }[]
 }
 
-type ArgumentAlias = {
+interface ArgumentAlias {
   tool: string
   mcpArg: string
   httpParam: string

@@ -118,7 +118,7 @@ export default function Events() {
       <LoadMore
         loaded={shown.length}
         total={found}
-        onLoadMore={() => setLimit((n) => n + PAGE_SIZE)}
+        onLoadMore={() => { setLimit((n) => n + PAGE_SIZE); }}
         step={PAGE_SIZE}
       />
     </div>

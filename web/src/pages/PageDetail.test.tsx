@@ -53,6 +53,47 @@ function renderPageDetail(initialEntries: string[]) {  return render(
 }
 
 describe('PageDetail', () => {
+  it('opens shared-page links when the tooltip trigger receives focus', async () => {
+    const responses: Record<string, unknown> = {
+      'pages.json': {
+        p: [
+          { id: 'main/Current', s: 'main_Current~', w: 'main', n: 'Current', r: 1, f: '2026-05-11', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [] },
+          { id: 'main/Shared', w: 'main', n: 'Shared page', r: 1, f: '2026-05-11', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [] },
+        ],
+        order: 'last',
+      },
+      'payload_index.json': [],
+      'agent_links.json': { 'Agent A': [{ o: 'Agent B', c: 1 }] },
+      'labels.json': {
+        l: [
+          { x: 'Agent A', pgs: ['main/Current', 'main/Shared'] },
+          { x: 'Agent B', pgs: ['main/Shared'] },
+        ],
+        n_anon: 0,
+      },
+      'revisions/main_Current~.json': [
+        { seq: 1, time: '2026-05-11T00:00:00Z', label: 'Agent A', ip16: null, summary: null, len: 7, body: 'current', action: null, round: null },
+      ],
+    }
+    loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+    renderPageDetail(['/page/main%2FCurrent'])
+
+    const trigger = await screen.findByRole('button', { name: '1 shared page' })
+    const tooltip = screen.getByRole('tooltip')
+    expect(tooltip.closest('button')).toBeNull()
+
+    trigger.focus()
+
+    expect(trigger).toHaveFocus()
+    expect(tooltip).toBeVisible()
+    const sharedPageLink = await within(tooltip).findByRole('link', { name: 'Shared page' })
+    expect(sharedPageLink).toBeVisible()
+
+    sharedPageLink.focus()
+
+    expect(sharedPageLink).toHaveFocus()
+  })
+
   it('shows a not-found boundary after the page index has loaded', async () => {
     loadJsonMock.mockImplementation((path: string) => {
       const responses: Record<string, unknown> = {
@@ -228,6 +269,6 @@ describe('PageDetail', () => {
     expect(await screen.findByText(/showing 60 of 60 revisions/)).toBeInTheDocument()
     const article = document.getElementById('rev-0')
     expect(article).not.toBeNull()
-    expect(within(article as HTMLElement).getByText(/UNIQUE_OLDEST_MARKER/)).toBeVisible()
+    expect(within(article!).getByText(/UNIQUE_OLDEST_MARKER/)).toBeVisible()
   })
 })

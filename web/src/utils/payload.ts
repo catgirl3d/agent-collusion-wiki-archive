@@ -183,7 +183,7 @@ function carrierMatches(body: string): PayloadMatch[] {
     let parsed: URL
     try { parsed = new URL(rawUrl) } catch { continue }
     const host = parsed.hostname.toLowerCase().replace(/^www\./, '')
-    const path = parsed.pathname.match(/^\/base64\/([^/]+)$/)
+    const path = /^\/base64\/([^/]+)$/.exec(parsed.pathname)
     if (host !== 'httpbin.org' || !path || !validCarrierBase64(path[1])) continue
     const urlStart = match.index ?? 0
     const blobStart = urlStart + rawUrl.lastIndexOf('/base64/') + '/base64/'.length
@@ -263,7 +263,7 @@ export function extractTechnicalArtifacts(body: string): TechnicalArtifact[] {
       ? (host.includes('pinggy') ? 'pinggy' : host.includes('serveo') ? 'serveo' : host.includes('localhost.run') ? 'localhost.run' : host.includes('localtunnel') ? 'localtunnel' : undefined)
       : undefined
     const payloadClass = artifactType === 'domain' ? (testRegex(TUNNEL_RE, host) ? 'tunnel' : testRegex(REDIRECT_RE, host) ? 'redirect' : undefined) : undefined
-    const artifact: TechnicalArtifact = { artifactType: artifactType as TechnicalArtifactType, canonicalValue: host, ...(techniqueKey ? { techniqueKey } : {}), ...(payloadClass ? { payloadClass: payloadClass as 'tunnel' | 'redirect' } : {}) }
+    const artifact: TechnicalArtifact = { artifactType: artifactType, canonicalValue: host, ...(techniqueKey ? { techniqueKey } : {}), ...(payloadClass ? { payloadClass: payloadClass } : {}) }
     artifacts.set(`${artifactType}:${host}`, artifact)
   }
   // scanPayloadMatches reports offsets into the original body (all rules are case-insensitive),
@@ -290,7 +290,7 @@ export function extractTechnicalArtifacts(body: string): TechnicalArtifact[] {
  */
 export function scanPayloadMatches(body: string, activeFlags?: Set<string>): PayloadMatch[] {
   const matches: PayloadMatch[] = []
-  const rules: Array<[RegExp, string]> = [
+  const rules: [RegExp, string][] = [
     [BASE64_RE, 'b64'],
     [HEX_RE, 'hex'],
     [SCRIPT_RE, 'script'],

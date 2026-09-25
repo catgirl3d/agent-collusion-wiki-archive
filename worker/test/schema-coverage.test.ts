@@ -362,16 +362,19 @@ describe('processed asset schema coverage', () => {
 
   it('covers every AgentLink row in the real label-keyed asset dictionary', () => {
     const entry = coverageRegistry.find((candidate) => candidate.itemSchemaName === 'AgentLink')
-    expect(entry).toBeDefined()
-    const issues = collectCoverageIssues([entry!])
+    if (!entry) throw new Error('Missing AgentLink coverage entry')
+    const issues = collectCoverageIssues([entry])
     expect(issues.size, [...issues.values()].map((issue) => issue.message).join('\n')).toBe(0)
   })
 
   it('allows schema-shaped dictionaries but detects undeclared nested fields', () => {
     const summaryPath = join(projectRoot, 'data/processed/summary.json')
-    const summary = JSON.parse(readFileSync(summaryPath, 'utf8')) as Record<string, unknown>
-    const withDictionaryEntry = structuredClone(summary) as Record<string, any>
-    withDictionaryEntry.per_wiki.__coverage_fixture__ = {
+    const summary: unknown = JSON.parse(readFileSync(summaryPath, 'utf8'))
+    if (!isRecord(summary)) throw new Error('Expected the processed summary to be an object')
+    const withDictionaryEntry = structuredClone(summary)
+    if (!isRecord(withDictionaryEntry.per_wiki)) throw new Error('Expected per_wiki to be an object')
+    const perWiki = withDictionaryEntry.per_wiki
+    perWiki.__coverage_fixture__ = {
       revisions: { value: 1, population_id: 'fixture' },
     }
     const schema = contract.components.schemas.StatsSummary
@@ -379,7 +382,11 @@ describe('processed asset schema coverage', () => {
     expect(validatorFor('StatsSummary')(withDictionaryEntry)).toBe(true)
     expect(undeclaredFields(withDictionaryEntry, schema, '$')).toEqual([])
 
-    withDictionaryEntry.per_wiki.__coverage_fixture__.revisions.fakeNestedField = true
+    const fixture = perWiki.__coverage_fixture__
+    if (!isRecord(fixture) || !isRecord(fixture.revisions)) {
+      throw new Error('Expected the coverage fixture to have a revisions object')
+    }
+    fixture.revisions.fakeNestedField = true
     expect(validatorFor('StatsSummary')(withDictionaryEntry)).toBe(true)
     expect(undeclaredFields(withDictionaryEntry, schema, '$')).toContain(
       '$.per_wiki.__coverage_fixture__.revisions.fakeNestedField',

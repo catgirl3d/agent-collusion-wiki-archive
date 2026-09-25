@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArchiveCalendar } from '../components/ArchiveCalendar'
 import { Dropdown } from '../components/Dropdown'
@@ -28,6 +28,7 @@ export default function Pages() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
   const [query, setQuery] = useState(urlQuery)
+  const [trackedUrlQuery, setTrackedUrlQuery] = useState(urlQuery)
   const [wiki, setWiki] = useState('')
   const [src, setSrc] = useState<SourceFilter>('')
   const [deletedOnly, setDeletedOnly] = useState(false)
@@ -38,11 +39,12 @@ export default function Pages() {
   const [copied, setCopied] = useState(false)
   const day = searchParams.get('day') ?? ''
 
-  useEffect(() => {
+  if (trackedUrlQuery !== urlQuery) {
+    setTrackedUrlQuery(urlQuery)
     if (urlQuery) {
       setQuery(urlQuery)
     }
-  }, [urlQuery])
+  }
 
   const deferredQuery = useDeferredValue(query)
   // the full-text index is only needed for queries of ≥3 chars (build.py tokenizer minimum)
@@ -99,7 +101,7 @@ export default function Pages() {
     const timestamp = Math.floor(Date.now() / 1000)
     void navigator.clipboard.writeText(`import pandas as pd\n# Full index:\ndf = pd.read_json("/data/pages.json")\n# Or load your exported slice file:\n# df = pd.read_json("pages-slice-${timestamp}.json")\nprint(df.head())`).then(() => {
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
+      window.setTimeout(() => { setCopied(false); }, 2000)
     })
   }
 
@@ -170,8 +172,8 @@ export default function Pages() {
       )}
 
       <div className="filters">
-        <Button onClick={() => exportFile('json')}>Export JSON</Button>
-        <Button onClick={() => exportFile('csv')}>Export CSV</Button>
+        <Button onClick={() => { exportFile('json'); }}>Export JSON</Button>
+        <Button onClick={() => { exportFile('csv'); }}>Export CSV</Button>
         <Button onClick={copyPython}>{copied ? 'Copied!' : 'Copy as Python'}</Button>
       </div>
 
@@ -231,7 +233,7 @@ export default function Pages() {
       <LoadMore
         loaded={shown.length}
         total={filtered.length}
-        onLoadMore={() => setLimit((n) => n + PAGE_LIMIT)}
+        onLoadMore={() => { setLimit((n) => n + PAGE_LIMIT); }}
         step={PAGE_LIMIT}
       />
     </div>

@@ -1,4 +1,4 @@
-import type { Core, EdgeSingular, ElementDefinition, LayoutOptions, NodeSingular } from 'cytoscape'
+import type { Core, EdgeSingular, ElementDefinition, EventObject, LayoutOptions, NodeSingular } from 'cytoscape'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { PairSelection } from '../utils/pairSelection'
 import type { NetworkData } from '../utils/network'
@@ -21,6 +21,20 @@ interface NetworkCanvasProps {
   onBackgroundTap: () => void
 }
 
+interface NodeDataPayload {
+  id: string
+  label: string
+  isCenter: boolean
+}
+
+interface EdgeDataPayload {
+  id: string
+  source: string
+  target: string
+  weight: number
+  isDirect: boolean
+}
+
 const getLayoutOptions = (name: NetworkCanvasProps['layoutName']): LayoutOptions => {
   switch (name) {
     case 'cose':
@@ -33,8 +47,8 @@ const getLayoutOptions = (name: NetworkCanvasProps['layoutName']): LayoutOptions
 }
 
 const toElements = (data: NetworkData): ElementDefinition[] => [
-  ...data.nodes.map((n) => ({ data: { id: n.id, label: n.label, isCenter: n.isCenter }, classes: n.isCenter ? 'center-node' : 'coagent-node' })),
-  ...data.edges.map((e) => ({ data: { id: `${e.source}--${e.target}`, source: e.source, target: e.target, weight: e.weight, isDirect: e.isDirect }, classes: e.isDirect ? 'direct-edge' : 'peer-edge' })),
+  ...data.nodes.map((n) => ({ data: { id: n.id, label: n.label, isCenter: n.isCenter } satisfies NodeDataPayload, classes: n.isCenter ? 'center-node' : 'coagent-node' })),
+  ...data.edges.map((e) => ({ data: { id: `${e.source}--${e.target}`, source: e.source, target: e.target, weight: e.weight, isDirect: e.isDirect } satisfies EdgeDataPayload, classes: e.isDirect ? 'direct-edge' : 'peer-edge' })),
 ]
 
 const NetworkCanvas = forwardRef<NetworkCanvasHandle, NetworkCanvasProps>(function NetworkCanvas({ networkData, layoutName, validatedPair, selParam, activeAgent, onNodeSelect, onEdgeSelect, onBackgroundTap }, ref) {
@@ -90,9 +104,9 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle, NetworkCanvasProps>(functi
         ],
         userZoomingEnabled: true, userPanningEnabled: true, boxSelectionEnabled: false,
       })
-      cy.on('tap', 'node', (event) => callbackRefs.current.onNodeSelect(event.target.id()))
-      cy.on('tap', 'edge', (event) => callbackRefs.current.onEdgeSelect(event.target.source().id(), event.target.target().id()))
-      cy.on('tap', (event) => { if (event.target === cy) callbackRefs.current.onBackgroundTap() })
+      cy.on('tap', 'node', (event: EventObject) => { const node = event.target as NodeSingular; callbackRefs.current.onNodeSelect(node.id()); })
+      cy.on('tap', 'edge', (event: EventObject) => { const edge = event.target as EdgeSingular; callbackRefs.current.onEdgeSelect(edge.source().id(), edge.target().id()); })
+      cy.on('tap', (event: EventObject) => { if (event.target === cy) callbackRefs.current.onBackgroundTap() })
       resizeObserver = new ResizeObserver(() => cy?.resize())
       resizeObserver.observe(containerRef.current)
       cyRef.current = cy
