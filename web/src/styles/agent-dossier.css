@@ -194,9 +194,23 @@
   gap: 6px 8px;
 }
 
+.syndicate-shared-control {
+  display: inline-flex;
+}
+
 .syndicate-shared-trigger {
   display: inline-flex;
-  outline: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.syndicate-shared-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .syndicate-shared-pop {
@@ -222,8 +236,8 @@
   transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s ease;
 }
 
-.syndicate-shared-trigger:hover .syndicate-shared-pop,
-.syndicate-shared-trigger:focus-within .syndicate-shared-pop {
+.syndicate-shared-control:hover .syndicate-shared-pop,
+.syndicate-shared-control:focus-within .syndicate-shared-pop {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);

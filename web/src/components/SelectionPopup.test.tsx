@@ -1,17 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SelectionPopup } from './SelectionPopup'
 
 describe('SelectionPopup', () => {
-  let openSpy: ReturnType<typeof vi.spyOn>
-
-  beforeEach(() => {
-    openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-  })
-
   afterEach(() => {
-    openSpy.mockRestore()
     vi.restoreAllMocks()
   })
 
@@ -28,6 +21,7 @@ describe('SelectionPopup', () => {
   })
 
   it('renders English buttons and opens correct URLs in new tab upon selection', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
     const containerRef = createRef<HTMLDivElement>()
     const { container } = render(
       <div ref={containerRef}>

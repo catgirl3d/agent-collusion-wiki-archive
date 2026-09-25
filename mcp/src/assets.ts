@@ -82,7 +82,7 @@ async function readBoundedBytes(response: Response, maxBytes: number, label: str
   return merged
 }
 
-export type ArchiveAssetsOptions = {
+export interface ArchiveAssetsOptions {
   baseUrl?: string
   fetchImpl?: typeof globalThis.fetch
   timeoutMs?: number
@@ -124,7 +124,7 @@ export class ArchiveAssets {
 
     const url = new URL(path, this.baseUrl)
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
+    const timeout = setTimeout(() => { controller.abort(); }, this.timeoutMs)
 
     try {
       const response = await this.fetchImpl(url, {

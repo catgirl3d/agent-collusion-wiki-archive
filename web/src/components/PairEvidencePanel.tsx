@@ -282,7 +282,7 @@ export function PairEvidencePanel({
                   size="sm"
                   variant="ghost"
                   className="pair-open-page-btn"
-                  onClick={() => onOpenPageInPageDetail(selectedPageId)}
+                  onClick={() => { onOpenPageInPageDetail(selectedPageId); }}
                   title="Open page in PageDetail"
                 >
                   Open in PageDetail
@@ -478,8 +478,7 @@ export function PairEvidencePanel({
                   leftLabel={leftLabel}
                   rightLabel={rightLabel}
                   isExpanded={expandedRevIndex === ev.revIndex}
-                  onToggleExpand={() =>
-                    setExpandedRevIndex((prev) => (prev === ev.revIndex ? null : ev.revIndex))
+                  onToggleExpand={() => { setExpandedRevIndex((prev) => (prev === ev.revIndex ? null : ev.revIndex)); }
                   }
                 />
               ))}
@@ -490,7 +489,7 @@ export function PairEvidencePanel({
                     size="sm"
                     variant="ghost"
                     className="pair-load-older-btn"
-                    onClick={() => setLimit((prev) => prev + TIMELINE_PAGE_SIZE)}
+                    onClick={() => { setLimit((prev) => prev + TIMELINE_PAGE_SIZE); }}
                   >
                     Load older ({reversedEvents.length - limit} remaining)
                   </Button>

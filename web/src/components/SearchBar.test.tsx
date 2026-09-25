@@ -1,22 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { useEffect } from 'react'
-import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { SearchBar } from './SearchBar'
 
 function Navigator({ to }: { to: string }) {
-  const navigate = useNavigate()
-  useEffect(() => {
-    navigate(to)
-  }, [navigate, to])
-  return null
+  return <Link to={to}>Navigate to {to}</Link>
 }
 
-let lastLocation = ''
 function LocationSpy() {
   const location = useLocation()
-  lastLocation = location.pathname + location.search
-  return null
+  return <output data-testid="location">{location.pathname}{location.search}</output>
 }
 
 describe('SearchBar', () => {
@@ -56,7 +49,7 @@ describe('SearchBar', () => {
     fireEvent.change(input, { target: { value: 'orchestrator' } })
     fireEvent.submit(input.closest('form')!)
 
-    expect(lastLocation).toBe('/search?q=orchestrator')
+    expect(screen.getByTestId('location')).toHaveTextContent('/search?q=orchestrator')
     expect(screen.getByRole('searchbox')).toHaveValue('orchestrator')
   })
 
@@ -75,7 +68,7 @@ describe('SearchBar', () => {
     // still collapse via handleSubmit, not via the location sync effect
     fireEvent.submit(screen.getByRole('search'))
 
-    expect(lastLocation).toBe('/search?q=test')
+    expect(screen.getByTestId('location')).toHaveTextContent('/search?q=test')
     expect(screen.getByRole('search')).toHaveClass('is-collapsed')
   })
 
@@ -255,22 +248,17 @@ describe('SearchBar', () => {
     expect(input).toHaveValue('test')
   })
 
-  it('resets query when navigating away from /search', () => {
-    const { rerender } = render(
+  it('resets query when navigating away from /search', async () => {
+    render(
       <MemoryRouter initialEntries={['/search?q=hello']}>
         <SearchBar />
-      </MemoryRouter>
-    )
-
-    expect(screen.getByRole('search')).toHaveClass('is-collapsed')
-
-    rerender(
-      <MemoryRouter initialEntries={['/search?q=hello']}>
-        <SearchBar />
+        <LocationSpy />
         <Navigator to="/" />
       </MemoryRouter>
     )
 
+    fireEvent.click(screen.getByRole('link', { name: 'Navigate to /' }))
+    expect(await screen.findByText('/')).toBeInTheDocument()
     expect(screen.getByRole('search')).toHaveClass('is-collapsed')
     expect(screen.getByRole('searchbox')).toHaveValue('')
   })

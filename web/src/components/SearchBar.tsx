@@ -8,23 +8,17 @@ export function SearchBar() {
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLFormElement>(null)
 
+  const routeKey = `${location.pathname}${location.search}`
   const urlQ = location.pathname === '/search' ? (searchParams.get('q') ?? '') : ''
-  const [query, setQuery] = useState(urlQ)
+  const [searchState, setSearchState] = useState(() => ({ routeKey, query: urlQ, expanded: false }))
+  if (searchState.routeKey !== routeKey) {
+    setSearchState({ routeKey, query: urlQ, expanded: false })
+  }
+  const { query, expanded } = searchState
+  const setQuery = (value: string) => { setSearchState((current) => ({ ...current, query: value })); }
+  const setExpanded = (value: boolean) => { setSearchState((current) => ({ ...current, expanded: value })); }
   // Never auto-expand on mount: on /search the page has its own search form,
   // and pulling focus into the header input on navigation is disruptive
-  const [expanded, setExpanded] = useState(false)
-
-  // Sync with URL query when on /search; keep the header bar collapsed there
-  useEffect(() => {
-    if (location.pathname === '/search') {
-      const q = searchParams.get('q') ?? ''
-      setQuery(q)
-      setExpanded(false)
-    } else {
-      setQuery('')
-      setExpanded(false)
-    }
-  }, [location.pathname, searchParams])
 
   // Auto-focus input when expanding
   useEffect(() => {
@@ -50,7 +44,7 @@ export function SearchBar() {
       }
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => { window.removeEventListener('keydown', handleKeyDown); }
   }, [])
 
   const handleSubmit = (event: FormEvent) => {
@@ -62,11 +56,10 @@ export function SearchBar() {
     inputRef.current?.blur()
     setExpanded(false)
     const trimmed = query.trim()
-    if (trimmed) {
-      navigate(`/search?q=${encodeURIComponent(trimmed)}`)
-    } else {
-      navigate('/search')
-    }
+    const destination = trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : '/search'
+    Promise.resolve(navigate(destination)).catch((error: unknown) => {
+      console.error('Search navigation failed', error)
+    })
   }
 
   const handleClear = () => {
@@ -75,7 +68,7 @@ export function SearchBar() {
   }
 
   const handleBlur = (e: FocusEvent<HTMLFormElement>) => {
-    if (containerRef.current?.contains(e.relatedTarget as Node)) {
+    if (containerRef.current?.contains(e.relatedTarget)) {
       return
     }
     if (!query.trim()) {
@@ -132,8 +125,8 @@ export function SearchBar() {
         aria-label="Search revisions text"
         tabIndex={expanded ? 0 : -1}
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setExpanded(true)}
+        onChange={(e) => { setQuery(e.target.value); }}
+        onFocus={() => { setExpanded(true); }}
         onKeyDown={(e) => {
           // Escape always collapses: with a non-empty query the field would
           // otherwise stick open (blur alone only closes empty input)

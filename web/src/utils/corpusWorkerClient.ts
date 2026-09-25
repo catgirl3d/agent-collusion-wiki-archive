@@ -3,7 +3,7 @@ import type { CorpusSearchEvent, CorpusWorkerRequest, CorpusWorkerResponse } fro
 
 export type CorpusWorkerListener = (message: CorpusSearchEvent) => void
 
-type PendingBodyRequest = {
+interface PendingBodyRequest {
   resolve: (body: string) => void
   reject: (error: Error) => void
 }

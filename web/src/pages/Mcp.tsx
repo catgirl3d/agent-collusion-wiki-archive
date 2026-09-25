@@ -21,11 +21,18 @@ export default function Mcp() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
 
   const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedKey(key)
-    setTimeout(() => {
-      setCopiedKey((curr) => (curr === key ? null : curr))
-    }, 2000)
+    try {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopiedKey(key)
+        setTimeout(() => {
+          setCopiedKey((curr) => (curr === key ? null : curr))
+        }, 2000)
+      }).catch((error: unknown) => {
+        console.error('Clipboard write failed', error)
+      })
+    } catch (error) {
+      console.error('Clipboard write failed', error)
+    }
   }
 
   const packageName = toolCatalog.packageName
@@ -115,7 +122,7 @@ curl -s "${origin}/api/openapi"
             variant="ghost"
             size="sm"
             className={copiedKey === 'npx' ? 'success' : undefined}
-            onClick={() => copyToClipboard(npxCommand, 'npx')}
+            onClick={() => { copyToClipboard(npxCommand, 'npx'); }}
             aria-label="Copy npx command"
           >
             {copiedKey === 'npx' ? (
@@ -148,7 +155,7 @@ curl -s "${origin}/api/openapi"
               size="sm"
               className="mcp-tab-btn"
               aria-pressed={clientTab === 'kilo'}
-              onClick={() => setClientTab('kilo')}
+              onClick={() => { setClientTab('kilo'); }}
             >
               Kilo Code
             </Button>
@@ -158,7 +165,7 @@ curl -s "${origin}/api/openapi"
               size="sm"
               className="mcp-tab-btn"
               aria-pressed={clientTab === 'claude'}
-              onClick={() => setClientTab('claude')}
+              onClick={() => { setClientTab('claude'); }}
             >
               Claude Desktop
             </Button>
@@ -168,7 +175,7 @@ curl -s "${origin}/api/openapi"
               size="sm"
               className="mcp-tab-btn"
               aria-pressed={clientTab === 'cursor'}
-              onClick={() => setClientTab('cursor')}
+              onClick={() => { setClientTab('cursor'); }}
             >
               Cursor
             </Button>
@@ -178,7 +185,7 @@ curl -s "${origin}/api/openapi"
               size="sm"
               className="mcp-tab-btn"
               aria-pressed={clientTab === 'vscode'}
-              onClick={() => setClientTab('vscode')}
+              onClick={() => { setClientTab('vscode'); }}
             >
               VS Code
             </Button>
@@ -188,7 +195,7 @@ curl -s "${origin}/api/openapi"
               size="sm"
               className="mcp-tab-btn mcp-tab-btn-http"
               aria-pressed={clientTab === 'http'}
-              onClick={() => setClientTab('http')}
+              onClick={() => { setClientTab('http'); }}
             >
               Direct HTTP / cURL (No MCP)
             </Button>
@@ -203,7 +210,7 @@ curl -s "${origin}/api/openapi"
                   variant="ghost"
                   size="sm"
                   aria-pressed={platform === 'windows'}
-                  onClick={() => setPlatform('windows')}
+                  onClick={() => { setPlatform('windows'); }}
                 >
                   Windows
                 </Button>
@@ -212,7 +219,7 @@ curl -s "${origin}/api/openapi"
                   variant="ghost"
                   size="sm"
                   aria-pressed={platform === 'posix'}
-                  onClick={() => setPlatform('posix')}
+                  onClick={() => { setPlatform('posix'); }}
                 >
                   macOS / Linux
                 </Button>
@@ -228,7 +235,7 @@ curl -s "${origin}/api/openapi"
               <input
                 type="checkbox"
                 checked={useLocalApi}
-                onChange={(e) => setUseLocalApi(e.target.checked)}
+                onChange={(e) => { setUseLocalApi(e.target.checked); }}
               />
               Target local Worker mirror (<code>127.0.0.1:8787</code>)
             </label>
@@ -240,7 +247,7 @@ curl -s "${origin}/api/openapi"
               variant="ghost"
               size="sm"
               className={copiedKey === 'config' ? 'success' : undefined}
-              onClick={() => copyToClipboard(activeConfigCode, 'config')}
+              onClick={() => { copyToClipboard(activeConfigCode, 'config'); }}
               aria-label="Copy configuration"
             >
               {copiedKey === 'config' ? (
@@ -275,7 +282,7 @@ curl -s "${origin}/api/openapi"
               variant="ghost"
               size="sm"
               aria-pressed={selectedCategory === cat}
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => { setSelectedCategory(cat); }}
             >
               {cat}
             </Button>
@@ -314,7 +321,7 @@ curl -s "${origin}/api/openapi"
                     variant="ghost"
                     size="xs"
                     className={copiedKey === tool.name ? 'success' : undefined}
-                    onClick={() => copyToClipboard(example, tool.name)}
+                    onClick={() => { copyToClipboard(example, tool.name); }}
                   >
                     {copiedKey === tool.name ? 'Copied JSON' : 'Copy payload'}
                   </Button>

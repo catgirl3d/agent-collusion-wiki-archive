@@ -48,7 +48,7 @@ afterEach(() => {
 
 describe('corpusWorkerClient', () => {
   it('creates one worker lazily and keeps it alive when subscribers leave', () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const unsubscribe = subscribeCorpusWorker(() => {})
     expect(FakeWorker.instances).toHaveLength(0)
@@ -65,7 +65,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('delivers responses to active subscribers only', () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const first = vi.fn()
     const second = vi.fn()
@@ -92,7 +92,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('keeps request ids unique across page mount lifetimes', () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const unsubscribeFirstMount = subscribeCorpusWorker(() => {})
     const firstId = createCorpusRequestId()
@@ -109,7 +109,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('reset terminates the worker, drops subscribers, and restarts ids', () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const listener = vi.fn()
     subscribeCorpusWorker(listener)
@@ -131,12 +131,12 @@ describe('corpusWorkerClient', () => {
     vi.stubGlobal('Worker', undefined)
 
     expect(isCorpusWorkerAvailable()).toBe(false)
-    expect(() => postCorpusRequest(request(1))).not.toThrow()
+    expect(() => { postCorpusRequest(request(1)); }).not.toThrow()
     expect(FakeWorker.instances).toHaveLength(0)
   })
 
   it('resolves a revision body request through the worker round trip', async () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
     const message = FakeWorker.instances[0].messages[0]
@@ -147,7 +147,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('rejects a revision body request on a worker error response', async () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: null, t: '2026-06-18T10:00:00Z' })
     const message = FakeWorker.instances[0].messages[0]
@@ -156,7 +156,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('does not deliver revision body responses to search subscribers', async () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const listener = vi.fn()
     subscribeCorpusWorker(listener)
@@ -169,7 +169,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('rejects pending revision body requests when the worker resets', async () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
 
     const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
     const requestId = FakeWorker.instances[0].messages[0].requestId
@@ -196,11 +196,11 @@ describe('corpusWorkerClient', () => {
         throw new Error('post failed')
       }
     }
-    vi.stubGlobal('Worker', ThrowingWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', ThrowingWorker)
 
     await expect(requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })).rejects.toThrow('post failed')
 
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
     resetCorpusWorkerForTests()
     const promise = requestRevisionBody({ w: 'dse', id: 'dse/PageA', seq: 1, t: '2026-06-18T10:00:00Z' })
     const message = FakeWorker.instances.at(-1)?.messages[0]
@@ -227,12 +227,12 @@ describe('corpusWorkerClient', () => {
 
       terminate() {}
     }
-    vi.stubGlobal('Worker', RetryWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', RetryWorker)
 
     const listener = vi.fn()
     subscribeCorpusWorker(listener)
 
-    expect(() => postCorpusRequest(request(5))).not.toThrow()
+    expect(() => { postCorpusRequest(request(5)); }).not.toThrow()
     expect(listener).toHaveBeenCalledWith({
       type: 'error',
       requestId: 5,
@@ -245,7 +245,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('rejects pending body requests and reports asynchronous worker failure before retrying', async () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
     const listener = vi.fn()
     subscribeCorpusWorker(listener)
 
@@ -270,7 +270,7 @@ describe('corpusWorkerClient', () => {
   })
 
   it('ignores a late error from a replaced worker', () => {
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('Worker', FakeWorker)
     const listener = vi.fn()
     subscribeCorpusWorker(listener)
 

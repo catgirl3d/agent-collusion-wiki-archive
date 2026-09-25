@@ -32,8 +32,8 @@ export default function Network() {
   const layoutParam = searchParams.get('layout')
 
   const minShared = (minParam && ['2', '3', '5', '10'].includes(minParam)) ? Number(minParam) : 2
-  const depth = (scopeParam === 'ego' ? 'ego' : 'cluster') as 'cluster' | 'ego'
-  const layoutName = (layoutParam === 'concentric' || layoutParam === 'circle' ? layoutParam : 'cose') as 'cose' | 'concentric' | 'circle'
+  const depth = (scopeParam === 'ego' ? 'ego' : 'cluster')
+  const layoutName = (layoutParam === 'concentric' || layoutParam === 'circle' ? layoutParam : 'cose')
 
   // Available agent names for search suggestions
   const allAgents = useMemo(() => {
@@ -132,27 +132,38 @@ export default function Network() {
     key: string | null
     status: 'idle' | 'loading' | 'ready' | 'error'
     timeline: PairTimeline | null
-  }>({ key: null, status: 'idle', timeline: null })
+  }>(() => requestKey === null
+    ? { key: null, status: 'idle', timeline: null }
+    : { key: requestKey, status: selectedPageRecord?.s ? 'loading' : 'error', timeline: null })
+  const [trackedRequest, setTrackedRequest] = useState(() => ({
+    pair: validatedPair,
+    pageId: selectedPageId,
+    slug: selectedPageRecord?.s,
+  }))
 
+  if (
+    trackedRequest.pair !== validatedPair ||
+    trackedRequest.pageId !== selectedPageId ||
+    trackedRequest.slug !== selectedPageRecord?.s
+  ) {
+    setTrackedRequest({
+      pair: validatedPair,
+      pageId: selectedPageId,
+      slug: selectedPageRecord?.s,
+    })
+    setPageState(requestKey === null
+      ? { key: null, status: 'idle', timeline: null }
+      : { key: requestKey, status: selectedPageRecord?.s ? 'loading' : 'error', timeline: null })
+  }
 
   useEffect(() => {
-    if (!validatedPair || !selectedPageId) {
-      setPageState({ key: null, status: 'idle', timeline: null })
-      return
-    }
+    if (!validatedPair || !selectedPageId) return
 
-    // No canonical page record/slug -> do NOT guess a revision filename; surface a local error
-    // while the shared-page list stays visible.
+    // Do not guess a revision filename; the render-time request state reports this as an error.
     const slug = selectedPageRecord?.s
-    if (!slug) {
-      // Keep the key consistent with requestKey so the render gate surfaces this local error.
-      const key = `${validatedPair!.a}|${validatedPair!.b}|${selectedPageId}|`
-      setPageState({ key, status: 'error', timeline: null })
-      return
-    }
+    if (!slug || !requestKey) return
 
-    const key = `${validatedPair.a}|${validatedPair.b}|${selectedPageId}|${slug}`
-    setPageState({ key, status: 'loading', timeline: null })
+    const key = requestKey
 
     let alive = true
     loadJson<Revision[]>(revisionFile(selectedPageId, slug))
@@ -172,8 +183,7 @@ export default function Network() {
     return () => {
       alive = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- requestKey is derived from exactly these inputs
-  }, [validatedPair, selectedPageId, selectedPageRecord?.s])
+  }, [validatedPair, selectedPageId, selectedPageRecord?.s, requestKey])
 
   // Close search suggestions on outside pointerdown
   useEffect(() => {
@@ -184,7 +194,7 @@ export default function Network() {
       }
     }
     document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
+    return () => { document.removeEventListener('pointerdown', handlePointerDown); }
   }, [])
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -224,7 +234,7 @@ export default function Network() {
           Agent "{agentParam}" not found in the network index.
           {presets.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <Button size="sm" onClick={() => setFocalAgent(presets[0])}>
+              <Button size="sm" onClick={() => { setFocalAgent(presets[0]); }}>
                 Show top syndicate
               </Button>
             </div>
@@ -239,7 +249,7 @@ export default function Network() {
   const inspectedLinks = (links[inspectedAgent] || []).filter((a) => a.c >= minShared)
 
   const handleNodeSelect = (nodeId: string) => {
-    let next = new URLSearchParams(searchParams)
+    const next = new URLSearchParams(searchParams)
     if (nodeId === activeAgent) next.delete('sel')
     else next.set('sel', nodeId)
     setSearchParams(clearPair(next), { replace: true })
@@ -275,7 +285,7 @@ export default function Network() {
               size="sm"
               className="mono"
               aria-pressed={activeAgent === agent}
-              onClick={() => setFocalAgent(agent)}
+              onClick={() => { setFocalAgent(agent); }}
             >
               {agent.length > 18 ? `${agent.slice(0, 16)}…` : agent}
             </Button>
@@ -288,16 +298,14 @@ export default function Network() {
         <div
           ref={searchWrapRef}
           className="network-search-wrap"
-          role="combobox"
-          aria-haspopup="listbox"
-          aria-expanded={isOpen && suggestions.length > 0}
-          aria-owns="network-search-suggestions"
         >
           <input
             className="input"
             placeholder="Search any agent label…"
             aria-label="Search agent label"
+            role="combobox"
             aria-autocomplete="list"
+            aria-expanded={isOpen && suggestions.length > 0}
             aria-controls="network-search-suggestions"
             aria-activedescendant={
               isOpen && activeIndex >= 0 && suggestions[activeIndex]
@@ -321,33 +329,32 @@ export default function Network() {
             }}
             onKeyDown={handleSearchKeyDown}
           />
-          {isOpen && suggestions.length > 0 && (
-            <div
-              id="network-search-suggestions"
-              className="network-suggestions-popover"
-              role="listbox"
-              aria-label="Agent search suggestions"
-            >
-              {suggestions.map((sug, idx) => (
-                <button
-                  key={sug}
-                  id={`suggestion-option-${idx}`}
-                  type="button"
-                  role="option"
-                  aria-selected={activeIndex === idx}
-                  className={`suggestion-item mono ${activeIndex === idx ? 'active' : ''}`}
-                  onClick={() => {
-                    setFocalAgent(sug)
-                    setSearchInput('')
-                    setIsOpen(false)
-                    setActiveIndex(-1)
-                  }}
-                >
-                  {sug}
-                </button>
-              ))}
-            </div>
-          )}
+          <div
+            id="network-search-suggestions"
+            className="network-suggestions-popover"
+            role="listbox"
+            aria-label="Agent search suggestions"
+            style={{ display: isOpen && suggestions.length > 0 ? undefined : 'none' }}
+          >
+            {suggestions.map((sug, idx) => (
+              <button
+                key={sug}
+                id={`suggestion-option-${idx}`}
+                type="button"
+                role="option"
+                aria-selected={activeIndex === idx}
+                className={`suggestion-item mono ${activeIndex === idx ? 'active' : ''}`}
+                onClick={() => {
+                  setFocalAgent(sug)
+                  setSearchInput('')
+                  setIsOpen(false)
+                  setActiveIndex(-1)
+                }}
+              >
+                {sug}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Min Shared Edits Filter */}
@@ -503,9 +510,11 @@ export default function Network() {
                 setSearchParams(clearPair(searchParams))
               }}
               onOpenPageInPageDetail={(pageId) => {
-                navigate(
+                Promise.resolve(navigate(
                   `/page/${encodeURIComponent(pageId)}?${setPair(new URLSearchParams(searchParams), validatedPair.a, validatedPair.b, { keepPage: true }).toString()}`
-                )
+                )).catch((error: unknown) => {
+                  console.error('Unable to open the selected page from the network', error)
+                })
               }}
               onSelectPage={(pageId) => {
                 const next = new URLSearchParams(searchParams)
@@ -561,7 +570,7 @@ export default function Network() {
                 {inspectedAgent !== activeAgent && (
                   <Button
                     size="sm"
-                    onClick={() => setFocalAgent(inspectedAgent)}
+                    onClick={() => { setFocalAgent(inspectedAgent); }}
                   >
                     Focus graph on this agent →
                   </Button>

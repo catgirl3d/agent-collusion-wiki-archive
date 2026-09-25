@@ -9,7 +9,7 @@ import {
 } from './sort'
 import { compareCanonicalRevisionOrder } from './revision'
 
-export type TimelineFilters = {
+export interface TimelineFilters {
   label?: string
   wiki?: string
   ip?: string

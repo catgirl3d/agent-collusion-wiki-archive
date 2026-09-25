@@ -19,7 +19,7 @@ export function NavDropdown({ label, items, id, isOpen, onOpen, onClose }: NavDr
 
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const itemRefs = useRef<Array<HTMLAnchorElement | null>>([])
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const location = useLocation()
   const instanceId = useId().replaceAll(':', '')
   const menuId = id ?? `nav-dropdown-${instanceId}`
@@ -125,7 +125,7 @@ export function NavDropdown({ label, items, id, isOpen, onOpen, onClose }: NavDr
         to={item.to}
         role="menuitem"
         className={`nav-menu-item ${active ? 'active' : ''}`}
-        onKeyDown={(e) => handleItemKeyDown(e, index)}
+        onKeyDown={(e) => { handleItemKeyDown(e, index); }}
         onClick={handleClose}
       >
         <span className="nav-menu-item-text">
@@ -154,7 +154,7 @@ export function NavDropdown({ label, items, id, isOpen, onOpen, onClose }: NavDr
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => (open ? handleClose() : handleOpen())}
+        onClick={() => { open ? handleClose() : handleOpen(); }}
         onKeyDown={handleTriggerKeyDown}
       >
         <span>{label}</span>

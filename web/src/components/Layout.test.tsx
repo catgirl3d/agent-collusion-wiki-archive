@@ -197,7 +197,7 @@ describe('Layout', () => {
 
     // Verify focus moves into drawer close button
     const closeBtn = within(drawer).getByRole('button', { name: /close navigation menu/i })
-    await waitFor(() => expect(document.activeElement).toBe(closeBtn))
+    await waitFor(() => { expect(document.activeElement).toBe(closeBtn); })
 
     // Test Tab wrapping: focus on last link, press Tab -> wraps to closeBtn
     const links = within(drawer).getAllByRole('link')

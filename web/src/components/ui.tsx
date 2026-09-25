@@ -77,7 +77,7 @@ export function SortHeader<K extends string>({
   const arrow = activeDir === 'asc' ? '▴' : activeDir === 'desc' ? '▾' : ''
   return (
     <th scope="col" aria-sort={ariaSort} className={numeric ? 'num' : undefined}>
-      <button type="button" className="th-sort" onClick={() => onToggle(sortKey)}>
+      <button type="button" className="th-sort" onClick={() => { onToggle(sortKey); }}>
         {label}
         {arrow ? <span className="sort-arrow" aria-hidden="true">{arrow}</span> : null}
       </button>
@@ -85,7 +85,7 @@ export function SortHeader<K extends string>({
   )
 }
 
-type ButtonCommonProps = {
+interface ButtonCommonProps {
   variant?: 'primary' | 'ghost'
   size?: 'md' | 'sm' | 'xs' | 'icon'
   className?: string

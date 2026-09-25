@@ -28,7 +28,7 @@ export const CORPUS_SORT_DEFAULT: SortState<CorpusSortKey> = {
 
 export type CorpusPageMap = Map<string, { s?: string; n: string }>
 
-export type CorpusFilters = {
+export interface CorpusFilters {
   q: string
   caseSensitive: boolean
   wholeWord?: boolean
@@ -91,8 +91,8 @@ export function findMatchRanges(
   query: string,
   caseSensitive: boolean,
   wholeWord = false,
-): Array<{ start: number; end: number }> {
-  const ranges: Array<{ start: number; end: number }> = []
+): { start: number; end: number }[] {
+  const ranges: { start: number; end: number }[] = []
   scanMatchRanges(body, query, caseSensitive, wholeWord, (start, end) => {
     ranges.push({ start, end })
   })
@@ -174,12 +174,12 @@ function parseLine(line: string, row: number): CorpusRecord {
   }
   if (typeof raw !== 'object' || raw === null) throw invalidRow(row)
   const value = raw as Record<string, unknown>
-  const id = value['page_id']
-  const wiki = value['wiki'] ?? (typeof id === 'string' ? id.split('/')[0] : undefined)
-  const seq = value['seq']
-  const time = value['write_date'] ?? value['time']
-  const label = value['label']
-  const body = value['body']
+  const id = value.page_id
+  const wiki = value.wiki ?? (typeof id === 'string' ? id.split('/')[0] : undefined)
+  const seq = value.seq
+  const time = value.write_date ?? value.time
+  const label = value.label
+  const body = value.body
   if (typeof id !== 'string' || !id) throw invalidRow(row)
   if (typeof wiki !== 'string' || !wiki) throw invalidRow(row)
   if (typeof time !== 'string' || !time) throw invalidRow(row)
@@ -196,7 +196,7 @@ function parseLine(line: string, row: number): CorpusRecord {
   }
 }
 
-export type JsonlParser = {
+export interface JsonlParser {
   push(chunk: string): void
   finish(): void
 }
@@ -301,7 +301,7 @@ export function selectMatches(
 
 export type CorpusWorkerProgressPhase = 'download' | 'decode' | 'search'
 
-export type CorpusSearchRequest = {
+export interface CorpusSearchRequest {
   type: 'search'
   requestId: number
   q: string

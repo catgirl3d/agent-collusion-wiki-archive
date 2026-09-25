@@ -214,8 +214,7 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
     }
 
     const totalBytes = Number(response.headers.get('content-length')) || undefined
-    const received = await readAll(response, CORPUS_MAX_RECEIVED_BYTES, 'corpus', (loadedBytes) =>
-      progress(requestId, { phase: 'download', loadedBytes, totalBytes }),
+    const received = await readAll(response, CORPUS_MAX_RECEIVED_BYTES, 'corpus', (loadedBytes) => { progress(requestId, { phase: 'download', loadedBytes, totalBytes }); },
     )
 
     let decoded: Uint8Array
@@ -277,7 +276,7 @@ async function loadCorpus(requestId: number, current: Summary): Promise<{ record
 }
 
 async function fetchPages(): Promise<CorpusPageMap> {
-  const file = await fetchJsonBounded<{ p: Array<{ id: string; s?: string; n: string }> }>('/data/pages.json', 'pages.json')
+  const file = await fetchJsonBounded<{ p: { id: string; s?: string; n: string }[] }>('/data/pages.json', 'pages.json')
   return new Map(file.p.map((page) => [page.id, page]))
 }
 

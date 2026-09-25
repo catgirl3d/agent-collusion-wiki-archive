@@ -96,7 +96,7 @@ describe('MCP tool catalog synchronization', () => {
     ) as {
       packageName: string
       packageVersion: string
-      tools: Array<Record<string, unknown>>
+      tools: Record<string, unknown>[]
     }
     const packageJson = JSON.parse(await readFile(join(repositoryRoot, 'mcp/package.json'), 'utf8')) as {
       name: string
@@ -121,14 +121,14 @@ describe('MCP tool catalog synchronization', () => {
 
     await syncCatalog('write', root)
 
-    const catalog = JSON.parse(await readFile(join(root, generatedFiles[4]!), 'utf8')) as {
+    const catalog = JSON.parse(await readFile(join(root, generatedFiles[4]), 'utf8')) as {
       packageName: string
       packageVersion: string
-      tools: Array<{ name: string }>
+      tools: { name: string }[]
     }
-    const readme = await readFile(join(root, generatedFiles[1]!), 'utf8')
-    const llms = await readFile(join(root, generatedFiles[2]!), 'utf8')
-    const index = await readFile(join(root, generatedFiles[3]!), 'utf8')
+    const readme = await readFile(join(root, generatedFiles[1]), 'utf8')
+    const llms = await readFile(join(root, generatedFiles[2]), 'utf8')
+    const index = await readFile(join(root, generatedFiles[3]), 'utf8')
 
     expect(catalog.packageName).toBe('@example/archive-mcp')
     expect(catalog.packageVersion).toBe('0.0.0')
@@ -170,10 +170,10 @@ describe('MCP tool catalog synchronization', () => {
     const root = await createTemporaryWorkspace()
     await syncCatalog('write', root)
 
-    const llmsPath = join(root, generatedFiles[2]!)
+    const llmsPath = join(root, generatedFiles[2])
     const llms = await readFile(llmsPath, 'utf8')
     await writeFile(llmsPath, llms.replace(/(^- \*\*Features\*\*:\s*)\d+/m, (_match, prefix: string) => `${prefix}0`))
-    await writeFile(join(root, generatedFiles[4]!), '{"stale":true}\n')
+    await writeFile(join(root, generatedFiles[4]), '{"stale":true}\n')
     const beforeCheck = await snapshotGeneratedFiles(root)
 
     await expect(syncCatalog('check', root)).rejects.toThrow(/stale/i)
@@ -216,7 +216,7 @@ describe('MCP tool catalog synchronization', () => {
     const path = join(root, 'mcp/README.md')
     const original = await readFile(path, 'utf8')
 
-    const cases: Array<[string, string, RegExp]> = [
+    const cases: [string, string, RegExp][] = [
       ['npx --yes @example/archive-mcp@latest\n```', 'npx --no @example/archive-mcp@latest\n```', /Public beta.*command/i],
       ['"cmd",\n        "/c",\n        "npx",\n        "--yes",', '"cmd",\n        "/c",\n        "npx",\n        "--no",', /Kilo Code.*command/i],
       ['"args": ["--yes", "@example/archive-mcp@latest"]', '"args": ["--no", "@example/archive-mcp@latest"]', /Claude Desktop.*args/i],

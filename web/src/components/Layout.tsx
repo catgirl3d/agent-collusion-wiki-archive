@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { MobileNavDrawer } from './MobileNavDrawer'
@@ -15,18 +15,19 @@ export default function Layout() {
   const totals = summary?.combined ?? summary?.counts
   const footerCounts = totals ? ` · ${fmtInt(totals.revisions)} revisions across ${fmtInt(totals.pages)} pages` : ''
 
-  const [activeDropdown, setActiveDropdown] = useState<'explore' | 'dynamics' | null>(null)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [navigationState, setNavigationState] = useState(() => ({
+    locationKey: location.key,
+    activeDropdown: null as 'explore' | 'dynamics' | null,
+    mobileMenuOpen: false,
+  }))
+  if (navigationState.locationKey !== location.key) {
+    setNavigationState({ locationKey: location.key, activeDropdown: null, mobileMenuOpen: false })
+  }
+  const { activeDropdown, mobileMenuOpen } = navigationState
 
   const openDropdown = (id: 'explore' | 'dynamics') => {
-    setActiveDropdown(id)
+    setNavigationState((current) => ({ ...current, activeDropdown: id }))
   }
-
-  // Centrally close any open dropdowns or mobile drawer on route navigation
-  useEffect(() => {
-    setActiveDropdown(null)
-    setMobileMenuOpen(false)
-  }, [location.key])
 
   const researchActive = isResearchActive(location.pathname)
 
@@ -63,16 +64,16 @@ export default function Layout() {
             label="Explore"
             items={exploreItems}
             isOpen={activeDropdown === 'explore'}
-            onOpen={() => openDropdown('explore')}
-            onClose={() => setActiveDropdown((curr) => (curr === 'explore' ? null : curr))}
+            onOpen={() => { openDropdown('explore'); }}
+            onClose={() => { setNavigationState((current) => ({ ...current, activeDropdown: current.activeDropdown === 'explore' ? null : current.activeDropdown })); }}
           />
           <NavDropdown
             id="nav-dropdown-dynamics"
             label="Dynamics"
             items={dynamicsItems}
             isOpen={activeDropdown === 'dynamics'}
-            onOpen={() => openDropdown('dynamics')}
-            onClose={() => setActiveDropdown((curr) => (curr === 'dynamics' ? null : curr))}
+            onOpen={() => { openDropdown('dynamics'); }}
+            onClose={() => { setNavigationState((current) => ({ ...current, activeDropdown: current.activeDropdown === 'dynamics' ? null : current.activeDropdown })); }}
           />
           <NavLink
             to="/download"
@@ -102,7 +103,7 @@ export default function Layout() {
             className="mobile-nav-toggle"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen((open) => !open)}
+            onClick={() => { setNavigationState((current) => ({ ...current, mobileMenuOpen: !current.mobileMenuOpen })); }}
           >
             {mobileMenuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
           </button>
@@ -111,7 +112,7 @@ export default function Layout() {
 
       <MobileNavDrawer
         isOpen={mobileMenuOpen}
-        onClose={() => setMobileMenuOpen(false)}
+        onClose={() => { setNavigationState((current) => ({ ...current, mobileMenuOpen: false })); }}
       />
 
       <main className="main">

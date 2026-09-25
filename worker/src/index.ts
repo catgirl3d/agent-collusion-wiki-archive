@@ -16,12 +16,11 @@ import openApiDocument from './openapi.json'
  * search remains available per page through the revisions endpoint.
  */
 
-type Env = {
-  // biome-ignore lint/suspicious/noExplicitAny: wrangler injects ASSETS at runtime
-  ASSETS: any
+interface Env {
+  ASSETS: { fetch(request: Request): Promise<Response> }
 }
 
-type PageRecord = {
+interface PageRecord {
   id: string
   s?: string
   w: string
@@ -37,7 +36,7 @@ type PageRecord = {
   partial?: boolean
 }
 
-type LabelRecord = {
+interface LabelRecord {
   x: string
   r: number
   f: string
@@ -48,8 +47,8 @@ type LabelRecord = {
   pgs: string[]
 }
 
-type PayloadRecord = { s: string; id: string; u: string[]; f: string[] }
-type ConflictRecord = { id: string; s: string; churn: number; ttd_med_s: number | null; del: number; zzz: boolean; front: boolean }
+interface PayloadRecord { s: string; id: string; u: string[]; f: string[] }
+interface ConflictRecord { id: string; s: string; churn: number; ttd_med_s: number | null; del: number; zzz: boolean; front: boolean }
 
 const BODY_STOP_WORDS = new Set([
   'about', 'after', 'again', 'against', 'also', 'among', 'and', 'are', 'been', 'before',
@@ -214,7 +213,7 @@ export default {
       }
 
       // GET /api/pages/:slug/revisions — revisions of one page; pagination is mandatory.
-      const revMatch = url.pathname.match(/^\/api\/pages\/([^/]+)\/revisions$/)
+      const revMatch = /^\/api\/pages\/([^/]+)\/revisions$/.exec(url.pathname)
       if (revMatch) {
         const slug = decodeURIComponent(revMatch[1])
         if (!SLUG_RE.test(slug)) return err(400, 'invalid slug', 'invalid_slug')
@@ -245,11 +244,11 @@ export default {
           }
           throw e
         }
-        const labelFiltered = label ? revs.filter((r) => r['label'] === label) : revs
-        const seqFiltered = seq === null ? labelFiltered : labelFiltered.filter((r) => r['seq'] === seq)
+        const labelFiltered = label ? revs.filter((r) => r.label === label) : revs
+        const seqFiltered = seq === null ? labelFiltered : labelFiltered.filter((r) => r.seq === seq)
         const needle = containsParam !== null && contains.length > 0 ? contains.toLowerCase() : ''
         const filtered = needle
-          ? seqFiltered.filter((r) => typeof r['body'] === 'string' && r['body'].toLowerCase().includes(needle))
+          ? seqFiltered.filter((r) => typeof r.body === 'string' && r.body.toLowerCase().includes(needle))
           : seqFiltered
         const page = filtered.slice(offset, offset + limit)
         const out = withBody
@@ -270,7 +269,7 @@ export default {
       }
 
       // GET /api/pages/:slug — metadata of a single page.
-      const pageMatch = url.pathname.match(/^\/api\/pages\/([^/]+)$/)
+      const pageMatch = /^\/api\/pages\/([^/]+)$/.exec(url.pathname)
       if (pageMatch) {
         const slug = decodeURIComponent(pageMatch[1])
         if (!SLUG_RE.test(slug)) return err(400, 'invalid slug', 'invalid_slug')
@@ -310,7 +309,7 @@ export default {
       }
 
       // GET /api/agents/:name — details + full pgs (pointer to pages).
-      const agentMatch = url.pathname.match(/^\/api\/agents\/(.+)$/)
+      const agentMatch = /^\/api\/agents\/(.+)$/.exec(url.pathname)
       if (agentMatch) {
         const name = decodeURIComponent(agentMatch[1])
         if (!name || name.length > 200) return err(400, 'invalid agent name', 'invalid_param')
@@ -337,15 +336,15 @@ export default {
         const limit = clampInt(url.searchParams.get('limit'), 50, 1, 200)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
         const rows = events.filter((e) => {
-          if (type && e['type'] !== type) return false
-          if (act && e['act'] !== act) return false
-          if (wiki && e['wiki'] !== wiki) return false
-          const eventDay = typeof e['t'] === 'string' ? (e['t'] as string).slice(0, 10) : ''
+          if (type && e.type !== type) return false
+          if (act && e.act !== act) return false
+          if (wiki && e.wiki !== wiki) return false
+          const eventDay = typeof e.t === 'string' ? (e.t).slice(0, 10) : ''
           if (day && eventDay !== day) return false
           if (from && eventDay < from) return false
           if (to && eventDay > to) return false
           if (q) {
-            const hay = `${e['page'] ?? ''} ${e['action'] ?? ''} ${e['ip16'] ?? ''}`.toLowerCase()
+            const hay = `${e.page ?? ''} ${e.action ?? ''} ${e.ip16 ?? ''}`.toLowerCase()
             if (!hay.includes(q)) return false
           }
           return true
@@ -369,7 +368,7 @@ export default {
         if (tokens.length > 16) return err(400, 'too many query tokens (max 16)', 'too_many_tokens')
         const modeParam = url.searchParams.get('mode') || 'exact'
         if (modeParam !== 'exact' && modeParam !== 'prefix') return err(400, 'invalid mode', 'invalid_mode')
-        const mode = modeParam as 'exact' | 'prefix'
+        const mode = modeParam
         const wiki = url.searchParams.get('wiki') || ''
         const limit = clampInt(url.searchParams.get('limit'), 20, 1, 100)
         const offset = clampInt(url.searchParams.get('offset'), 0, 0, 100000)
@@ -377,7 +376,7 @@ export default {
           loadAsset<{ tokens: Record<string, number[]>; meta: { truncated_totals?: Record<string, number> } }>(env, req, '/data/fts_index.json'),
           loadAsset<{ p: PageRecord[] }>(env, req, '/data/pages.json'),
         ])
-        const postingSets: Array<Set<number>> = []
+        const postingSets: Set<number>[] = []
         const allKeys = mode === 'prefix' ? Object.keys(fts.tokens) : []
         let missing = 0
         let capped = false
@@ -394,7 +393,7 @@ export default {
           }
           postingSets.push(positions)
         }
-        let positions: Set<number> = new Set()
+        let positions = new Set<number>()
         if (postingSets.length) {
           positions = new Set(postingSets[0])
           for (const posting of postingSets.slice(1)) {
@@ -402,7 +401,7 @@ export default {
           }
           if (missing > 0) positions.clear()
         }
-        let rows = [...positions]
+        const rows = [...positions]
           .map((position) => pages.p[position])
           .filter((page): page is PageRecord => Boolean(page) && (!wiki || page.w === wiki))
           .map(pageView)
@@ -432,7 +431,7 @@ export default {
           if (id && page.id !== id) return false
           if (wiki && page.w !== wiki) return false
           return true
-        }).map(({ item, page }) => ({ ...pageView(page as PageRecord), u: item.u, f: item.f }))
+        }).map(({ item, page }) => ({ ...pageView(page!), u: item.u, f: item.f }))
         return json({ total: rows.length, limit, offset, pages: rows.slice(offset, offset + limit) })
       }
 
@@ -442,7 +441,7 @@ export default {
         if (!label) return err(400, 'missing ?label=', 'missing_param')
         const other = url.searchParams.get('other')
         if (other === null) {
-          const links = await loadAsset<Record<string, Array<Record<string, unknown>>>>(env, req, '/data/agent_links.json')
+          const links = await loadAsset<Record<string, Record<string, unknown>[]>>(env, req, '/data/agent_links.json')
           if (!Object.hasOwn(links, label)) return err(404, 'agent links not found', 'not_found')
           return json({ label, links: links[label] })
         }

@@ -6,12 +6,44 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const temporaryRoots: string[] = []
 
+interface ReleaseCheckResult {
+  tarballPath: string
+  integrity: string
+  packageName: string
+  packageVersion: string
+}
+
+interface ReleaseModule {
+  parseReleaseCheckOutput: (output: string) => ReleaseCheckResult
+  runRelease: (options?: {
+    runNpm?: (args: string[], options?: { cwd?: string; captureStdout?: boolean; stdio?: string }) => Promise<{ stdout: string }>
+    confirm?: (details: ReleaseCheckResult) => Promise<string>
+    confirmLogin?: () => Promise<boolean>
+  }) => Promise<{ published: boolean }>
+}
+
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 
-async function loadReleaseModule() {
-  return import('../scripts/release.mjs').catch(() => null)
+function isReleaseModule(value: unknown): value is ReleaseModule {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'parseReleaseCheckOutput' in value &&
+    typeof value.parseReleaseCheckOutput === 'function' &&
+    'runRelease' in value &&
+    typeof value.runRelease === 'function'
+  )
+}
+
+async function loadReleaseModule(): Promise<ReleaseModule | null> {
+  try {
+    const value: unknown = await import('../scripts/release.mjs')
+    return isReleaseModule(value) ? value : null
+  } catch {
+    return null
+  }
 }
 
 async function createCheckedTarball() {

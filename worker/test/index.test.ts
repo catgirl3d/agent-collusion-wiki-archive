@@ -9,6 +9,130 @@ import addFormats from 'ajv-formats'
 import { PAYLOAD_FLAGS, tokenizeBody } from '../src/index'
 
 type AssetValue = unknown | Response
+type UnknownRecord = Record<string, unknown>
+type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject
+interface JsonObject {
+  [key: string]: JsonValue
+}
+
+interface OpenApiParameter extends UnknownRecord {
+  $ref?: string
+  in?: string
+  name?: string
+  required?: boolean
+}
+
+interface OpenApiResponse extends UnknownRecord {
+  $ref?: string
+  content?: Record<string, { schema?: JsonObject | boolean }>
+}
+
+interface OpenApiOperation extends UnknownRecord {
+  description?: string
+  operationId?: string
+  parameters?: OpenApiParameter[]
+  responses?: Record<string, OpenApiResponse>
+}
+
+interface OpenApiDocument extends UnknownRecord {
+  openapi: string
+  info: { title: string; version: string }
+  servers: { url: string }[]
+  paths: Record<string, { get?: OpenApiOperation } & UnknownRecord>
+  components: {
+    responses: Record<string, OpenApiResponse>
+    schemas: Record<string, JsonObject | boolean>
+    parameters: Record<string, OpenApiParameter>
+  }
+  'x-data-assets': { path: string }[]
+}
+
+interface TokenCase {
+  text: string
+  tokens: string[]
+}
+
+interface TokenFixture {
+  cases: TokenCase[]
+}
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return true
+  if (Array.isArray(value)) return value.every(isJsonValue)
+  return isRecord(value) && Object.values(value).every(isJsonValue)
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return isRecord(value) && Object.values(value).every(isJsonValue)
+}
+
+function isOpenApiParameter(value: unknown): value is OpenApiParameter {
+  return isRecord(value)
+    && (value.$ref === undefined || typeof value.$ref === 'string')
+    && (value.in === undefined || typeof value.in === 'string')
+    && (value.name === undefined || typeof value.name === 'string')
+    && (value.required === undefined || typeof value.required === 'boolean')
+}
+
+function isResolvedOpenApiParameter(value: OpenApiParameter): value is OpenApiParameter & { in: string; name: string } {
+  return typeof value.in === 'string' && typeof value.name === 'string'
+}
+
+function isOpenApiResponse(value: unknown): value is OpenApiResponse {
+  if (!isRecord(value) || (value.$ref !== undefined && typeof value.$ref !== 'string')) return false
+  if (value.content === undefined) return true
+  if (!isRecord(value.content)) return false
+  return Object.values(value.content).every((mediaType) =>
+    isRecord(mediaType) && (mediaType.schema === undefined || typeof mediaType.schema === 'boolean' || isJsonObject(mediaType.schema)),
+  )
+}
+
+function isOpenApiOperation(value: unknown): value is OpenApiOperation {
+  if (!isRecord(value)) return false
+  if (value.description !== undefined && typeof value.description !== 'string') return false
+  if (value.operationId !== undefined && typeof value.operationId !== 'string') return false
+  if (value.parameters !== undefined && (!Array.isArray(value.parameters) || !value.parameters.every(isOpenApiParameter))) return false
+  return value.responses === undefined
+    || (isRecord(value.responses) && Object.values(value.responses).every(isOpenApiResponse))
+}
+
+function isOpenApiDocument(value: unknown): value is OpenApiDocument {
+  if (!isRecord(value) || typeof value.openapi !== 'string' || !isRecord(value.info)) return false
+  if (typeof value.info.title !== 'string' || typeof value.info.version !== 'string') return false
+  if (!Array.isArray(value.servers) || !value.servers.every((server) => isRecord(server) && typeof server.url === 'string')) return false
+  if (!isRecord(value.paths) || !isRecord(value.components)) return false
+
+  const components = value.components
+  if (!isRecord(components.responses) || !isRecord(components.schemas) || !isRecord(components.parameters)) return false
+  if (!Array.isArray(value['x-data-assets']) || !value['x-data-assets'].every((asset) => isRecord(asset) && typeof asset.path === 'string')) return false
+
+  return Object.values(value.paths).every((pathItem) =>
+    isRecord(pathItem) && isOpenApiOperation(pathItem.get),
+  )
+    && Object.values(components.responses).every(isOpenApiResponse)
+    && Object.values(components.schemas).every((schema) => typeof schema === 'boolean' || isJsonObject(schema))
+    && Object.values(components.parameters).every(isOpenApiParameter)
+}
+
+function isTokenCase(value: unknown): value is TokenCase {
+  return isRecord(value)
+    && typeof value.text === 'string'
+    && Array.isArray(value.tokens)
+    && value.tokens.every((token) => typeof token === 'string')
+}
+
+function isTokenFixture(value: unknown): value is TokenFixture {
+  return isRecord(value) && Array.isArray(value.cases) && value.cases.every(isTokenCase)
+}
+
+function records(value: unknown): UnknownRecord[] {
+  if (!Array.isArray(value) || !value.every(isRecord)) throw new Error('Expected an array of JSON objects')
+  return value
+}
 
 const pageOne = {
   id: 'wiki/Page One', s: 'Page_One~_h12345678', w: 'wiki', n: 'Page One', r: 3,
@@ -93,8 +217,8 @@ const responseAjv = new Ajv2020({
 })
 addFormats(responseAjv)
 
-function responseSchema(document: Record<string, any>, path: string, status: number) {
-  let response = document.paths[path]?.get?.responses?.[status]
+function responseSchema(document: OpenApiDocument, path: string, status: number) {
+  let response = document.paths[path].get?.responses?.[status]
   const responsePrefix = '#/components/responses/'
   if (typeof response?.$ref === 'string' && response.$ref.startsWith(responsePrefix)) {
     response = document.components.responses[response.$ref.slice(responsePrefix.length)]
@@ -102,7 +226,7 @@ function responseSchema(document: Record<string, any>, path: string, status: num
   const schema = response?.content?.['application/json']?.schema
   if (!schema) throw new Error(`missing documented JSON response schema for ${path} ${status}`)
 
-  const rewriteComponentRefs = (value: unknown): unknown => {
+  const rewriteComponentRefs = (value: JsonValue): JsonValue => {
     if (Array.isArray(value)) return value.map(rewriteComponentRefs)
     if (value === null || typeof value !== 'object') return value
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
@@ -110,14 +234,17 @@ function responseSchema(document: Record<string, any>, path: string, status: num
       key === '$ref' && typeof entry === 'string'
         ? entry.replace(/^#\/components\/schemas\//, '#/$defs/')
         : rewriteComponentRefs(entry),
-    ]))
+    ] as const))
   }
 
-  return responseAjv.compile(rewriteComponentRefs({
+  if (typeof schema === 'boolean') return responseAjv.compile(schema)
+  const rewrittenSchema = rewriteComponentRefs({
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $defs: document.components.schemas,
     ...schema,
-  }))
+  })
+  if (!isJsonObject(rewrittenSchema)) throw new Error(`invalid documented JSON response schema for ${path} ${String(status)}`)
+  return responseAjv.compile(rewrittenSchema)
 }
 
 const fts = {
@@ -173,7 +300,21 @@ async function request(path: string, init?: RequestInit, overrides: Record<strin
 }
 
 async function json(response: Response) {
-  return response.json() as Promise<Record<string, any>>
+  const value: unknown = await response.json()
+  if (!isRecord(value)) throw new Error('Expected a JSON object response')
+  return value
+}
+
+async function openApiDocument(response: Response): Promise<OpenApiDocument> {
+  const value: unknown = await response.json()
+  if (!isOpenApiDocument(value)) throw new Error('Expected a valid OpenAPI document')
+  return value
+}
+
+function parseJsonObject(text: string): UnknownRecord {
+  const value: unknown = JSON.parse(text)
+  if (!isRecord(value)) throw new Error('Expected a JSON object')
+  return value
 }
 
 describe('Worker API default fetch handler', () => {
@@ -203,14 +344,14 @@ describe('Worker API default fetch handler', () => {
     expect(health.response.headers.get('cache-control')).toBe('no-store')
 
     const openapi = await request('/api/openapi')
-    const body = await json(openapi.response)
+    const body = await openApiDocument(openapi.response)
     expect(body.openapi).toBe('3.1.0')
     expect(body.info).toMatchObject({ title: 'agent-collusion-archive', version: '0.1.0' })
     expect(body.servers).toEqual([{ url: 'https://agent-collusion.uk' }])
     expect(Object.keys(body.paths).sort()).toEqual([...expectedOpenApiPaths].sort())
 
     const operationIds = Object.fromEntries(
-      expectedOpenApiPaths.map((path) => [path, body.paths[path]?.get?.operationId]),
+      expectedOpenApiPaths.map((path) => [path, body.paths[path].get?.operationId]),
     )
     expect(operationIds).toEqual(expectedOperationIds)
     expect(new Set(Object.values(operationIds)).size).toBe(expectedOpenApiPaths.length)
@@ -220,13 +361,18 @@ describe('Worker API default fetch handler', () => {
       Object.keys(body.paths[path]).filter((method) => httpMethods.includes(method)).sort(),
     ]))).toEqual(Object.fromEntries(expectedOpenApiPaths.map((path) => [path, ['get']])))
 
-    const resolveParameter = (parameter: { $ref?: string }) => {
+    const resolveParameter = (parameter: OpenApiParameter) => {
       const prefix = '#/components/parameters/'
       return parameter.$ref?.startsWith(prefix)
         ? body.components.parameters[parameter.$ref.slice(prefix.length)]
         : parameter
     }
-    const parametersFor = (path: string) => (body.paths[path].get.parameters ?? []).map(resolveParameter)
+    const parametersFor = (path: string) => (body.paths[path].get?.parameters ?? [])
+      .map(resolveParameter)
+      .map((parameter) => {
+        if (!isResolvedOpenApiParameter(parameter)) throw new Error('Expected a resolved OpenAPI parameter')
+        return parameter
+      })
     const requiredParameters = Object.fromEntries(expectedOpenApiPaths.map((path) => {
       return [path, parametersFor(path)
         .filter((parameter: { required?: boolean }) => parameter.required)
@@ -252,12 +398,12 @@ describe('Worker API default fetch handler', () => {
     })
     const otherParameter = parametersFor('/api/links').find((parameter: { name: string }) => parameter.name === 'other')
     expect(otherParameter).toMatchObject({ name: 'other', in: 'query' })
-    expect(otherParameter.required).not.toBe(true)
+    expect(otherParameter?.required).not.toBe(true)
     expect(body).not.toHaveProperty('routes')
     expect(body).not.toHaveProperty('notes')
     expect(body).not.toHaveProperty('ftsBodies')
     expect(body).not.toHaveProperty('dataAssets')
-    expect(body['x-data-assets'].map((asset: { path: string }) => asset.path)).toEqual([
+    expect(body['x-data-assets'].map((asset) => asset.path)).toEqual([
       '/data/timeline.json',
       '/data/activity_by_day.json',
       '/data/activity_by_hour.json',
@@ -268,7 +414,7 @@ describe('Worker API default fetch handler', () => {
   })
 
   it('validates nullable and recovered events against the served response schema', async () => {
-    const contract = await json((await request('/api/openapi')).response)
+    const contract = await openApiDocument((await request('/api/openapi')).response)
     const event = {
       type: 'edit', act: '[Admin]', wiki: 'wiki', t: '2026-01-03T10:00:00Z', page: 'Page',
       action: null, ip16: null,
@@ -287,7 +433,7 @@ describe('Worker API default fetch handler', () => {
     expect(recoveredResult.response.status).toBe(200)
     const recoveredBody = await json(recoveredResult.response)
     expect(recoveredBody.events).toEqual([partialEvent])
-    expect(recoveredBody.events[0]).not.toHaveProperty('action')
+    expect(records(recoveredBody.events)[0]).not.toHaveProperty('action')
     expect(validateEvents(recoveredBody), JSON.stringify(validateEvents.errors)).toBe(true)
 
     expect(validateEvents({ ...fullBody, events: [{ ...event, action: 42 }] })).toBe(false)
@@ -295,7 +441,7 @@ describe('Worker API default fetch handler', () => {
   })
 
   it('documents and enforces the AgentLink object contract', async () => {
-    const contract = await json((await request('/api/openapi')).response)
+    const contract = await openApiDocument((await request('/api/openapi')).response)
     const schema = contract.components.schemas.AgentLink
     expect(schema).toMatchObject({
       type: 'object',
@@ -315,14 +461,18 @@ describe('Worker API default fetch handler', () => {
   })
 
   it('documents the deterministic conflicts sort order', async () => {
-    const contract = await json((await request('/api/openapi')).response)
-    expect(contract.paths['/api/conflicts'].get.description)
+    const contract = await openApiDocument((await request('/api/openapi')).response)
+    expect(contract.paths['/api/conflicts'].get?.description)
       .toContain('Sorted by churn descending, then deletions descending.')
   })
 
   it('declares every served contract root key in the OpenApiEnvelope schema', async () => {
-    const contract = await json((await request('/api/openapi')).response)
-    const declared = Object.keys(contract.components.schemas.OpenApiEnvelope.properties)
+    const contract = await openApiDocument((await request('/api/openapi')).response)
+    const envelope = contract.components.schemas.OpenApiEnvelope
+    if (!isRecord(envelope) || !isRecord(envelope.properties)) {
+      throw new Error('Expected OpenApiEnvelope to declare root properties')
+    }
+    const declared = Object.keys(envelope.properties)
 
     for (const key of Object.keys(contract)) {
       expect(declared, `root key ${key} is not declared in OpenApiEnvelope`).toContain(key)
@@ -369,8 +519,8 @@ describe('Worker API default fetch handler', () => {
   })
 
   it('validates real success responses for every documented operation', async () => {
-    const contract = await json((await request('/api/openapi')).response)
-    const publishedSummary = JSON.parse(readFileSync(new URL('../../data/processed/summary.json', import.meta.url), 'utf8'))
+    const contract = await openApiDocument((await request('/api/openapi')).response)
+    const publishedSummary = parseJsonObject(readFileSync(new URL('../../data/processed/summary.json', import.meta.url), 'utf8'))
     const fixtures = [
       { path: '/api/health', url: '/api/health' },
       { path: '/api/openapi', url: '/api/openapi' },
@@ -400,8 +550,8 @@ describe('Worker API default fetch handler', () => {
 
       if (fixture.path === '/api/pages/{slug}/revisions') {
         expect(body.withBody).toBe(false)
-        expect(body.revisions[0]).toMatchObject({ partial: true, added: ['recovered line'], removed: ['old line'] })
-        expect(body.revisions[0]).not.toHaveProperty('body')
+        expect(records(body.revisions)[0]).toMatchObject({ partial: true, added: ['recovered line'], removed: ['old line'] })
+        expect(records(body.revisions)[0]).not.toHaveProperty('body')
       }
     }
 
@@ -424,7 +574,7 @@ describe('Worker API default fetch handler', () => {
   })
 
   it('validates declared 400, 404, and asset-failure 500 responses', async () => {
-    const contract = await json((await request('/api/openapi')).response)
+    const contract = await openApiDocument((await request('/api/openapi')).response)
     const badRequest = await request('/api/search')
     expect(badRequest.response.status).toBe(400)
     const badRequestBody = await json(badRequest.response)
@@ -546,7 +696,7 @@ describe('Worker API default fetch handler', () => {
       id: partialPage.id, s: partialPage.s, w: partialPage.w, n: partialPage.n, r: partialPage.r, partial: true,
     }])
     const canonicalSearch = await request('/api/search?q=page')
-    expect((await json(canonicalSearch.response)).pages[0].partial).toBeUndefined()
+    expect(records((await json(canonicalSearch.response)).pages)[0].partial).toBeUndefined()
   })
 
   it('filters revisions, omits body, and paginates', async () => {
@@ -631,11 +781,11 @@ describe('Worker API default fetch handler', () => {
     const exact = await request('/api/fts?q=alpha')
     const exactBody = await json(exact.response)
     expect(exactBody).toMatchObject({ q: 'alpha', mode: 'exact', tokens: ['alpha'], truncated: false, total: 2 })
-    expect(exactBody.pages.map((page: any) => page.w)).toEqual(['wiki', 'other'])
+    expect(records(exactBody.pages).map((page) => page.w)).toEqual(['wiki', 'other'])
     const filtered = await request('/api/fts?q=alpha&wiki=other')
-    expect((await json(filtered.response)).pages.map((page: any) => page.id)).toEqual(['other/Notes'])
+    expect(records((await json(filtered.response)).pages).map((page) => page.id)).toEqual(['other/Notes'])
     const prefix = await request('/api/fts?q=alp&mode=prefix')
-    expect((await json(prefix.response)).pages.map((page: any) => page.id)).toEqual(['wiki/Deleted', 'wiki/Page One', 'other/Notes'])
+    expect(records((await json(prefix.response)).pages).map((page) => page.id)).toEqual(['wiki/Deleted', 'wiki/Page One', 'other/Notes'])
     const mixed = await request('/api/fts?q=alpha+unknown')
     expect(await json(mixed.response)).toMatchObject({ truncated: false, total: 0, pages: [] })
     const missing = await request('/api/fts?q=zzzmissingtoken')
@@ -725,12 +875,15 @@ describe('Worker API default fetch handler', () => {
     expect(body.q).toBe('NEEDLE')
     expect(body.contains).toBe('NEEDLE')
     expect(body.total).toBe(1)
-    expect(body.revisions[0]).toMatchObject({ label: 'Bob', snippet: expect.stringContaining('Needle appears here') })
-    expect(body.revisions[0].snippet).not.toMatch(/\s{2,}/)
+    const revisionWithoutBody = records(body.revisions)[0]
+    expect(revisionWithoutBody).toMatchObject({ label: 'Bob' })
+    expect(revisionWithoutBody.snippet).toContain('Needle appears here')
+    expect(revisionWithoutBody.snippet).not.toMatch(/\s{2,}/)
     const full = await request('/api/pages/Page_One~_h12345678/revisions?contains=NEEDLE&body=1')
     const fullBody = await json(full.response)
-    expect(fullBody.revisions[0]).toMatchObject({ body: expect.stringContaining('Needle   appears') })
-    expect(fullBody.revisions[0].snippet).toBeUndefined()
+    const revisionWithBody = records(fullBody.revisions)[0]
+    expect(revisionWithBody.body).toContain('Needle   appears')
+    expect(revisionWithBody.snippet).toBeUndefined()
     expect((await json((await request('/api/pages/Page_One~_h12345678/revisions?contains=')).response)).q).toBe('')
     const emptyContains = await json((await request('/api/pages/Page_One~_h12345678/revisions?contains=')).response)
     expect(emptyContains.contains).toBe('')
@@ -741,20 +894,20 @@ describe('Worker API default fetch handler', () => {
     const event = await request('/api/events?act=%5BAdmin1%5D&wiki=wiki')
     expect((await json(event.response)).total).toBe(1)
     const pages = await request('/api/agents?sort=pages')
-    expect((await json(pages.response)).agents[0].x).toBe('Alice')
+    expect(records((await json(pages.response)).agents)[0].x).toBe('Alice')
     const byName = await request('/api/agents?sort=name')
-    expect((await json(byName.response)).agents[0].x).toBe('Aaron')
+    expect(records((await json(byName.response)).agents)[0].x).toBe('Aaron')
     const stored = await request('/api/agents')
-    expect((await json(stored.response)).agents[0].x).toBe('Alice')
+    expect(records((await json(stored.response)).agents)[0].x).toBe('Alice')
     const fallback = await request('/api/agents?sort=unknown')
-    expect((await json(fallback.response)).agents[0].x).toBe('Alice')
+    expect(records((await json(fallback.response)).agents)[0].x).toBe('Alice')
   })
 
   it('filters events by inclusive from/to dates and validates bounds', async () => {
     const range = await request('/api/events?from=2026-01-03&to=2026-01-04')
     const ranged = await json(range.response)
     expect(ranged.total).toBe(2)
-    expect(ranged.events.map((event: { type: string }) => event.type)).toEqual(['edit', 'delete'])
+    expect(records(ranged.events).map((event) => event.type)).toEqual(['edit', 'delete'])
     const fromOnly = await request('/api/events?from=2026-01-04')
     expect((await json(fromOnly.response)).total).toBe(2)
     const toOnly = await request('/api/events?to=2026-01-03')
@@ -771,10 +924,12 @@ describe('Worker API default fetch handler', () => {
   })
 
   it('matches tokenizer golden fixture and advertises new routes', async () => {
-    const fixture = JSON.parse(readFileSync(new URL('../../data/validation/token_golden.json', import.meta.url), 'utf8'))
+    const fixtureValue: unknown = JSON.parse(readFileSync(new URL('../../data/validation/token_golden.json', import.meta.url), 'utf8'))
+    if (!isTokenFixture(fixtureValue)) throw new Error('Expected a valid tokenizer fixture')
+    const fixture = fixtureValue
     for (const testCase of fixture.cases) expect(tokenizeBody(testCase.text).sort()).toEqual(testCase.tokens.sort())
     const buildSource = readFileSync(new URL('../../data/scripts/build.py', import.meta.url), 'utf8')
-    const flagsLiteral = buildSource.match(/PAYLOAD_FLAGS = \(([^)]*)\)/)
+    const flagsLiteral = /PAYLOAD_FLAGS = \(([^)]*)\)/.exec(buildSource)
     expect(flagsLiteral).not.toBeNull()
     const buildFlags = [...(flagsLiteral?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((match) => match[1])
     expect(buildFlags).toEqual(PAYLOAD_FLAGS)

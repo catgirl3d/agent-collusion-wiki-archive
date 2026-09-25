@@ -11,11 +11,11 @@ import { MCP_TOOL_PRESENTATION } from '../../web/src/data/mcpToolPresentation.js
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const catalog = JSON.parse(
   readFileSync(join(repositoryRoot, 'web/src/data/mcp-tool-catalog.generated.json'), 'utf8'),
-) as { tools: Array<{ name: string }> }
+) as { tools: { name: string }[] }
 
 describe('MCP tool presentation examples', () => {
   it('accepts every generated tool example through MCP input validation', async () => {
-    const calls: Array<{ tool: string; args: unknown[] }> = []
+    const calls: { tool: string; args: unknown[] }[] = []
     const recordCall = (tool: string, ...args: unknown[]) => {
       calls.push({ tool, args })
       return Promise.resolve({ ok: true })

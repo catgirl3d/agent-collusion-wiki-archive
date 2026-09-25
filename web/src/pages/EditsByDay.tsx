@@ -26,7 +26,7 @@ export default function EditsByDay() {
     <div className="page">
       <h1>Edits by day <span className="muted">({fmtInt(days.length)} days)</span></h1>
       <div className="filters">
-        <input aria-label="Search dates" className="input" placeholder="Search YYYY-MM-DD…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input aria-label="Search dates" className="input" placeholder="Search YYYY-MM-DD…" value={query} onChange={(e) => { setQuery(e.target.value); }} />
         <ArchiveCalendar
           ariaLabel="Filter by day"
           placeholder="filter by day…"

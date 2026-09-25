@@ -111,7 +111,7 @@ export interface PatternSignals {
 }
 
 /** Single source of the observable-pattern chip labels shared by cards and the panel. */
-export const PATTERN_SIGNAL_LABELS: Array<{ key: keyof PatternSignals; label: string }> = [
+export const PATTERN_SIGNAL_LABELS: { key: keyof PatternSignals; label: string }[] = [
   { key: 'additive', label: 'additive/relay-like' },
   { key: 'destructive', label: 'destructive/overwrite-like' },
   { key: 'alternating', label: 'alternating' },
@@ -119,7 +119,7 @@ export const PATTERN_SIGNAL_LABELS: Array<{ key: keyof PatternSignals; label: st
 ]
 
 /** Returns `"<label> (<count>)"` chips for every non-zero signal, in fixed order. */
-export function formatPatternSignals(signals: PatternSignals): Array<{ key: keyof PatternSignals; label: string; count: number }> {
+export function formatPatternSignals(signals: PatternSignals): { key: keyof PatternSignals; label: string; count: number }[] {
   return PATTERN_SIGNAL_LABELS
     .map(({ key, label }) => ({ key, label, count: signals[key] }))
     .filter((chip) => chip.count > 0)
@@ -373,7 +373,7 @@ export function buildPairTimeline(revisions: Revision[], leftLabel: string, righ
       revIndex,
       seq: rev.seq ?? null,
       time: rev.time ?? null,
-      label: rev.label!,
+      label: rev.label,
       summary: rev.summary ?? null,
       len: rev.len ?? null,
       action: rev.action ?? null,
@@ -428,7 +428,8 @@ export function derivePairEvidence(
   }
   const artifactObservations: ArtifactObservation[] = []
   const pairObservations: PairObservation[] = []
-  const additions = new Map<string, Map<string, { count: number; firstEvent: number; refs: SharedObservationRef[]; statuses: SignatureStatus[]; artifact: TechnicalArtifact }>>()
+  interface ActorAddition { count: number; firstEvent: number; refs: SharedObservationRef[]; statuses: SignatureStatus[]; artifact: TechnicalArtifact }
+  const additions = new Map<string, Map<string, ActorAddition>>()
   const firstAdded = new Map<string, string>()
   const retained = new Set<string>()
   const retainedLabelsByKey = new Map<string, Set<string>>()
@@ -437,7 +438,7 @@ export function derivePairEvidence(
     const event = timeline.events[eventIndex]
     const after = getSet(event.revIndex)
     const isGenesis = event.revIndex === 0 && coverageStatus === 'complete'
-    const before = event.baselineIndex === null ? new Map() : getSet(event.baselineIndex)
+    const before = event.baselineIndex === null ? new Map<string, TechnicalArtifact>() : getSet(event.baselineIndex)
     const candidates = new Set([...after.keys(), ...before.keys()])
     for (const key of candidates) {
       const artifact = after.get(key) ?? before.get(key)!
@@ -451,14 +452,14 @@ export function derivePairEvidence(
         // first adder earns it. A same-actor re-add carries no status unless a third-party
         // revision removed the artifact in between.
         const isFirstAdder = firstAdded.get(key) === event.label
-        const afterThirdPartyRemoval = event.baselineLabel !== null && event.baselineLabel !== leftLabel && event.baselineLabel !== rightLabel && beforePresent === false
+        const afterThirdPartyRemoval = event.baselineLabel !== null && event.baselineLabel !== leftLabel && event.baselineLabel !== rightLabel && !beforePresent
         const status: SignatureStatus | null = eligibleAdd && firstAdded.has(key)
           ? (afterThirdPartyRemoval ? 're-added-after-third-party' : isFirstAdder ? null : 'second-actor-added')
           : isRetained ? 'retained' : null
         const observation: ArtifactObservation = { pageId, revIndex: event.revIndex, baselineIndex: event.baselineIndex, label: event.label, artifactType: artifact.artifactType, canonicalValue: artifact.canonicalValue, beforePresent, afterPresent, time: event.time, coverageStatus, extractorVersion: SIGNATURE_EXTRACTOR_VERSION, identity }
         artifactObservations.push(observation)
         if (eligibleAdd) {
-          const list = additions.get(key) ?? new Map()
+          const list = additions.get(key) ?? new Map<string, ActorAddition>()
           const actor = list.get(event.label) ?? { count: 0, firstEvent: eventIndex, refs: [], statuses: [], artifact }
           actor.count++
           actor.firstEvent = Math.min(actor.firstEvent, eventIndex)
@@ -714,7 +715,7 @@ export function getPayloadEvidence(body: string): { flags: string[]; snippets: P
   )
 
   const snippets: PayloadSnippet[] = []
-  const acceptedWindows: Array<{ start: number; end: number }> = []
+  const acceptedWindows: { start: number; end: number }[] = []
 
   for (const m of matches) {
     if (snippets.length >= 5) break

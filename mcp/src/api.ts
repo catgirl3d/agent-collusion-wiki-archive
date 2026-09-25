@@ -8,7 +8,7 @@ export const MAX_ERROR_MESSAGE_CHARS = 300
 
 type QueryValue = string | number | boolean | undefined
 
-export type PageListParams = {
+export interface PageListParams {
   q?: string
   wiki?: string
   fam?: string
@@ -19,14 +19,14 @@ export type PageListParams = {
   offset?: number
 }
 
-export type AgentListParams = {
+export interface AgentListParams {
   q?: string
   sort?: 'name' | 'r' | 'pages'
   limit?: number
   offset?: number
 }
 
-export type RevisionListParams = {
+export interface RevisionListParams {
   label?: string
   withBody?: boolean
   contains?: string
@@ -35,7 +35,7 @@ export type RevisionListParams = {
   offset?: number
 }
 
-export type EventListParams = {
+export interface EventListParams {
   type?: string
   day?: string
   q?: string
@@ -47,7 +47,7 @@ export type EventListParams = {
   offset?: number
 }
 
-export type SearchFtsParams = {
+export interface SearchFtsParams {
   q: string
   mode?: 'exact' | 'prefix'
   wiki?: string
@@ -55,7 +55,7 @@ export type SearchFtsParams = {
   offset?: number
 }
 
-export type SearchArtifactsParams = {
+export interface SearchArtifactsParams {
   flag?: string
   host?: string
   slug?: string
@@ -65,12 +65,12 @@ export type SearchArtifactsParams = {
   offset?: number
 }
 
-export type AgentLinksParams = {
+export interface AgentLinksParams {
   label: string
   other?: string
 }
 
-export type ConflictListParams = {
+export interface ConflictListParams {
   minChurn?: number
   zzz?: boolean
   front?: boolean
@@ -107,7 +107,7 @@ export class ArchiveApiError extends Error {
   }
 }
 
-export type ArchiveApiClientOptions = {
+export interface ArchiveApiClientOptions {
   baseUrl?: string
   fetchImpl?: typeof globalThis.fetch
   timeoutMs?: number
@@ -277,7 +277,7 @@ export class ArchiveApiClient implements ArchiveApi {
   }
 
   async listAgents(params: AgentListParams = {}): Promise<unknown> {
-    return this.request('/api/agents', params)
+    return this.request('/api/agents', { ...params })
   }
 
   async getAgent(name: string): Promise<unknown> {
@@ -285,7 +285,7 @@ export class ArchiveApiClient implements ArchiveApi {
   }
 
   async listPages(params: PageListParams = {}): Promise<unknown> {
-    return this.request('/api/pages', params)
+    return this.request('/api/pages', { ...params })
   }
 
   async getPage(slug: string): Promise<unknown> {
@@ -305,23 +305,23 @@ export class ArchiveApiClient implements ArchiveApi {
   }
 
   async listEvents(params: EventListParams = {}): Promise<unknown> {
-    return this.request('/api/events', params)
+    return this.request('/api/events', { ...params })
   }
 
   async searchFts(params: SearchFtsParams): Promise<unknown> {
-    return this.request('/api/fts', params)
+    return this.request('/api/fts', { ...params })
   }
 
   async searchArtifacts(params: SearchArtifactsParams = {}): Promise<unknown> {
-    return this.request('/api/artifacts', params)
+    return this.request('/api/artifacts', { ...params })
   }
 
   async getAgentLinks(params: AgentLinksParams): Promise<unknown> {
-    return this.request('/api/links', params)
+    return this.request('/api/links', { ...params })
   }
 
   async listConflicts(params: ConflictListParams = {}): Promise<unknown> {
-    return this.request('/api/conflicts', params)
+    return this.request('/api/conflicts', { ...params })
   }
 
   async getApiContract(): Promise<unknown> {
@@ -334,7 +334,7 @@ export class ArchiveApiClient implements ArchiveApi {
     const url = new URL(path, this.baseUrl)
     addQuery(url, params)
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
+    const timeout = setTimeout(() => { controller.abort(); }, this.timeoutMs)
 
     try {
       const response = await this.fetchImpl(url, {

@@ -34,7 +34,17 @@ function LocationProbe() {
 
 function HistoryBack() {
   const navigate = useNavigate()
-  return <button type="button" aria-label="go back" onClick={() => navigate(-1)} />
+  return (
+    <button
+      type="button"
+      aria-label="go back"
+      onClick={() => {
+        Promise.resolve(navigate(-1)).catch((error: unknown) => {
+          console.error('Timeline history navigation failed', error)
+        })
+      }}
+    />
+  )
 }
 
 function renderTimeline(entry = '/timeline') {
@@ -92,12 +102,12 @@ describe('Timeline', () => {
     expect(screen.getByLabelText('Filter by IP16')).toHaveValue('20')
 
     fireEvent.change(screen.getByLabelText('Filter by IP16'), { target: { value: '57' } })
-    await waitFor(() => expect(currentSearch().get('ip')).toBe('57'))
+    await waitFor(() => { expect(currentSearch().get('ip')).toBe('57'); })
     expect(await screen.findByText(/0 of 2 revisions/)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'PageB' })).toBeNull()
 
     fireEvent.change(screen.getByLabelText('Filter by IP16'), { target: { value: '' } })
-    await waitFor(() => expect(currentSearch().has('ip')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('ip')).toBe(false); })
     expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
   })
 
@@ -127,13 +137,13 @@ describe('Timeline', () => {
     expect(activeLabel).toHaveClass('btn', 'ghost', 'sm')
 
     fireEvent.click(screen.getByRole('button', { name: /AgentY/ }))
-    await waitFor(() => expect(currentSearch().get('label')).toBe('AgentY'))
+    await waitFor(() => { expect(currentSearch().get('label')).toBe('AgentY'); })
     expect(await screen.findByRole('link', { name: 'PageC' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'PageA' })).toBeNull()
     expect(screen.getByRole('button', { name: /AgentY/ })).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(screen.getByRole('button', { name: /AgentY/ }))
-    await waitFor(() => expect(currentSearch().has('label')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('label')).toBe(false); })
     expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
   })
 
@@ -152,7 +162,7 @@ describe('Timeline', () => {
     await screen.findByRole('link', { name: 'PageB' })
     expect(await screen.findByRole('link', { name: 'PageA' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: /dossier/ })).toBeNull()
-    await waitFor(() => expect(currentSearch().has('ip')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('ip')).toBe(false); })
   })
 
   it('expands the dossier label list past the top 12', async () => {
@@ -191,19 +201,19 @@ describe('Timeline', () => {
     expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageB')
 
     fireEvent.click(screen.getByRole('button', { name: 'Time' }))
-    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    await waitFor(() => { expect(currentSearch().get('sort')).toBe('time'); })
     expect(currentSearch().get('dir')).toBe('asc')
     expect(currentSearch().has('page')).toBe(false)
     expect(screen.getByRole('columnheader', { name: /Time/ })).toHaveAttribute('aria-sort', 'ascending')
     expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageA')
 
     fireEvent.click(screen.getByRole('button', { name: 'Time' }))
-    await waitFor(() => expect(currentSearch().has('sort')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('sort')).toBe(false); })
     expect(currentSearch().has('dir')).toBe(false)
     expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageB')
 
     fireEvent.click(screen.getByRole('button', { name: 'go back' }))
-    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    await waitFor(() => { expect(currentSearch().get('sort')).toBe('time'); })
     expect(currentSearch().get('dir')).toBe('asc')
     expect(screen.getByRole('columnheader', { name: /Time/ })).toHaveAttribute('aria-sort', 'ascending')
   })
@@ -214,12 +224,12 @@ describe('Timeline', () => {
 
     await screen.findByRole('link', { name: 'PageB' })
     fireEvent.click(screen.getByRole('button', { name: 'Len' }))
-    await waitFor(() => expect(currentSearch().get('sort')).toBe('len'))
+    await waitFor(() => { expect(currentSearch().get('sort')).toBe('len'); })
     expect(currentSearch().get('dir')).toBe('desc')
     expect(screen.getByRole('columnheader', { name: /Len/ })).toHaveAttribute('aria-sort', 'descending')
 
     fireEvent.click(screen.getByRole('button', { name: 'Len' }))
-    await waitFor(() => expect(currentSearch().get('dir')).toBe('asc'))
+    await waitFor(() => { expect(currentSearch().get('dir')).toBe('asc'); })
     expect(screen.getByRole('columnheader', { name: /Len/ })).toHaveAttribute('aria-sort', 'ascending')
     expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageA')
   })
@@ -229,7 +239,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?order=asc')
 
     await screen.findByRole('link', { name: 'PageA' })
-    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    await waitFor(() => { expect(currentSearch().get('sort')).toBe('time'); })
     expect(currentSearch().get('dir')).toBe('asc')
     expect(currentSearch().has('order')).toBe(false)
     expect(screen.getAllByRole('link', { name: /Page/ })[0]).toHaveTextContent('PageA')
@@ -240,7 +250,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?order=asc&page=3&label=AgentX')
 
     await screen.findByRole('link', { name: 'PageB' })
-    await waitFor(() => expect(currentSearch().get('sort')).toBe('time'))
+    await waitFor(() => { expect(currentSearch().get('sort')).toBe('time'); })
     expect(currentSearch().get('dir')).toBe('asc')
     expect(currentSearch().get('label')).toBe('AgentX')
     expect(currentSearch().has('order')).toBe(false)
@@ -252,7 +262,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?sort=len&dir=desc&order=asc')
 
     await screen.findByRole('link', { name: 'PageB' })
-    await waitFor(() => expect(currentSearch().has('order')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('order')).toBe(false); })
     expect(currentSearch().get('sort')).toBe('len')
     expect(currentSearch().get('dir')).toBe('desc')
   })
@@ -262,7 +272,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?sort=time&dir=desc&page=3')
 
     await screen.findByRole('link', { name: 'PageB' })
-    await waitFor(() => expect(currentSearch().has('sort')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('sort')).toBe(false); })
     expect(currentSearch().has('dir')).toBe(false)
     expect(currentSearch().get('page')).toBe('3')
   })
@@ -295,7 +305,7 @@ describe('Timeline', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter from date' })).not.toHaveTextContent('2026-06-19')
-    await waitFor(() => expect(currentSearch().get('day')).toBe('2026-06-20'))
+    await waitFor(() => { expect(currentSearch().get('day')).toBe('2026-06-20'); })
     expect(currentSearch().has('from')).toBe(false)
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
   })
@@ -309,7 +319,7 @@ describe('Timeline', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
-    await waitFor(() => expect(currentSearch().get('from')).toBe('2026-06-20'))
+    await waitFor(() => { expect(currentSearch().get('from')).toBe('2026-06-20'); })
     expect(currentSearch().has('day')).toBe(false)
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
   })
@@ -323,7 +333,7 @@ describe('Timeline', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter to date' })).toHaveTextContent('2026-06-20'))
     expect(screen.getByRole('button', { name: 'Filter by day' })).not.toHaveTextContent('2026-06-19')
-    await waitFor(() => expect(currentSearch().get('to')).toBe('2026-06-20'))
+    await waitFor(() => { expect(currentSearch().get('to')).toBe('2026-06-20'); })
     expect(currentSearch().has('day')).toBe(false)
     expect(await screen.findByRole('heading', { name: /2 of 2 revisions/ })).toBeInTheDocument()
   })
@@ -347,7 +357,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?day=2026-06-19&from=2026-06-20&page=3')
 
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
-    await waitFor(() => expect(currentSearch().get('day')).toBe('2026-06-19'))
+    await waitFor(() => { expect(currentSearch().get('day')).toBe('2026-06-19'); })
     expect(currentSearch().has('from')).toBe(false)
     expect(currentSearch().has('page')).toBe(false)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter by day' })).toHaveTextContent('2026-06-19'))
@@ -359,7 +369,7 @@ describe('Timeline', () => {
     renderTimeline('/timeline?from=2026-06-20&to=2026-06-19&page=2')
 
     expect(await screen.findByText(/1 of 2 revisions/)).toBeInTheDocument()
-    await waitFor(() => expect(currentSearch().get('from')).toBe('2026-06-20'))
+    await waitFor(() => { expect(currentSearch().get('from')).toBe('2026-06-20'); })
     expect(currentSearch().has('to')).toBe(false)
     expect(currentSearch().has('page')).toBe(false)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Filter from date' })).toHaveTextContent('2026-06-20'))
@@ -418,7 +428,7 @@ describe('Timeline', () => {
     stubArchiveData()
     renderTimeline('/timeline?src=invalid&page=2.5&sort=time&dir=desc')
     await screen.findByRole('link', { name: 'PageB' })
-    await waitFor(() => expect(currentSearch().has('src')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('src')).toBe(false); })
     expect(currentSearch().get('page')).toBe('2')
   })
 
@@ -426,7 +436,7 @@ describe('Timeline', () => {
     stubArchiveData()
     renderTimeline('/timeline?sort=time&dir=desc&page=3')
     await screen.findByRole('link', { name: 'PageB' })
-    await waitFor(() => expect(currentSearch().has('sort')).toBe(false))
+    await waitFor(() => { expect(currentSearch().has('sort')).toBe(false); })
     expect(currentSearch().get('page')).toBe('3')
   })
 

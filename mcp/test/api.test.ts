@@ -9,7 +9,7 @@ function hangingFetch() {
   return vi.fn(
     (_request: Request | URL | string, init?: RequestInit) =>
       new Promise<Response>((_, reject) => {
-        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        init?.signal?.addEventListener('abort', () => { reject(new DOMException('aborted', 'AbortError')); })
       }),
   )
 }
@@ -50,14 +50,14 @@ describe('ArchiveApiClient', () => {
   })
 
   it('uses GET and encodes path segments and query parameters', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(response({ ok: true }))
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response({ ok: true }))
     const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
 
     await api.getPageRevisions('Page /? #', { label: 'Агент & one', withBody: false, limit: 3, offset: 2 })
 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [request, init] = fetchImpl.mock.calls[0]
-    const url = new URL(String(request))
+    const url = new URL(request instanceof URL ? request.toString() : typeof request === 'string' ? request : request.url)
     expect(url.origin + url.pathname).toBe('https://archive.example/api/pages/Page%20%2F%3F%20%23/revisions')
     expect(Object.fromEntries(url.searchParams)).toEqual({
       label: 'Агент & one',
@@ -135,7 +135,7 @@ describe('ArchiveApiClient', () => {
       ok: false,
       status: 404,
       body: { cancel },
-    } as unknown as Response)
+    })
     const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
 
     await expect(api.getStats()).rejects.toEqual(new ArchiveApiError('Archive API returned HTTP 404', 404))
@@ -270,7 +270,7 @@ describe('ArchiveApiClient', () => {
       status: 200,
       headers: { get: (name: string) => (name === 'content-length' ? '2000001' : null) },
       body: { cancel },
-    } as unknown as Response)
+    })
     const api = new ArchiveApiClient({ baseUrl: 'https://archive.example', fetchImpl })
 
     await expect(api.getStats()).rejects.toEqual(

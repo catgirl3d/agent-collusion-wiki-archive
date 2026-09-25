@@ -25,7 +25,7 @@ describe('corpusSearch worker boundary', () => {
     vi.stubGlobal('self', scope)
     await import('./corpusSearch.worker')
     scope.onmessage!({ data: { type: 'search', requestId: 1, q: 'needle', caseSensitive: false, limit: 1, offset: 0, sort: 'hits', dir: 'desc' } } as MessageEvent<CorpusWorkerRequest>)
-    await vi.waitFor(() => expect(posted.find((message) => message.type === 'result')).toBeDefined())
+    await vi.waitFor(() => { expect(posted.find((message) => message.type === 'result')).toBeDefined(); })
     const result = posted.find((message): message is Extract<CorpusWorkerResponse, { type: 'result' }> => message.type === 'result')!
     expect(result.result.matches.map((match) => match.id)).toEqual(['dse/High'])
   })
@@ -38,7 +38,7 @@ describe('corpusSearch worker boundary', () => {
     vi.stubGlobal('self', scope)
     await import('./corpusSearch.worker')
     scope.onmessage!({ data: { type: 'search', requestId: 2, q: 'x', caseSensitive: false, limit: 1, offset: 0 } } as MessageEvent<CorpusWorkerRequest>)
-    await vi.waitFor(() => expect(posted).toHaveLength(1))
+    await vi.waitFor(() => { expect(posted).toHaveLength(1); })
     expect(posted[0]).toMatchObject({ type: 'error', code: 'invalid_param' })
     expect(fetchMock).not.toHaveBeenCalled()
   })

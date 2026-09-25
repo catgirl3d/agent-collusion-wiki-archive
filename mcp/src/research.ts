@@ -11,7 +11,7 @@ import {
   isGzip,
 } from './assets.js'
 
-export type SummaryCorpus = {
+export interface SummaryCorpus {
   path: string
   sha256: string
   compressed_bytes: number
@@ -20,7 +20,7 @@ export type SummaryCorpus = {
   revisions: number
 }
 
-export type Summary = {
+export interface Summary {
   export_generated_at?: string | null
   counts?: { revisions?: number }
   supplement?: { sha256?: string; counts?: { pages?: number; revisions?: number } }
@@ -28,7 +28,7 @@ export type Summary = {
   corpus?: SummaryCorpus
 }
 
-export type TimelineEntry = {
+export interface TimelineEntry {
   t: string
   w: string
   id: string
@@ -41,12 +41,12 @@ export type TimelineEntry = {
   partial?: boolean
 }
 
-export type TimelineFile = {
+export interface TimelineFile {
   meta: { schema_version: number; export_generated_at: string | null; count: number; order: string; supplement_count?: number }
   r: TimelineEntry[]
 }
 
-export type CorpusRecord = {
+export interface CorpusRecord {
   w: string
   id: string
   seq: number | null
@@ -55,9 +55,9 @@ export type CorpusRecord = {
   body: string
 }
 
-export type PageEntry = { id: string; s?: string; n: string }
+export interface PageEntry { id: string; s?: string; n: string }
 
-export type ActivityDay = {
+export interface ActivityDay {
   date: string
   wiki: string
   saves: number
@@ -68,9 +68,9 @@ export type ActivityDay = {
   rec?: number
 }
 
-export type ActivityHour = { hour: string; saves: number; rec?: number }
+export interface ActivityHour { hour: string; saves: number; rec?: number }
 
-export type CorpusMatch = {
+export interface CorpusMatch {
   w: string
   id: string
   s: string
@@ -136,12 +136,12 @@ function invalidRow(row: number): ArchiveDataError {
 function normalizeCorpusRecord(raw: unknown, row: number): CorpusRecord {
   if (typeof raw !== 'object' || raw === null) throw invalidRow(row)
   const value = raw as Record<string, unknown>
-  const id = value['page_id']
-  const wiki = value['wiki'] ?? (typeof id === 'string' ? id.split('/')[0] : undefined)
-  const seq = value['seq']
-  const time = value['write_date'] ?? value['time']
-  const label = value['label']
-  const body = value['body']
+  const id = value.page_id
+  const wiki = value.wiki ?? (typeof id === 'string' ? id.split('/')[0] : undefined)
+  const seq = value.seq
+  const time = value.write_date ?? value.time
+  const label = value.label
+  const body = value.body
   if (typeof id !== 'string' || !id) throw invalidRow(row)
   if (typeof wiki !== 'string' || !wiki) throw invalidRow(row)
   if (typeof time !== 'string' || !time) throw invalidRow(row)
@@ -238,7 +238,7 @@ export function snippetAround(body: string, index: number, length: number): stri
   return body.slice(start, end).replace(/\s+/g, ' ').trim()
 }
 
-export type ListRevisionsArgs = {
+export interface ListRevisionsArgs {
   label?: string
   wiki?: string
   id?: string
@@ -251,7 +251,7 @@ export type ListRevisionsArgs = {
   offset?: number
 }
 
-export type SearchCorpusArgs = {
+export interface SearchCorpusArgs {
   q: string
   wiki?: string
   label?: string
@@ -262,14 +262,14 @@ export type SearchCorpusArgs = {
   offset?: number
 }
 
-export type GetActivityArgs = {
+export interface GetActivityArgs {
   by: 'day' | 'hour'
   wiki?: string
   from?: string
   to?: string
 }
 
-export type ResearchApi = {
+export interface ResearchApi {
   listRevisions: (args: ListRevisionsArgs) => Promise<unknown>
   searchCorpus: (args: SearchCorpusArgs) => Promise<unknown>
   getActivity: (args: GetActivityArgs) => Promise<unknown>
@@ -277,7 +277,7 @@ export type ResearchApi = {
 
 export type AssetReader = Pick<ArchiveAssets, 'getJson' | 'getBytes'>
 
-type CacheEntry<T> = { version: string; value: T }
+interface CacheEntry<T> { version: string; value: T }
 
 function versionOf(summary: Summary): string {
   return `${summary.export_generated_at ?? ''}|${summary.corpus?.sha256 ?? ''}|${summary.supplement?.sha256 ?? ''}`

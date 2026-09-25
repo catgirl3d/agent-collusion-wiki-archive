@@ -192,14 +192,16 @@ function AgentGraph({
                       <Link to={`/agents?q=${encodeURIComponent(agent.o)}`} className="syndicate-agent-name mono">
                         {agent.o}
                       </Link>
-                      <span
-                        className="syndicate-shared-trigger"
-                        tabIndex={0}
-                        aria-label={`${sharedCount} shared ${sharedCount === 1 ? 'page' : 'pages'}`}
-                      >
-                        <Badge color="#38bdf8">
-                          {sharedCount} shared {sharedCount === 1 ? 'page' : 'pages'}
-                        </Badge>
+                      <span className="syndicate-shared-control">
+                        <button
+                          type="button"
+                          className="syndicate-shared-trigger"
+                          aria-label={`${sharedCount} shared ${sharedCount === 1 ? 'page' : 'pages'}`}
+                        >
+                          <Badge color="#38bdf8">
+                            {sharedCount} shared {sharedCount === 1 ? 'page' : 'pages'}
+                          </Badge>
+                        </button>
                         <span className="syndicate-shared-pop" role="tooltip">
                           <span className="syndicate-shared-pop-title muted text-xs">
                             shared pages
@@ -246,7 +248,7 @@ function AgentGraph({
                         size="sm"
                         variant={isSelected ? 'primary' : 'ghost'}
                         aria-pressed={isSelected}
-                        onClick={() => onSelectPair(agent.o)}
+                        onClick={() => { onSelectPair(agent.o); }}
                       >
                         Pair evidence
                       </Button>
@@ -308,7 +310,9 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   const canonicalId = resolved && resolved.id !== decoded ? resolved.id : null
   useEffect(() => {
     if (canonicalId) {
-      navigate('/page/' + encodeURIComponent(canonicalId) + '?' + searchParams.toString(), { replace: true })
+      Promise.resolve(navigate('/page/' + encodeURIComponent(canonicalId) + '?' + searchParams.toString(), { replace: true })).catch((error: unknown) => {
+        console.error('Unable to navigate to the canonical page URL', error)
+      })
     }
   }, [canonicalId, navigate, searchParams])
 
@@ -393,7 +397,9 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     if (!lookupId || !shared.some((entry) => entry.id === lookupId)) {
       const target = shared.find((entry) => entry.page !== null)
       if (target) {
-        navigate('/page/' + encodeURIComponent(target.id) + '?' + next.toString())
+        Promise.resolve(navigate('/page/' + encodeURIComponent(target.id) + '?' + next.toString())).catch((error: unknown) => {
+          console.error('Unable to navigate to the shared page', error)
+        })
         return
       }
     }
@@ -462,7 +468,16 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
 
   return (
     <div className="page">
-      <Button variant="ghost" onClick={() => (canGoBack ? navigate(-1) : navigate('/pages'))}>← back</Button>
+      <Button
+        variant="ghost"
+        onClick={() => {
+          Promise.resolve(canGoBack ? navigate(-1) : navigate('/pages')).catch((error: unknown) => {
+            console.error('Unable to navigate back from the page detail', error)
+          })
+        }}
+      >
+        ← back
+      </Button>
       <h1 className="mono">{decoded}</h1>
       {meta && (
         <p className="muted">
@@ -485,7 +500,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         </div>
       )}
       {payload && payload.f.length > 0 && (
-        <details className="payload-evidence" onToggle={(event) => setEvidenceOpen(event.currentTarget.open)}>
+        <details className="payload-evidence" onToggle={(event) => { setEvidenceOpen(event.currentTarget.open); }}>
           <summary>What matched these flags?</summary>
           {evidenceOpen && evidence && (evidence.entries.length ? (
             payload.f.map((flag) => {
@@ -499,7 +514,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                         <div key={`${entry.flag}-${entry.revIndex}-${entryIndex}`}>
                           <div className="payload-evidence-meta muted text-sm">
                             <span>#{entry.revIndex + 1} {fmtTime(entry.time)}</span>{entry.label && <span> · {entry.label}</span>}
-                            <Button variant="ghost" size="sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => openRevision(entry.revIndex)}>open revision</Button>
+                            <Button variant="ghost" size="sm" aria-label={`Open revision #${entry.revIndex + 1}`} onClick={() => { openRevision(entry.revIndex); }}>open revision</Button>
                           </div>
                           <pre className="pair-snippet" data-flag={flag}>{highlightMatches(entry.text).map((segment, segmentIndex) => segment.flag ? <mark key={segmentIndex} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={segmentIndex}>{segment.text}</span>)}</pre>
                         </div>
@@ -533,7 +548,9 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
           timeline={pairTimeline}
           onClose={handleClosePair}
           onOpenPageInPageDetail={(pageId) => {
-            navigate('/page/' + encodeURIComponent(pageId) + '?' + setPair(searchParams, pair.a, pair.b, { keepPage: true }).toString())
+            Promise.resolve(navigate('/page/' + encodeURIComponent(pageId) + '?' + setPair(searchParams, pair.a, pair.b, { keepPage: true }).toString())).catch((error: unknown) => {
+              console.error('Unable to navigate to the selected page', error)
+            })
           }}
           sourceMode="page"
         />
@@ -542,9 +559,9 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
       <Card as="section">
         <h2>Compare revisions</h2>
         <div className="filters">
-          <Dropdown ariaLabel="Compare from revision" value={from} options={revisionOptions} onChange={(value) => setSel({ from: value, to })} />
+          <Dropdown ariaLabel="Compare from revision" value={from} options={revisionOptions} onChange={(value) => { setSel({ from: value, to }); }} />
           <span className="muted">→</span>
-          <Dropdown ariaLabel="Compare to revision" value={to} options={revisionOptions} onChange={(value) => setSel({ from, to: value })} />
+          <Dropdown ariaLabel="Compare to revision" value={to} options={revisionOptions} onChange={(value) => { setSel({ from, to: value }); }} />
         </div>
         {revs[from] && revs[to] && (revs[from].partial || revs[to].partial)
           ? <p className="muted">Recovered partial revision — full body not retained</p>
@@ -574,7 +591,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                   variant="ghost"
                   size="sm"
                   style={{ marginLeft: 'auto' }}
-                  onClick={() => toggleExpand(i)}
+                  onClick={() => { toggleExpand(i); }}
                 >
                   {r.partial ? (open ? 'hide diff' : 'view diff') : (open ? 'hide body' : 'view body')}
                 </Button>
@@ -596,7 +613,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
         <LoadMore
           loaded={visibleRevisions.length}
           total={revs.length}
-          onLoadMore={() => setRevLimit((prev) => prev + REVISIONS_PER_PAGE)}
+          onLoadMore={() => { setRevLimit((prev) => prev + REVISIONS_PER_PAGE); }}
           step={REVISIONS_PER_PAGE}
           unit="remaining"
           action="Load older revisions"
