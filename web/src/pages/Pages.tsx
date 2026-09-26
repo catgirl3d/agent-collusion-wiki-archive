@@ -16,12 +16,10 @@ import {
 } from '../utils/format'
 import type { SourceFilter } from '../utils/format'
 import { downloadBlob } from '../utils/download'
-import { PAYLOAD_FLAG_COLORS } from '../utils/payload'
+import { PAYLOAD_FLAG_COLORS, PAYLOAD_FLAG_ORDER } from '../utils/payload'
 import { lookupTokenPostings } from '../utils/search'
 
 const PAGE_LIMIT = 50
-
-const PAYLOAD_FLAGS_ORDER = ['b64', 'hex', 'script', 'inject', 'homoglyph', 'high-entropy', 'tunnel', 'redirect', 'proxy', 'callback', 'exec', 'data-uri', 'beacon', 'traversal'] as const
 
 export default function Pages() {
   const { data, error, loading } = useData<PagesIndex>('pages.json')
@@ -150,7 +148,7 @@ export default function Pages() {
           ariaLabel="Filter by payload flag"
           options={[
             { value: '', label: 'all payload flags' },
-            ...PAYLOAD_FLAGS_ORDER.map((flag) => ({
+            ...PAYLOAD_FLAG_ORDER.map((flag) => ({
               value: flag,
               label: `${flag} (${String(data.p.filter((p) => (payloadByPage.get(p.id) ?? []).includes(flag)).length)})`,
             })),
@@ -218,7 +216,7 @@ export default function Pages() {
                 </td>
                 <td className="payload-cell">
                   {flags.length > 0
-                    ? PAYLOAD_FLAGS_ORDER.filter((flag) => flags.includes(flag)).map((flag) => (
+                    ? PAYLOAD_FLAG_ORDER.filter((flag) => flags.includes(flag)).map((flag) => (
                         <Badge key={flag} color={PAYLOAD_FLAG_COLORS[flag]}>{flag}</Badge>
                       ))
                     : <span className="muted">—</span>}
