@@ -11,7 +11,8 @@
     "typecheck": "tsc -b",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage --pool=threads --maxWorkers=1"
+    "test:coverage": "vitest run --coverage --pool=threads --maxWorkers=1",
+    "payload:parity": "node scripts/payload-parity.mjs"
   },
   "dependencies": {
     "cytoscape": "^3.34.2",
