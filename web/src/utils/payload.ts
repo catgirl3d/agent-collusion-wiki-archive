@@ -1,14 +1,12 @@
-// Mirrors data/scripts/build.py: detect_payload_flags for the shared flag set and case semantics
-// (script/inject/tunnel/redirect/proxy/callback/exec/data-uri are case-insensitive and matched against
-// the raw body, so every match offset indexes the original string; hex stays lowercase-only;
-// homoglyph = words mixing latin and cyrillic).
-// Known divergence: Python derives tunnel/redirect/proxy/callback only from parsed URL hosts (and,
-// for callback, parsed URL paths), while this scanner also flags bare service mentions in body text.
+// Shared flag rules follow data/scripts/build.py: detect_payload_flags; script/inject/tunnel/redirect/
+// proxy/callback/exec/data-uri are case-insensitive, hex stays lowercase-only, and homoglyph means
+// words mixing latin and cyrillic. Accepted divergences: web applies build_payload_index's standalone
+// high-entropy gate to one body, and raw tunnel/redirect mentions match without a parsed URL host.
 const BASE64_RE = /[A-Za-z0-9+/]{80,}={0,2}/g
-const HEX_RE = /(?:0x[0-9a-f]+|[0-9a-f]{64,})/g
-const SCRIPT_RE = /<script\b|onerror\s*=|javascript:/gi
-const INJECT_RE = /system:|ignore previous|reproducible bypass/gi
-const TUNNEL_RE = /(?:pinggy|serveo|serveousercontent|localhost\.run|localtunnel|ngrok-free\.app|ngrok\.app|trycloudflare|bore\.pub|tunnelmole|devtunnels\.ms|zrok\.io)/gi
+const HEX_RE = /(?:0x[0-9a-f]{2,}|[0-9a-f]{64,})/g
+const SCRIPT_RE = /<script|onerror=|javascript:/gi
+const INJECT_RE = /ignore previous|reproducible bypass/gi
+const TUNNEL_RE = /(?:pinggy|serveo|serveousercontent|localhost\.run|localtunnel|loca\.lt|ngrok-free\.app|ngrok\.app|trycloudflare|bore\.pub|tunnelmole|devtunnels\.ms|zrok\.io)/gi
 const REDIRECT_RE = /(?:markdown\.new|r\.jina\.ai|pure\.md)/gi
 const TRAVERSAL_RE = /\.\.(?:%2f|%252f)/gi
 const ATOB_RE = /\b(?:window\.)?atob\s*\(|\bbtoa\s*\(/gi
@@ -40,7 +38,15 @@ const URL_TRIM_CHARS = '.,;:!?)"]'
 const LATIN_RE = /[A-Za-z]/
 const CYRILLIC_RE = /[\u0400-\u04ff]/
 
+export const PAYLOAD_FLAG_ORDER = [
+  'b64', 'hex', 'script', 'inject', 'homoglyph', 'high-entropy', 'tunnel', 'redirect',
+  'proxy', 'callback', 'exec', 'data-uri', 'beacon', 'traversal',
+] as const
+
 export function validBase64(value: string): boolean {
+  // Python's b64decode requires complete quartets; atob() silently accepts missing
+  // padding, so reject unpadded tokens here to keep the web verdict aligned.
+  if (value.length % 4 !== 0) return false
   try {
     const decoded = atob(value)
     // Count printable ASCII in a loop: spreading a large decoded string into an array
@@ -50,7 +56,7 @@ export function validBase64(value: string): boolean {
       const code = decoded.charCodeAt(i)
       if (code >= 32 && code <= 126) printable++
     }
-    return decoded.length > 0 && printable / decoded.length > 0.8
+    return decoded.length > 0 && printable / decoded.length >= 0.8
   } catch {
     return false
   }
@@ -82,8 +88,6 @@ const CALLBACK_HOSTS = [
 ]
 const BEACON_HOSTS = ['counterapi.dev']
 
-type ServiceFlag = 'proxy' | 'callback' | 'beacon'
-
 function serviceHostMatches(host: string, indicator: string): boolean {
   return host === indicator || host.endsWith(`.${indicator}`)
 }
@@ -94,27 +98,34 @@ function trimUrl(value: string): string {
   return trimmed
 }
 
-function serviceMatches(body: string, flag: ServiceFlag): PayloadMatch[] {
-  const indicators = flag === 'proxy' ? PROXY_HOSTS : flag === 'callback' ? CALLBACK_HOSTS : BEACON_HOSTS
-  const matches: PayloadMatch[] = []
+function serviceMatches(body: string, activeFlags?: Set<string>): PayloadMatch[] {
+  const wantedProxy = !activeFlags || activeFlags.has('proxy')
+  const wantedCallback = !activeFlags || activeFlags.has('callback')
+  const wantedBeacon = !activeFlags || activeFlags.has('beacon')
+  if (!wantedProxy && !wantedCallback && !wantedBeacon) return []
+  const proxyMatches: PayloadMatch[] = []
+  const callbackMatches: PayloadMatch[] = []
+  const beaconMatches: PayloadMatch[] = []
   for (const match of body.matchAll(URL_RE)) {
     const rawUrl = trimUrl(match[0])
     let parsed: URL
     try { parsed = new URL(rawUrl) } catch { continue }
     const host = parsed.hostname.toLowerCase().replace(/^www\./, '')
-    const indicator = indicators.find((candidate) => serviceHostMatches(host, candidate))
-    if (!indicator) continue
-    if (flag === 'callback') {
+    const proxy = wantedProxy ? PROXY_HOSTS.find((candidate) => serviceHostMatches(host, candidate)) : undefined
+    const beacon = wantedBeacon ? BEACON_HOSTS.find((candidate) => serviceHostMatches(host, candidate)) : undefined
+    const callback = wantedCallback ? CALLBACK_HOSTS.find((candidate) => serviceHostMatches(host, candidate)) : undefined
+    let callbackValid = false
+    if (callback) {
       const path = parsed.pathname || '/'
-      const validPath = indicator === 'discord.com'
+      callbackValid = callback === 'discord.com'
         ? path.startsWith('/api/webhooks')
-        : indicator === 'hooks.slack.com'
+        : callback === 'hooks.slack.com'
           ? path.startsWith('/services')
-          : indicator === 'api.telegram.org'
+          : callback === 'api.telegram.org'
             ? /^\/(?:file\/)?bot\d/.test(path)
             : true
-      if (!validPath) continue
     }
+    if (!proxy && !callbackValid && !beacon) continue
     const schemeEnd = rawUrl.indexOf('://')
     const authorityStart = schemeEnd + 3
     const relativeAuthorityEnd = rawUrl.slice(authorityStart).search(/[/?#]/)
@@ -124,43 +135,55 @@ function serviceMatches(body: string, flag: ServiceFlag): PayloadMatch[] {
     const rawHost = hostWithPort.replace(/:\d+$/, '')
     const hostStart = match.index + authorityStart + authority.lastIndexOf('@') + 1
     const hostEnd = hostStart + rawHost.length
-    matches.push({ start: hostStart, end: hostEnd, flag })
+    if (proxy) proxyMatches.push({ start: hostStart, end: hostEnd, flag: 'proxy' })
+    if (callbackValid) callbackMatches.push({ start: hostStart, end: hostEnd, flag: 'callback' })
+    if (beacon) beaconMatches.push({ start: hostStart, end: hostEnd, flag: 'beacon' })
   }
-  return matches
+  return [...proxyMatches, ...callbackMatches, ...beaconMatches]
 }
 
 interface PercentDecoded {
   text: string
-  starts: number[]
-  ends: number[]
+  rawIndex: (decodedIndex: number) => number
 }
 
 function decodePercentOne(value: string): PercentDecoded {
+  if (!value.includes('%')) return { text: value, rawIndex: (index) => index }
   let text = ''
-  const starts: number[] = []
-  const ends: number[] = []
-  for (let index = 0; index < value.length; index++) {
+  const escapePositions: number[] = []
+  let index = 0
+  while (index < value.length) {
     const escape = value.slice(index, index + 3)
     if (/^%[0-9a-f]{2}$/i.test(escape)) {
+      escapePositions.push(text.length)
       text += String.fromCharCode(Number.parseInt(escape.slice(1), 16))
-      starts.push(index)
-      ends.push(index + 3)
-      index += 2
+      index += 3
     } else {
       text += value[index]
-      starts.push(index)
-      ends.push(index + 1)
+      index += 1
     }
   }
-  return { text, starts, ends }
+  // Each escape consumes 3 raw chars for 1 decoded char, so the raw offset is the decoded
+  // index plus two per escape passed. Storing only escape positions avoids the old
+  // per-character starts/ends arrays that dominated large-body detection cost.
+  const rawIndex = (decodedIndex: number): number => {
+    let low = 0
+    let high = escapePositions.length
+    while (low < high) {
+      const mid = (low + high) >> 1
+      if (escapePositions[mid] < decodedIndex) low = mid + 1
+      else high = mid
+    }
+    return decodedIndex + 2 * low
+  }
+  return { text, rawIndex }
 }
 
 function rawRange(decoded: PercentDecoded, start: number, end: number): [number, number] {
-  return [decoded.starts[start] ?? start, decoded.ends[end - 1] ?? end]
+  return [decoded.rawIndex(start), decoded.rawIndex(end)]
 }
 
-function encodedDataUriMatches(body: string, flag: string): PayloadMatch[] {
-  const decoded = decodePercentOne(body)
+function encodedDataUriMatches(decoded: PercentDecoded, flag: string): PayloadMatch[] {
   const matches: PayloadMatch[] = []
   for (const match of decoded.text.matchAll(DATA_URI_RE)) {
     const [start, end] = rawRange(decoded, match.index, match.index + match[0].length)
@@ -169,9 +192,8 @@ function encodedDataUriMatches(body: string, flag: string): PayloadMatch[] {
   return matches
 }
 
-function carrierMatches(body: string): PayloadMatch[] {
+function carrierMatches(body: string, decoded: PercentDecoded): PayloadMatch[] {
   const matches: PayloadMatch[] = []
-  const decoded = decodePercentOne(body)
   for (const match of decoded.text.matchAll(JSON_DATA_RE)) {
     if (!validCarrierBase64(match[1])) continue
     const valueStart = match.index + match[0].length - match[1].length
@@ -179,12 +201,12 @@ function carrierMatches(body: string): PayloadMatch[] {
     matches.push({ start, end, flag: 'b64' })
   }
   for (const match of body.matchAll(URL_RE)) {
-    const rawUrl = match[0].replace(new RegExp(`[${URL_TRIM_CHARS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]+$`), '')
+    const rawUrl = trimUrl(match[0])
     let parsed: URL
     try { parsed = new URL(rawUrl) } catch { continue }
     const host = parsed.hostname.toLowerCase().replace(/^www\./, '')
     const path = /^\/base64\/([^/]+)$/.exec(parsed.pathname)
-    if (host !== 'httpbin.org' || !path || !validCarrierBase64(path[1])) continue
+    if (host !== 'httpbin.org' || !path || !validCarrierBase64(decodePercentOne(path[1]).text)) continue
     const urlStart = match.index
     const blobStart = urlStart + rawUrl.lastIndexOf('/base64/') + '/base64/'.length
     matches.push({ start: blobStart, end: blobStart + path[1].length, flag: 'b64' })
@@ -271,9 +293,7 @@ export function extractTechnicalArtifacts(body: string): TechnicalArtifact[] {
   for (const match of scanPayloadMatches(body, new Set(['inject']))) {
     if (match.flag !== 'inject') continue
     const marker = body.slice(match.start, match.end).toLowerCase()
-    // `system:` is intentionally excluded from prompt artifacts: corpus evidence shows it is
-    // dominated by non-instruction text (e.g. "task/system:" log lines), while the inject flag
-    // still reports it for triage.
+    // Only explicit high-signal prompt markers are emitted as prompt artifacts.
     if (marker === 'ignore previous' || marker === 'reproducible bypass') {
       artifacts.set(`prompt:${marker}`, { artifactType: 'prompt', canonicalValue: marker })
     }
@@ -282,11 +302,9 @@ export function extractTechnicalArtifacts(body: string): TechnicalArtifact[] {
 }
 
 /**
- * Single source of truth for flag-to-match scanning: rule regexes, case semantics
- * (script/inject/tunnel/redirect are case-insensitive over the raw body) and Base64
- * validation — mirrors data/scripts/build.py detect_payload_flags. Callers must pass
- * activeFlags to restrict which rules produce matches. Every reported offset indexes
- * the passed body, so callers can slice it directly.
+ * Single source of truth for flag-to-match scanning; detectPayloadFlags derives its verdicts
+ * from these matches. Callers may pass activeFlags to restrict which rules produce matches.
+ * Every reported offset indexes the passed body, so callers can slice it directly.
  */
 export function scanPayloadMatches(body: string, activeFlags?: Set<string>): PayloadMatch[] {
   const matches: PayloadMatch[] = []
@@ -307,11 +325,19 @@ export function scanPayloadMatches(body: string, activeFlags?: Set<string>): Pay
       matches.push({ start: match.index, end: match.index + match[0].length, flag })
     }
   }
-  for (const flag of ['proxy', 'callback', 'beacon'] as const) {
-    if (!activeFlags || activeFlags.has(flag)) matches.push(...serviceMatches(body, flag))
+  if (!activeFlags || activeFlags.has('b64')) {
+    ATOB_RE.lastIndex = 0
+    for (const match of body.matchAll(ATOB_RE)) {
+      matches.push({ start: match.index, end: match.index + match[0].length, flag: 'b64' })
+    }
   }
-  if (!activeFlags || activeFlags.has('b64')) matches.push(...carrierMatches(body))
-  if (!activeFlags || activeFlags.has('data-uri')) matches.push(...encodedDataUriMatches(body, 'data-uri'))
+  matches.push(...serviceMatches(body, activeFlags))
+  const needsDecodedText = !activeFlags || activeFlags.has('b64') || activeFlags.has('data-uri')
+  if (needsDecodedText) {
+    const decoded = decodePercentOne(body)
+    if (!activeFlags || activeFlags.has('b64')) matches.push(...carrierMatches(body, decoded))
+    if (!activeFlags || activeFlags.has('data-uri')) matches.push(...encodedDataUriMatches(decoded, 'data-uri'))
+  }
   for (const re of EXEC_RES) {
     if (activeFlags && !activeFlags.has('exec')) continue
     re.lastIndex = 0
@@ -333,7 +359,8 @@ export function scanPayloadMatches(body: string, activeFlags?: Set<string>): Pay
     const idx = match.index
     if (checkHomoglyph && LATIN_RE.test(word) && CYRILLIC_RE.test(word)) {
       matches.push({ start: idx, end: idx + word.length, flag: 'homoglyph' })
-    } else if (checkEntropy && word.length >= 200 && shannonEntropy(word) > 4.5) {
+    }
+    if (checkEntropy && countCodePoints(word) >= 200 && shannonEntropy(word) > 4.5) {
       matches.push({ start: idx, end: idx + word.length, flag: 'high-entropy' })
     }
   }
@@ -353,15 +380,25 @@ function testRegex(re: RegExp, value: string): boolean {
   return matched
 }
 
-function hasMatch(body: string, re: RegExp): boolean {
-  return testRegex(re, body)
+function countCodePoints(value: string): number {
+  let count = 0
+  let index = 0
+  while (index < value.length) {
+    const code = value.codePointAt(index) ?? 0
+    index += code > 0xffff ? 2 : 1
+    count += 1
+  }
+  return count
 }
 
 export function shannonEntropy(s: string): number {
   if (!s) return 0
   const counts = new Map<string, number>()
-  for (const ch of s) counts.set(ch, (counts.get(ch) ?? 0) + 1)
-  const n = s.length
+  let n = 0
+  for (const ch of s) {
+    counts.set(ch, (counts.get(ch) ?? 0) + 1)
+    n++
+  }
   let ent = 0
   for (const count of counts.values()) {
     const p = count / n
@@ -371,33 +408,20 @@ export function shannonEntropy(s: string): number {
 }
 
 export function detectPayloadFlags(body: string): string[] {
-  const flags: string[] = []
-  const base64 = body.match(BASE64_RE)?.some(validBase64)
-  if (base64) flags.push('b64')
-  if (hasMatch(body, HEX_RE)) flags.push('hex')
-  if (hasMatch(body, SCRIPT_RE)) flags.push('script')
-  if (hasMatch(body, INJECT_RE) || INJECT_RES.some((re) => hasMatch(body, re))) flags.push('inject')
-  if (body.split(/\s+/).some((word) => LATIN_RE.test(word) && CYRILLIC_RE.test(word))) flags.push('homoglyph')
-  if (hasMatch(body, TUNNEL_RE)) flags.push('tunnel')
-  if (hasMatch(body, REDIRECT_RE)) flags.push('redirect')
-  if (serviceMatches(body, 'proxy').length > 0) flags.push('proxy')
-  if (serviceMatches(body, 'callback').length > 0) flags.push('callback')
-  if (serviceMatches(body, 'beacon').length > 0) flags.push('beacon')
-  if (hasMatch(body, TRAVERSAL_RE)) flags.push('traversal')
-  if (EXEC_RES.some((re) => hasMatch(body, re))) flags.push('exec')
-  if (hasMatch(body, ATOB_RE)) flags.push('b64')
-  if (carrierMatches(body).length > 0) flags.push('b64')
-  if (encodedDataUriMatches(body, 'data-uri').length > 0) flags.push('data-uri')
-  // high-entropy is never a standalone verdict (mirrors build.py)
-  if (flags.length > 0 && body.split(/\s+/).some((chunk) => chunk.length >= 200 && shannonEntropy(chunk) > 4.5)) {
-    flags.push('high-entropy')
-  }
-  return flags
+  // Phase 1 scans every rule except high-entropy; entropy is a modifier, so phase 2
+  // runs only when another flag already made this body a verdict. This mirrors
+  // build.py build_payload_index (standalone high-entropy is dropped) and avoids
+  // hashing a large word for a result that would be discarded anyway.
+  const withoutEntropy = new Set(PAYLOAD_FLAG_ORDER.filter((flag) => flag !== 'high-entropy'))
+  const found = new Set(scanPayloadMatches(body, withoutEntropy).map((match) => match.flag))
+  if (found.size > 0 && scanPayloadMatches(body, new Set(['high-entropy'])).length > 0) found.add('high-entropy')
+  return PAYLOAD_FLAG_ORDER.filter((flag) => found.has(flag))
 }
 
 export interface PayloadSegment {
   text: string
   flag?: string
+  flags?: string[]
 }
 
 export function highlightMatches(body: string): PayloadSegment[] {

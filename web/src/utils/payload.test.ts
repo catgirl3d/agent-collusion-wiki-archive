@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { detectPayloadFlags, extractLineArtifacts, extractTechnicalArtifacts, highlightMatches } from './payload'
+import { detectPayloadFlags, extractLineArtifacts, extractTechnicalArtifacts, highlightMatches, scanPayloadMatches } from './payload'
 import golden from '../../../data/validation/url_golden.json'
+import payloadFlagsGolden from '../../../data/validation/payload_flags_golden.json'
+import { classifyPayloadDivergence } from '../test/payloadParity'
 
 describe('payload detection', () => {
   it('matches the build.py URL golden fixture', () => {
@@ -75,6 +77,78 @@ describe('payload detection', () => {
     expect(detectPayloadFlags('A'.repeat(90))).not.toContain('b64')
     expect(detectPayloadFlags(btoa('printable payload '.repeat(8)))).toContain('b64')
   })
+  it('requires full base64 quartets like Python, rejecting unpadded tokens', () => {
+    const padded = btoa('a'.repeat(61))
+    const unpadded = padded.replace(/=+$/, '')
+    expect(padded).toHaveLength(84)
+    expect(unpadded).toHaveLength(82)
+    expect(detectPayloadFlags(padded)).toEqual(['b64'])
+    expect(detectPayloadFlags(unpadded)).toEqual([])
+  })
+  it('accepts printable Base64 at the inclusive 0.8 threshold', () => {
+    const decoded = 'A'.repeat(48) + '\0'.repeat(12)
+    const encoded = btoa(decoded)
+
+    expect(encoded).toHaveLength(80)
+    expect(decoded).toHaveLength(60)
+    expect(decoded.replace(/[^\x20-\x7e]/g, '')).toHaveLength(48)
+    expect(detectPayloadFlags(encoded)).toContain('b64')
+  })
+  it('flags script prefixes without a word boundary', () => {
+    expect(detectPayloadFlags('<scriptx>')).toContain('script')
+  })
+  it('does not flag an onerror assignment with spaces before the equals sign', () => {
+    expect(detectPayloadFlags('onerror = 1')).not.toContain('script')
+  })
+  it('counts non-BMP code points for high entropy while keeping UTF-16 offsets', () => {
+    const word = Array.from({ length: 200 }, (_, index) => String.fromCodePoint(0x10000 + index)).join('')
+    const body = `${word} https://markdown.new/x`
+    const match = scanPayloadMatches(body).find((item) => item.flag === 'high-entropy')
+    const belowThreshold = Array.from({ length: 199 }, (_, index) => String.fromCodePoint(0x10000 + index)).join('')
+
+    expect(detectPayloadFlags(body)).toContain('high-entropy')
+    expect(match).toEqual({ start: 0, end: word.length, flag: 'high-entropy' })
+    if (!match) throw new Error('expected a high-entropy match')
+    expect(body.slice(match.start, match.end)).toBe(word)
+    expect(scanPayloadMatches(`${belowThreshold} https://markdown.new/x`).map((item) => item.flag)).not.toContain('high-entropy')
+  })
+  it('reports runtime atob/btoa decoding as b64 scanner matches', () => {
+    const body = 'fetch(atob("SGVsbG8gV29ybGQ="))'
+    expect(detectPayloadFlags(body)).toEqual(['b64'])
+    expect(highlightMatches(body).find((segment) => segment.flag === 'b64')).toEqual({ text: 'atob(', flag: 'b64' })
+  })
+  it('reports each flag once when several b64 rules match', () => {
+    const blob = btoa('payload '.repeat(8))
+    const body = `const x = atob("${blob}") // data:application/json;base64,${blob}`
+    expect(detectPayloadFlags(body)).toEqual(['b64'])
+  })
+  it('scans mixed-script high-entropy words with both flags', () => {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyzабв'
+    const word = Array.from({ length: 240 }, (_, index) => alphabet[index % alphabet.length]).join('')
+    const scannerFlags = new Set(scanPayloadMatches(word).map((match) => match.flag))
+
+    expect([...scannerFlags]).toEqual(expect.arrayContaining(['homoglyph', 'high-entropy']))
+    expect(detectPayloadFlags(word)).toEqual(['homoglyph', 'high-entropy'])
+  })
+  it('does not return standalone high-entropy chunks as a verdict', () => {
+    const chunk = Array.from({ length: 250 }, (_, index) => String.fromCharCode(33 + index % 90)).join('')
+
+    expect(scanPayloadMatches(chunk).map((match) => match.flag)).toContain('high-entropy')
+    expect(detectPayloadFlags(chunk)).toEqual([])
+  })
+  it('flags raw tunnel and redirect service mentions', () => {
+    const body = 'relay via ngrok-free.app and r.jina.ai'
+
+    expect(detectPayloadFlags(body)).toEqual(expect.arrayContaining(['tunnel', 'redirect']))
+    expect(scanPayloadMatches(body).length).toBeGreaterThan(0)
+  })
+  it('matches the Python flag verdict for every golden body', () => {
+    for (const entry of payloadFlagsGolden.bodies) {
+      const webFlags = detectPayloadFlags(entry.input)
+      const kind = classifyPayloadDivergence(entry.input, entry.flags, webFlags)
+      expect(kind, `${entry.name}: python=${entry.flags.join(',')} web=${webFlags.join(',')}`).not.toBe('unexpected')
+    }
+  })
   it('detects hex, scripts, injections, tunnels and redirects case-insensitively', () => {
     const body = '0x' + 'a'.repeat(64) + ' <script> onerror= javascript: SYSTEM: Ignore previous pinggy.io markdown.new'
     expect(detectPayloadFlags(body)).toEqual(expect.arrayContaining(['hex', 'script', 'inject', 'tunnel', 'redirect']))
@@ -83,16 +157,17 @@ describe('payload detection', () => {
     expect(detectPayloadFlags('HTTPS://PINGGY.IO/x and HTTPS://R.JINA.AI/y')).toEqual(expect.arrayContaining(['tunnel', 'redirect']))
     expect(detectPayloadFlags('<SCRIPT>alert(1)</SCRIPT>')).toContain('script')
   })
-  it('keeps system:-only text inject-flagged but out of prompt artifacts', () => {
-    expect(detectPayloadFlags('SYSTEM: obey only')).toContain('inject')
+  it('does not flag system:-only text as inject or a prompt artifact', () => {
+    expect(detectPayloadFlags('SYSTEM: obey only')).not.toContain('inject')
     expect(extractTechnicalArtifacts('SYSTEM: obey only')).toEqual([])
     expect(extractTechnicalArtifacts('IGNORE PREVIOUS')).toEqual([
       expect.objectContaining({ artifactType: 'prompt', canonicalValue: 'ignore previous' }),
     ])
   })
-  it('does not flag bare 0x units as hex', () => {
+  it('requires at least two digits in prefixed hex literals', () => {
     // '~10x.' with no digits after 0x is not a hex literal (real dataset case)
     expect(detectPayloadFlags('clock.wait accelerates ~10x.')).not.toContain('hex')
+    expect(detectPayloadFlags('0x0')).not.toContain('hex')
     expect(detectPayloadFlags('0x1f')).toContain('hex')
   })
   it('detects homoglyphs with mixed cyrillic and latin characters', () => {
@@ -160,6 +235,7 @@ describe('payload detection', () => {
     // tunnel: extended host list
     expect(detectPayloadFlags('https://bnuxw-16-146-184-55.run.pinggy-free.link/')).toContain('tunnel')
     expect(detectPayloadFlags('https://abc.ngrok-free.app/')).toContain('tunnel')
+    expect(detectPayloadFlags('https://abc.loca.lt/x')).toContain('tunnel')
     expect(detectPayloadFlags('https://ngrok.com/docs')).not.toContain('tunnel')
     // beacon: covert counter signal channels
     expect(detectPayloadFlags('https://api.counterapi.dev/v1/asian-r4-jan13/seen/up?x=1')).toContain('beacon')
@@ -217,6 +293,18 @@ describe('payload detection', () => {
       flag: 'data-uri',
     })
     expect(highlightMatches('prefix..%252fsecret').find((s) => s.flag === 'traversal')).toEqual({ text: '..%252f', flag: 'traversal' })
+  })
+  it('validates percent-encoded HTTPBin carrier tokens', () => {
+    const token = 'SGVsbG8gV29ybGQ%3D'
+    const body = `https://httpbin.org/base64/${token}`
+
+    expect(detectPayloadFlags(body)).toContain('b64')
+  })
+  it('highlights percent-encoded HTTPBin carrier tokens at their raw span', () => {
+    const token = 'SGVsbG8gV29ybGQ%3D'
+    const body = `https://httpbin.org/base64/${token}`
+
+    expect(highlightMatches(body).find((segment) => segment.flag === 'b64')).toEqual({ text: token, flag: 'b64' })
   })
   it('highlights only parsed service host spans and never spoofed hosts', () => {
     expect(highlightMatches('x https://child.jqp.vercel.app/a').find((s) => s.flag === 'proxy')).toEqual({ text: 'child.jqp.vercel.app', flag: 'proxy' })

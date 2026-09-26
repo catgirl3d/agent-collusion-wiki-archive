@@ -786,6 +786,14 @@ describe('getPayloadEvidence', () => {
     expect(res.snippets).toEqual([])
   })
 
+  it('extracts an atob b64 snippet instead of an empty flag verdict', () => {
+    const res = getPayloadEvidence('Start fetch(atob("SGVsbG8gV29ybGQ=")) end')
+
+    expect(res.flags).toEqual(['b64'])
+    expect(res.snippets.length).toBeGreaterThanOrEqual(1)
+    expect(res.snippets[0].flag).toBe('b64')
+  })
+
   it('extracts snippets attributed to flags present in the body', () => {
     const body = 'Start of text with <script>evilPayload()</script> inside the page.'
     const res = getPayloadEvidence(body)
@@ -799,20 +807,20 @@ describe('getPayloadEvidence', () => {
   it('deduplicates overlapping matches and caps at 5 snippets', () => {
     // Repeated inject triggers spread out
     const parts = [
-      'system: trigger alpha and more context text here',
-      'system: trigger beta and more context text here',
-      'system: trigger gamma and more context text here',
-      'system: trigger delta and more context text here',
-      'system: trigger epsilon and more context text here',
-      'system: trigger zeta and more context text here',
-      'system: trigger eta and more context text here',
+      'ignore previous trigger alpha and more context text here',
+      'ignore previous trigger beta and more context text here',
+      'ignore previous trigger gamma and more context text here',
+      'ignore previous trigger delta and more context text here',
+      'ignore previous trigger epsilon and more context text here',
+      'ignore previous trigger zeta and more context text here',
+      'ignore previous trigger eta and more context text here',
     ]
     const body = parts.join('\n\n')
     const res = getPayloadEvidence(body)
     expect(res.snippets.length).toBeLessThanOrEqual(5)
 
     // Overlapping triggers in close proximity
-    const closeBody = 'system: ignore previous command right here in one sentence'
+    const closeBody = 'ignore previous command right here in one sentence'
     const closeRes = getPayloadEvidence(closeBody)
     expect(closeRes.snippets.length).toBe(1)
   })
