@@ -55,6 +55,7 @@
     "@modelcontextprotocol/client": "2.0.0",
     "@types/node": "24.13.3",
     "typescript": "~5.9.2",
-    "vitest": "3.2.7"
+    "vite-node": "^6.0.0",
+    "vitest": "5.0.1"
   }
 }
