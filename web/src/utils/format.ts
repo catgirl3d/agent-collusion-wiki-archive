@@ -103,6 +103,20 @@ export interface PagesFilter {
   src?: SourceFilter
 }
 
+export function pagePayloadFlags(page: PageRecord, payloadFlags: Map<string, string[]>): string[] {
+  return payloadFlags.get(page.id) ?? payloadFlags.get(page.s ?? '') ?? []
+}
+
+export function countPayloadFlagPages(pages: PageRecord[], payloadFlags: Map<string, string[]>): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const page of pages) {
+    for (const flag of new Set(pagePayloadFlags(page, payloadFlags))) {
+      counts.set(flag, (counts.get(flag) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
 export function filterPages(pages: PageRecord[], f: PagesFilter): PageRecord[] {
   const q = f.query.trim().toLowerCase()
   const slugSet = f.tokenSlugs ? new Set(f.tokenSlugs) : null
@@ -118,7 +132,7 @@ export function filterPages(pages: PageRecord[], f: PagesFilter): PageRecord[] {
       const inIndex = slugSet ? slugSet.has(p.s ?? slugify(p.id)) : false
       if (!inMeta && !inIndex) return false
     }
-    if (flagMap && f.payloadFlag && !(flagMap.get(p.id) ?? flagMap.get(p.s ?? '') ?? []).includes(f.payloadFlag)) return false
+    if (flagMap && f.payloadFlag && !pagePayloadFlags(p, flagMap).includes(f.payloadFlag)) return false
     return true
   })
 }
