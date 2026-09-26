@@ -3,3 +3,9 @@
 
 /llms.txt
   Access-Control-Allow-Origin: *
+
+/data/research/docs/*
+  X-Robots-Tag: noindex
+
+/data/research/files/*
+  X-Robots-Tag: noindex
