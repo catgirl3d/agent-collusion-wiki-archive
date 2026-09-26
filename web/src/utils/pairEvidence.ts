@@ -671,7 +671,7 @@ export function collectPayloadEvidence(
   revisions: Revision[],
   flags: string[],
   options?: { perFlagCap?: number; maxScanRevisions?: number; charBudget?: number },
-): { entries: PayloadEvidenceEntry[]; scannedRevisions: number } {
+): { entries: PayloadEvidenceEntry[]; scannedRevisions: number; truncated: boolean } {
   const perFlagCap = options?.perFlagCap ?? 3
   const maxScanRevisions = options?.maxScanRevisions ?? 200
   const charBudget = options?.charBudget ?? 4_000_000
@@ -680,16 +680,24 @@ export function collectPayloadEvidence(
   const entries: PayloadEvidenceEntry[] = []
   let scannedRevisions = 0
   let scannedChars = 0
+  let truncated = false
 
-  for (let i = revisions.length - 1; i >= 0 && scannedRevisions < maxScanRevisions; i--) {
+  for (let i = revisions.length - 1; i >= 0; i--) {
     const needed = new Set(flags.filter((flag) => (counts.get(flag) ?? 0) < perFlagCap))
     if (needed.size === 0) break
+    if (scannedRevisions >= maxScanRevisions) {
+      truncated = true
+      break
+    }
     const revision = revisions[i]
     const text = revision.body !== null && revision.body !== ''
       ? revision.body
       : (revision.partial ? [...(revision.added ?? []), ...(revision.removed ?? [])].join('\n') : '')
     if (!text) continue
-    if (scannedChars + text.length > charBudget) break
+    if (scannedChars + text.length > charBudget) {
+      truncated = true
+      break
+    }
     scannedRevisions++
     scannedChars += text.length
     const matches = scanPayloadMatches(text, needed).sort((a, b) => a.start - b.start)
@@ -705,7 +713,7 @@ export function collectPayloadEvidence(
     }
   }
 
-  return { entries, scannedRevisions }
+  return { entries, scannedRevisions, truncated }
 }
 
 /**

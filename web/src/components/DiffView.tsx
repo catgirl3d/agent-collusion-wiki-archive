@@ -8,7 +8,13 @@ function DiffLine({ text }: { text: string }) {
     <>
       {segments.map((seg, idx) =>
         seg.flag ? (
-          <mark key={idx} className="mark-payload" data-flag={seg.flag}>
+          <mark
+            key={idx}
+            className="mark-payload"
+            data-flag={seg.flag}
+            data-flags={seg.flags?.join(' ')}
+            title={seg.flags?.join(', ')}
+          >
             {seg.text}
           </mark>
         ) : (

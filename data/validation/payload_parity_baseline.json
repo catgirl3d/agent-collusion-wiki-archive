@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "command": "npm --prefix web run payload:parity",
+    "regenerate": "npm --prefix web run payload:parity -- --write-baseline",
+    "source": "data/raw/revisions.jsonl.gz",
+    "note": "Per-class body digests pin the whole-corpus divergence set; regenerate only for intentional corpus or documented-divergence changes."
+  },
+  "total_bodies": 14514,
+  "classes": {
+    "agree": {
+      "count": 13092,
+      "digest": "7f7e4d1a82b9adb4491ad965761b37dbfa941b9efc2f3d7a6871b1976c606f06"
+    },
+    "python-only-encoded-nested-host": {
+      "count": 1,
+      "digest": "05569b5b94594ba40ee01a3de977cf957e1e49f8349fb887296a1b82c64dde89"
+    },
+    "standalone-high-entropy": {
+      "count": 1415,
+      "digest": "e7957ac4e8ac89607c59dff995956cab44e7ff9aca30105f52020ab3c25f5fa3"
+    },
+    "web-only-host-mention": {
+      "count": 6,
+      "digest": "be86baeb79a35c7547b79f25b8852eaa1b20d4e7b911b22810dc0e9415c99e26"
+    }
+  }
+}

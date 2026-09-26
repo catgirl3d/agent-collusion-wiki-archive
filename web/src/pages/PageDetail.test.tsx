@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import PageDetail from './PageDetail'
@@ -178,6 +178,88 @@ describe('PageDetail', () => {
     render(<MemoryRouter initialEntries={['/page/main%2FEmpty']}><Routes><Route path="/page/*" element={<PageDetail />} /></Routes></MemoryRouter>)
     fireEvent.click(await screen.findByText('What matched these flags?'))
     expect(await screen.findByText('No retained revision body contains this pattern (recovered or truncated data).')).toBeVisible()
+  })
+
+  it('explains that a no-match result is inconclusive when the revision cap stops scanning', async () => {
+    mockBigPage(201, 'ordinary oldest body', [{ id: 'main/Big', s: 'main_Big~', f: ['beacon'], u: [] }])
+    renderPageDetail(['/page/main%2FBig'])
+
+    fireEvent.click(await screen.findByText('What matched these flags?'))
+
+    expect(await screen.findByText(/No matching evidence was found in the scanned range/)).toBeVisible()
+    expect(screen.getByText(/revision or character cap/)).toBeVisible()
+    expect(screen.getByText(/absence is not proven/)).toBeVisible()
+  })
+
+  it('explains that a missing flag is inconclusive when another flag has evidence in a truncated scan', async () => {
+    const revisions = Array.from({ length: 201 }, (_, index) => ({
+      seq: index + 1,
+      time: new Date(Date.UTC(2026, 3, 1, 0, 0, index)).toISOString(),
+      label: null,
+      ip16: null,
+      summary: null,
+      len: 20,
+      body: index === 200 ? 'https://x.pinggy.io/newest' : `ordinary revision ${String(index)}`,
+      action: null,
+      round: null,
+    }))
+    const responses: Record<string, unknown> = {
+      'pages.json': { p: [{ id: 'main/Big', s: 'main_Big~', w: 'main', n: 'Big', r: 201, f: '2026-04-01', l: '2026-04-02', d: false, del: 0, fam: '', lb: 0, labs: [] }], order: 'last' },
+      'payload_index.json': [{ id: 'main/Big', s: 'main_Big~', f: ['beacon', 'tunnel'], u: [] }],
+      'agent_links.json': {}, 'labels.json': { l: [], n_anon: 0 },
+      'revisions/main_Big~.json': revisions,
+    }
+    loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+    renderPageDetail(['/page/main%2FBig'])
+
+    fireEvent.click(await screen.findByText('What matched these flags?'))
+
+    const fallback = await screen.findByText(/No matching evidence was found in the scanned range/)
+    expect(fallback.closest('.payload-evidence-group')).toHaveTextContent('beacon')
+    expect(fallback).toHaveTextContent(/revision or character cap/)
+    expect(fallback).toHaveTextContent(/absence is not proven/)
+  })
+
+  it('shows overlapping payload flags on the revision body highlight', async () => {
+    const body = `data:text/html;base64,${btoa('A'.repeat(60))}`
+    const responses: Record<string, unknown> = {
+      'pages.json': { p: [{ id: 'main/Overlap', s: 'main_Overlap~', w: 'main', n: 'Overlap', r: 1, f: '2026-05-11', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [] }], order: 'last' },
+      'payload_index.json': [{ id: 'main/Overlap', s: 'main_Overlap~', f: ['b64', 'data-uri'], u: [] }],
+      'agent_links.json': {}, 'labels.json': { l: [], n_anon: 0 },
+      'revisions/main_Overlap~.json': [{ seq: 1, time: '2026-05-11T00:00:00Z', label: null, ip16: null, summary: null, len: body.length, body, action: null, round: null }],
+    }
+    loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+    renderPageDetail(['/page/main%2FOverlap'])
+
+    const mark = await screen.findByText(body)
+    expect(mark.tagName).toBe('MARK')
+    expect(mark).toHaveAttribute('data-flag', 'data-uri')
+    expect(mark).toHaveAttribute('data-flags', 'b64 data-uri')
+    expect(mark).toHaveAttribute('title', 'b64, data-uri')
+  })
+
+  it('shows overlapping payload flags in retained evidence snippet highlights', async () => {
+    const body = `data:text/html;base64,${btoa('A'.repeat(60))}`
+    const responses: Record<string, unknown> = {
+      'pages.json': { p: [{ id: 'main/Overlap', s: 'main_Overlap~', w: 'main', n: 'Overlap', r: 1, f: '2026-05-11', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [] }], order: 'last' },
+      'payload_index.json': [{ id: 'main/Overlap', s: 'main_Overlap~', f: ['b64', 'data-uri'], u: [] }],
+      'agent_links.json': {}, 'labels.json': { l: [], n_anon: 0 },
+      'revisions/main_Overlap~.json': [{ seq: 1, time: '2026-05-11T00:00:00Z', label: null, ip16: null, summary: null, len: body.length, body, action: null, round: null }],
+    }
+    loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+    renderPageDetail(['/page/main%2FOverlap'])
+
+    fireEvent.click(await screen.findByText('What matched these flags?'))
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('pre.pair-snippet mark[data-flags="b64 data-uri"]')).toHaveLength(2)
+    })
+    const marks = document.querySelectorAll('pre.pair-snippet mark[data-flags="b64 data-uri"]')
+    expect(marks).toHaveLength(2)
+    marks.forEach((mark) => {
+      expect(mark).toHaveAttribute('data-flag', 'data-uri')
+      expect(mark).toHaveAttribute('title', 'b64, data-uri')
+    })
   })
 
   it('goes back to the previous in-app route when the page was reached from another route', async () => {

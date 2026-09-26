@@ -62,7 +62,7 @@ _REQUIRED_BODY_TOKENS = frozenset({"bypass"})
 _REQUIRED_SEARCH_TOKENS = frozenset({"agent", "bypass", "startseite", "willkommen", "zzz"})
 _URL_RE = re.compile(r"https?://[^\s<>'\"]+", re.IGNORECASE)
 _B64_RE = re.compile(r"[A-Za-z0-9+/]{80,}={0,2}")
-_HEX_RE = re.compile(r"(0x[0-9a-f]+|[0-9a-f]{64,})")
+_HEX_RE = re.compile(r"(0x[0-9a-f]{2,}|[0-9a-f]{64,})")
 _NONSPACE_RE = re.compile(r"\S+")
 PAYLOAD_FLAGS = (
     "b64", "hex", "script", "inject", "homoglyph", "high-entropy", "tunnel", "redirect",
@@ -225,6 +225,20 @@ def is_slug_collision(page_id: str, page_key: str, used: dict[str, str]) -> bool
     return slugify(page_key) in used and used[slugify(page_key)] != page_id
 
 
+def build_slug_map(revisions: list[dict]) -> dict[str, str]:
+    """Assigns deterministic page slugs, resolving collisions on case-insensitive filesystems."""
+    used: dict[str, str] = {}
+    slug_map: dict[str, str] = {}
+    for page_id in sorted({revision["page_id"] for revision in revisions}):
+        slug = slugify(page_id)
+        if any(k in used and used[k] != page_id for k in (slug, slug.lower())):
+            slug = f"{slug}_h{hashlib.sha1(page_id.encode()).hexdigest()[:8]}"
+        used[slug.lower()] = page_id
+        used[slug] = page_id
+        slug_map[page_id] = slug
+    return slug_map
+
+
 def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[str, str]]:
     """Groups revisions by page and writes processed/revisions/<slug>.json.
 
@@ -234,8 +248,7 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
     for r in revisions:
         by_page.setdefault(r["page_id"], []).append(r)
 
-    used: dict[str, str] = {}
-    slug_map: dict[str, str] = {}
+    slug_map = build_slug_map(revisions)
     (OUT / "revisions").mkdir(parents=True, exist_ok=True)
     for stale in (OUT / "revisions").iterdir():
         if stale.is_file():
@@ -243,7 +256,7 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
     n_pages = 0
 
     for page_id, revs in sorted(by_page.items()):
-        slug = slugify(page_id)
+        slug = slug_map[page_id]
         revs_sorted = sorted(revs, key=lambda r: (r["seq"] if r.get("seq") is not None else 0, r.get("rev_id", "")))
         payload = []
         for r in revs_sorted:
@@ -265,12 +278,6 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
                     "removed": r.get("removed", []),
                     "append": r.get("append"),
                 })
-        # Slug collisions, including on case-insensitive filesystems (Windows/macOS)
-        if any(k in used and used[k] != page_id for k in (slug, slug.lower())):
-            slug = f"{slug}_h{hashlib.sha1(page_id.encode()).hexdigest()[:8]}"
-        used[slug.lower()] = page_id
-        used[slug] = page_id
-        slug_map[page_id] = slug
         (OUT / "revisions" / f"{slug}.json").write_text(
             json.dumps(payload, ensure_ascii=False), encoding="utf-8"
         )
@@ -424,7 +431,7 @@ def write_token_golden(path: Path | None = None) -> None:
         "cases": cases,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 # URL semantics are pinned by data/validation/url_golden.json.
@@ -511,8 +518,9 @@ def _host_matches(host: str, indicator: str) -> bool:
     return host == indicator or host.endswith("." + indicator)
 
 
-def _flag_hosts(body: str, hosts: tuple[str, ...]) -> bool:
-    return any(_host_matches(domain, indicator) for domain in _domains(body) for indicator in hosts)
+def _hosts_match(domains: list[str], hosts: tuple[str, ...]) -> bool:
+    """Exact host or subdomain match for precomputed URL hosts."""
+    return any(_host_matches(domain, indicator) for domain in domains for indicator in hosts)
 
 
 def _flag_callback_hosts(body: str) -> bool:
@@ -547,6 +555,30 @@ def _percent_decode_one(value: str) -> str:
     return re.sub(r"%([0-9a-f]{2})", lambda match: chr(int(match.group(1), 16)), value, flags=re.IGNORECASE)
 
 
+def _nested_hosts(body: str) -> list[str]:
+    """Hosts of every explicit URL exposed by one percent-decode of each raw URL.
+
+    Decode depth is one and there is no recursion; a decoded wrapper may expose
+    several URLs (its direct target plus targets in query parameters), and all of
+    them are parsed. This stays a subset of the web mirror, which matches raw
+    service-host text anywhere in the body.
+    """
+    hosts = []
+    for match in _URL_RE.finditer(body or ""):
+        decoded = _percent_decode_one(match.group(0))
+        for url_match in re.finditer(r"https?://(?:(?!https?://)[^\s<>'\"])+", decoded, re.IGNORECASE):
+            try:
+                parsed = urlparse(url_match.group(0).rstrip(".,;:!?)\"]"))
+            except ValueError:
+                continue
+            host = (parsed.hostname or "").lower()
+            if host.startswith("www."):
+                host = host[4:]
+            if host:
+                hosts.append(host)
+    return hosts
+
+
 def _valid_contextual_base64(value: str) -> bool:
     if len(value) < 8 or not re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", value) or len(value) % 4 == 1:
         return False
@@ -571,7 +603,7 @@ def _flag_base64_carriers(body: str) -> bool:
         if host.startswith("www."):
             host = host[4:]
         path_match = re.fullmatch(r"/base64/([^/]+)", parsed.path or "")
-        if host == "httpbin.org" and path_match and _valid_contextual_base64(path_match.group(1)):
+        if host == "httpbin.org" and path_match and _valid_contextual_base64(_percent_decode_one(path_match.group(1))):
             return True
     return False
 
@@ -586,7 +618,7 @@ def detect_payload_flags(body: str) -> set[str]:
     lowered = (body or "").lower()  # script/inject match against lowercase - mirror of web/src/utils/payload.ts
     if "<script" in lowered or "onerror=" in lowered or "javascript:" in lowered:
         flags.add("script")
-    if any(marker in lowered for marker in ("system:", "ignore previous", "reproducible bypass")):
+    if any(marker in lowered for marker in ("ignore previous", "reproducible bypass")):
         flags.add("inject")
     if any(rx.search(body or "") for rx in _INJECT_RES):
         flags.add("inject")
@@ -599,15 +631,17 @@ def detect_payload_flags(body: str) -> set[str]:
         flags.add("homoglyph")
     if any(len(chunk) >= 200 and _entropy(chunk) > 4.5 for chunk in _NONSPACE_RE.findall(body or "")):
         flags.add("high-entropy")
-    if _flag_hosts(body or "", _TUNNEL_HOSTS):
+    domains = _domains(body or "")
+    nested_domains = domains + _nested_hosts(body or "")
+    if _hosts_match(nested_domains, _TUNNEL_HOSTS):
         flags.add("tunnel")
-    if _flag_hosts(body or "", _READER_HOSTS):
+    if _hosts_match(nested_domains, _READER_HOSTS):
         flags.add("redirect")
-    if _flag_hosts(body or "", _CORS_PROXY_HOSTS):
+    if _hosts_match(domains, _CORS_PROXY_HOSTS):
         flags.add("proxy")
     if _flag_callback_hosts(body or ""):
         flags.add("callback")
-    if _flag_hosts(body or "", _BEACON_HOSTS):
+    if _hosts_match(domains, _BEACON_HOSTS):
         flags.add("beacon")
     if any(rx.search(body or "") for rx in _EXEC_RES):
         flags.add("exec")
