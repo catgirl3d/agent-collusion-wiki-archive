@@ -180,6 +180,46 @@ describe('PageDetail', () => {
     expect(await screen.findByText('No retained revision body contains this pattern (recovered or truncated data).')).toBeVisible()
   })
 
+  it('explains that a no-match result is inconclusive when the revision cap stops scanning', async () => {
+    mockBigPage(201, 'ordinary oldest body', [{ id: 'main/Big', s: 'main_Big~', f: ['beacon'], u: [] }])
+    renderPageDetail(['/page/main%2FBig'])
+
+    fireEvent.click(await screen.findByText('What matched these flags?'))
+
+    expect(await screen.findByText(/No matching evidence was found in the scanned range/)).toBeVisible()
+    expect(screen.getByText(/revision or character cap/)).toBeVisible()
+    expect(screen.getByText(/absence is not proven/)).toBeVisible()
+  })
+
+  it('explains that a missing flag is inconclusive when another flag has evidence in a truncated scan', async () => {
+    const revisions = Array.from({ length: 201 }, (_, index) => ({
+      seq: index + 1,
+      time: new Date(Date.UTC(2026, 3, 1, 0, 0, index)).toISOString(),
+      label: null,
+      ip16: null,
+      summary: null,
+      len: 20,
+      body: index === 200 ? 'https://x.pinggy.io/newest' : `ordinary revision ${String(index)}`,
+      action: null,
+      round: null,
+    }))
+    const responses: Record<string, unknown> = {
+      'pages.json': { p: [{ id: 'main/Big', s: 'main_Big~', w: 'main', n: 'Big', r: 201, f: '2026-04-01', l: '2026-04-02', d: false, del: 0, fam: '', lb: 0, labs: [] }], order: 'last' },
+      'payload_index.json': [{ id: 'main/Big', s: 'main_Big~', f: ['beacon', 'tunnel'], u: [] }],
+      'agent_links.json': {}, 'labels.json': { l: [], n_anon: 0 },
+      'revisions/main_Big~.json': revisions,
+    }
+    loadJsonMock.mockImplementation((path: string) => path in responses ? Promise.resolve(responses[path]) : Promise.reject(new Error(`Unexpected data request: ${path}`)))
+    renderPageDetail(['/page/main%2FBig'])
+
+    fireEvent.click(await screen.findByText('What matched these flags?'))
+
+    const fallback = await screen.findByText(/No matching evidence was found in the scanned range/)
+    expect(fallback.closest('.payload-evidence-group')).toHaveTextContent('beacon')
+    expect(fallback).toHaveTextContent(/revision or character cap/)
+    expect(fallback).toHaveTextContent(/absence is not proven/)
+  })
+
   it('shows overlapping payload flags on the revision body highlight', async () => {
     const body = `data:text/html;base64,${btoa('A'.repeat(60))}`
     const responses: Record<string, unknown> = {
@@ -221,6 +261,7 @@ describe('PageDetail', () => {
       expect(mark).toHaveAttribute('title', 'b64, data-uri')
     })
   })
+
   it('goes back to the previous in-app route when the page was reached from another route', async () => {
     mockSingleRevisionPage()
     renderPageDetail(['/pages', '/page/usemod%2FSandBox'])

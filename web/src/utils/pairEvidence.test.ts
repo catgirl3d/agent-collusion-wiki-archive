@@ -152,6 +152,67 @@ describe('collectPayloadEvidence', () => {
     expect(result.entries.every((entry) => entry.flag === 'tunnel')).toBe(true)
   })
 
+  it('reports truncation when the revision cap stops scanning with flags still needed', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'https://x.pinggy.io/old' }),
+      revision({ body: 'https://x.pinggy.io/middle' }),
+      revision({ body: 'https://x.pinggy.io/new' }),
+    ], ['tunnel'], { maxScanRevisions: 1 })
+
+    expect(result.scannedRevisions).toBe(1)
+    expect(result.truncated).toBe(true)
+  })
+
+  it('reports truncation when the character budget stops scanning with flags still needed', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: `${'x'.repeat(30)} https://x.pinggy.io/old` }),
+      revision({ body: 'https://x.pinggy.io/new' }),
+    ], ['tunnel'], { charBudget: 'https://x.pinggy.io/new'.length })
+
+    expect(result.scannedRevisions).toBe(1)
+    expect(result.truncated).toBe(true)
+  })
+
+  it('reports truncation when a per-flag cap is met but another requested flag remains uncovered', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'https://x.pinggy.io/old' }),
+      revision({ body: 'ordinary middle revision' }),
+      revision({ body: 'https://counterapi.dev/new' }),
+    ], ['tunnel', 'beacon'], { perFlagCap: 1, maxScanRevisions: 2 })
+
+    expect(result.scannedRevisions).toBe(2)
+    expect(result.entries.map((entry) => entry.flag)).toEqual(['beacon'])
+    expect(result.truncated).toBe(true)
+  })
+
+  it('does not report truncation when the full input is scanned or flags are satisfied', () => {
+    const fullScan = collectPayloadEvidence([
+      revision({ body: 'ordinary older text' }),
+      revision({ body: 'ordinary newer text' }),
+    ], ['beacon'], { maxScanRevisions: 2 })
+    const satisfiedAtPerFlagCap = collectPayloadEvidence([
+      revision({ body: 'https://x.pinggy.io/older' }),
+      revision({ body: 'https://x.pinggy.io/newer' }),
+    ], ['tunnel'], { perFlagCap: 1 })
+
+    expect(fullScan.scannedRevisions).toBe(2)
+    expect(fullScan.truncated).toBe(false)
+    expect(satisfiedAtPerFlagCap.scannedRevisions).toBe(1)
+    expect(satisfiedAtPerFlagCap.truncated).toBe(false)
+  })
+
+  it('continues past one flag cap while another requested flag remains needed', () => {
+    const result = collectPayloadEvidence([
+      revision({ body: 'https://x.serveo.net/older-unused' }),
+      revision({ body: 'https://counterapi.dev/older' }),
+      revision({ body: 'https://x.pinggy.io/newer' }),
+    ], ['tunnel', 'beacon'], { perFlagCap: 1 })
+
+    expect(result.scannedRevisions).toBe(2)
+    expect(result.entries.map((entry) => entry.flag)).toEqual(['tunnel', 'beacon'])
+    expect(result.truncated).toBe(false)
+  })
+
   it('scans recovered partial revision lines', () => {
     const result = collectPayloadEvidence([revision({ partial: true, added: ['GET https://api.counterapi.dev/v1/x/seen/up'] })], ['beacon'])
     expect(result.entries).toEqual([expect.objectContaining({ flag: 'beacon', revIndex: 0 })])
