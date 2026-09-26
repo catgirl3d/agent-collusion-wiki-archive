@@ -115,6 +115,21 @@ describe('PageDetail', () => {
     expect(screen.getByRole('link', { name: 'Browse all pages' })).toHaveAttribute('href', '/pages')
   })
 
+  it('shows a page-index error instead of loading forever when pages.json fails', async () => {
+    loadJsonMock.mockImplementation((path: string) => {
+      if (path === 'pages.json') return Promise.reject(new Error('pages index unavailable'))
+      if (path === 'payload_index.json') return Promise.resolve([])
+      if (path === 'agent_links.json') return Promise.resolve({})
+      if (path === 'labels.json') return Promise.resolve({ l: [], n_anon: 0 })
+      return Promise.reject(new Error(`Unexpected data request: ${path}`))
+    })
+
+    renderPageDetail(['/page/main%2FExample'])
+
+    expect(await screen.findByText('Error loading page index: pages index unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
+  })
+
   it('renders recovered revision lines and omits a body diff', async () => {
     const responses: Record<string, unknown> = {
       'pages.json': { p: [{ id: 'usemod/SandBox', w: 'usemod', n: 'SandBox', r: 1, f: '2026-05-11', l: '2026-05-11', d: false, del: 0, fam: '', lb: 0, labs: [], partial: true }], order: 'last' },

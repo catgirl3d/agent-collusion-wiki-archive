@@ -291,7 +291,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
   // the SPA (or do nothing) — fall back to the pages index instead.
   const canGoBack = location.key !== 'default'
 
-  const { data: index } = useData<PagesIndex>('pages.json')
+  const { data: index, error: indexError } = useData<PagesIndex>('pages.json')
   const { data: payloadIndex } = useData<PayloadRecord[]>('payload_index.json')
   const { data: agentLinks } = useData<AgentLinks>('agent_links.json')
   // labels.json pgs is untruncated (unlike labs in pages.json, capped at 8) — the source of a label's pages for the graph
@@ -432,6 +432,8 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
     value: index,
     label: `#${String(index + 1)} ${fmtTime(revision.time)}${revision.label ? ` · ${revision.label}` : ''}${revision.partial ? ' · recovered' : ''}`,
   })) : [], [revs])
+
+  if (indexError) return <div className="error">Error loading page index: {indexError}</div>
 
   if (error) {
     const notFound = !resolved
