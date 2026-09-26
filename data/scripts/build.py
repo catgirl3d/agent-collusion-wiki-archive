@@ -225,6 +225,20 @@ def is_slug_collision(page_id: str, page_key: str, used: dict[str, str]) -> bool
     return slugify(page_key) in used and used[slugify(page_key)] != page_id
 
 
+def build_slug_map(revisions: list[dict]) -> dict[str, str]:
+    """Assigns deterministic page slugs, resolving collisions on case-insensitive filesystems."""
+    used: dict[str, str] = {}
+    slug_map: dict[str, str] = {}
+    for page_id in sorted({revision["page_id"] for revision in revisions}):
+        slug = slugify(page_id)
+        if any(k in used and used[k] != page_id for k in (slug, slug.lower())):
+            slug = f"{slug}_h{hashlib.sha1(page_id.encode()).hexdigest()[:8]}"
+        used[slug.lower()] = page_id
+        used[slug] = page_id
+        slug_map[page_id] = slug
+    return slug_map
+
+
 def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[str, str]]:
     """Groups revisions by page and writes processed/revisions/<slug>.json.
 
@@ -234,8 +248,7 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
     for r in revisions:
         by_page.setdefault(r["page_id"], []).append(r)
 
-    used: dict[str, str] = {}
-    slug_map: dict[str, str] = {}
+    slug_map = build_slug_map(revisions)
     (OUT / "revisions").mkdir(parents=True, exist_ok=True)
     for stale in (OUT / "revisions").iterdir():
         if stale.is_file():
@@ -243,7 +256,7 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
     n_pages = 0
 
     for page_id, revs in sorted(by_page.items()):
-        slug = slugify(page_id)
+        slug = slug_map[page_id]
         revs_sorted = sorted(revs, key=lambda r: (r["seq"] if r.get("seq") is not None else 0, r.get("rev_id", "")))
         payload = []
         for r in revs_sorted:
@@ -265,12 +278,6 @@ def build_revision_files(revisions: list[dict]) -> tuple[dict[str, int], dict[st
                     "removed": r.get("removed", []),
                     "append": r.get("append"),
                 })
-        # Slug collisions, including on case-insensitive filesystems (Windows/macOS)
-        if any(k in used and used[k] != page_id for k in (slug, slug.lower())):
-            slug = f"{slug}_h{hashlib.sha1(page_id.encode()).hexdigest()[:8]}"
-        used[slug.lower()] = page_id
-        used[slug] = page_id
-        slug_map[page_id] = slug
         (OUT / "revisions" / f"{slug}.json").write_text(
             json.dumps(payload, ensure_ascii=False), encoding="utf-8"
         )
@@ -424,7 +431,7 @@ def write_token_golden(path: Path | None = None) -> None:
         "cases": cases,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 # URL semantics are pinned by data/validation/url_golden.json.
