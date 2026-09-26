@@ -19,7 +19,7 @@ const REVISIONS_PER_PAGE = 50
 
 function Body({ body, enabled }: { body: string; enabled: boolean }) {
   if (!enabled || body.length > 200_000) return <>{body}</>
-  return <>{highlightMatches(body).map((segment, i) => segment.flag ? <mark key={i} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={i}>{segment.text}</span>)}</>
+  return <>{highlightMatches(body).map((segment, i) => segment.flag ? <mark key={i} className="mark-payload" data-flag={segment.flag} data-flags={segment.flags?.join(' ')} title={segment.flags?.join(', ')}>{segment.text}</mark> : <span key={i}>{segment.text}</span>)}</>
 }
 
 function RecoveredBody({ revision }: { revision: Revision }) {
@@ -518,7 +518,7 @@ function PageDetailView({ pageId: decoded }: { pageId: string }) {
                             <span>#{entry.revIndex + 1} {fmtTime(entry.time)}</span>{entry.label && <span> · {entry.label}</span>}
                             <Button variant="ghost" size="sm" aria-label={`Open revision #${String(entry.revIndex + 1)}`} onClick={() => { openRevision(entry.revIndex); }}>open revision</Button>
                           </div>
-                          <pre className="pair-snippet" data-flag={flag}>{highlightMatches(entry.text).map((segment, segmentIndex) => segment.flag ? <mark key={segmentIndex} className="mark-payload" data-flag={segment.flag}>{segment.text}</mark> : <span key={segmentIndex}>{segment.text}</span>)}</pre>
+                          <pre className="pair-snippet" data-flag={flag}>{highlightMatches(entry.text).map((segment, segmentIndex) => segment.flag ? <mark key={segmentIndex} className="mark-payload" data-flag={segment.flag} data-flags={segment.flags?.join(' ')} title={segment.flags?.join(', ')}>{segment.text}</mark> : <span key={segmentIndex}>{segment.text}</span>)}</pre>
                         </div>
                       ))}
                     </div>

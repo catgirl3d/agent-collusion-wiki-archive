@@ -306,6 +306,14 @@ describe('payload detection', () => {
 
     expect(highlightMatches(body).find((segment) => segment.flag === 'b64')).toEqual({ text: token, flag: 'b64' })
   })
+  it('exposes contained payload flags in canonical order without changing the primary flag', () => {
+    const body = `data:text/html;base64,${btoa('A'.repeat(60))}`
+
+    expect(detectPayloadFlags(body)).toEqual(['b64', 'data-uri'])
+    expect(highlightMatches(body)).toEqual([
+      { text: body, flag: 'data-uri', flags: ['b64', 'data-uri'] },
+    ])
+  })
   it('highlights only parsed service host spans and never spoofed hosts', () => {
     expect(highlightMatches('x https://child.jqp.vercel.app/a').find((s) => s.flag === 'proxy')).toEqual({ text: 'child.jqp.vercel.app', flag: 'proxy' })
     expect(highlightMatches('x https://child.webhook.site/a').find((s) => s.flag === 'callback')).toEqual({ text: 'child.webhook.site', flag: 'callback' })

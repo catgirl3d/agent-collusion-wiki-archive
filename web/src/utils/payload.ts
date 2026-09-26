@@ -430,10 +430,23 @@ export function highlightMatches(body: string): PayloadSegment[] {
 
   const segments: PayloadSegment[] = []
   let cursor = 0
+  let lastMatch: { segment: PayloadSegment & { flag: string }; start: number; end: number } | null = null
   for (const match of matches) {
-    if (match.start < cursor) continue
+    if (match.start < cursor) {
+      if (
+        match.end <= cursor && lastMatch &&
+        match.start >= lastMatch.start && match.end <= lastMatch.end
+      ) {
+        const flags = new Set([lastMatch.segment.flag, ...(lastMatch.segment.flags ?? []), match.flag])
+        const orderedFlags = PAYLOAD_FLAG_ORDER.filter((flag) => flags.has(flag))
+        if (orderedFlags.length > 1) lastMatch.segment.flags = orderedFlags
+      }
+      continue
+    }
     if (match.start > cursor) segments.push({ text: body.slice(cursor, match.start) })
-    segments.push({ text: body.slice(match.start, match.end), flag: match.flag })
+    const segment = { text: body.slice(match.start, match.end), flag: match.flag }
+    segments.push(segment)
+    lastMatch = { segment, start: match.start, end: match.end }
     cursor = match.end
   }
   if (cursor < body.length) segments.push({ text: body.slice(cursor) })
