@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentLinks, LabelsIndex, PagesIndex, Revision } from '../types'
@@ -94,6 +94,14 @@ function stubCytoscape() {
   })
 }
 
+function setupNetworkCanvas() {
+  stubCytoscape()
+  vi.stubGlobal('ResizeObserver', class {
+    observe = vi.fn()
+    disconnect = vi.fn()
+  })
+}
+
 describe('Network', () => {
   afterEach(() => {
     loadJsonMock.mockReset()
@@ -112,11 +120,7 @@ describe('Network', () => {
       if (path === 'revisions/page-b-history.json') return pageBRevisions.promise
       return Promise.reject(new Error(`Unexpected data request: ${path}`))
     })
-    stubCytoscape()
-    vi.stubGlobal('ResizeObserver', class {
-      observe = vi.fn()
-      disconnect = vi.fn()
-    })
+    setupNetworkCanvas()
 
     render(
       <MemoryRouter initialEntries={['/network?agent=agent-a&pairA=agent-a&pairB=agent-b&pairPage=wiki%2FPageA']}>
@@ -127,12 +131,12 @@ describe('Network', () => {
     )
 
     expect(await screen.findByText('Loading revisions for Page A…')).toBeInTheDocument()
-    expect(loadJsonMock).toHaveBeenCalledWith('revisions/page-a-history.json')
+    await waitFor(() => { expect(loadJsonMock).toHaveBeenCalledWith('revisions/page-a-history.json') })
     expect(pageARevisions.settled).toBe(false)
 
     fireEvent.click(screen.getByRole('button', { name: /Page B/ }))
     expect(await screen.findByText('Loading revisions for Page B…')).toBeInTheDocument()
-    expect(loadJsonMock).toHaveBeenCalledWith('revisions/page-b-history.json')
+    await waitFor(() => { expect(loadJsonMock).toHaveBeenCalledWith('revisions/page-b-history.json') })
     expect(pageARevisions.settled).toBe(false)
     expect(pageBRevisions.settled).toBe(false)
 
@@ -151,5 +155,28 @@ describe('Network', () => {
     expect(pageARevisions.settled).toBe(true)
     expect(screen.getByText('B-READY-REVISION')).toBeInTheDocument()
     expect(screen.queryByText('A-LATE-REVISION')).not.toBeInTheDocument()
+  })
+
+  it.each(['labels.json', 'pages.json'])('shows a metadata warning and keeps the network usable when %s fails', async (failedPath) => {
+    loadJsonMock.mockImplementation((path: string) => {
+      if (path === 'agent_links.json') return Promise.resolve(agentLinks)
+      if (path === failedPath) return Promise.reject(new Error(`${failedPath} unavailable`))
+      if (path === 'labels.json') return Promise.resolve(labelsIndex)
+      if (path === 'pages.json') return Promise.resolve(pagesIndex)
+      return Promise.reject(new Error(`Unexpected data request: ${path}`))
+    })
+    setupNetworkCanvas()
+
+    render(
+      <MemoryRouter initialEntries={['/network']}>
+        <Routes>
+          <Route path="/network" element={<Network />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(`${failedPath} unavailable`)
+    expect(screen.getByRole('heading', { name: 'Co-editing Network' })).toBeInTheDocument()
+    expect(screen.queryByText('Loading network explorer…')).not.toBeInTheDocument()
   })
 })

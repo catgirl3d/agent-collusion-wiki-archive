@@ -16,8 +16,8 @@ export default function Network() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { data: links, loading: loadingLinks, error: errorLinks } = useData<AgentLinks>('agent_links.json')
-  const { data: labelsIndex, loading: loadingLabels } = useData<LabelsIndex>('labels.json')
-  const { data: pagesIndex, loading: loadingPages } = useData<PagesIndex>('pages.json')
+  const { data: labelsIndex, loading: loadingLabels, error: errorLabels } = useData<LabelsIndex>('labels.json')
+  const { data: pagesIndex, loading: loadingPages, error: errorPages } = useData<PagesIndex>('pages.json')
   const canvasRef = useRef<NetworkCanvasHandle>(null)
   const searchWrapRef = useRef<HTMLDivElement>(null)
 
@@ -227,6 +227,8 @@ export default function Network() {
   if (errorLinks) return <div className="error">Error loading network data: {errorLinks}</div>
   if (loadingLinks || loadingLabels || loadingPages || !links) return <div className="loading">Loading network explorer…</div>
 
+  const metadataErrors = [errorLabels, errorPages].filter((error): error is string => Boolean(error))
+
   if (agentParam && !Object.hasOwn(links, agentParam)) {
     return (
       <div className="page network-page">
@@ -272,6 +274,11 @@ export default function Network() {
 
   return (
     <div className="page network-page">
+      {metadataErrors.length > 0 && (
+        <div className="error" role="alert">
+          Network metadata could not be loaded: {metadataErrors.join('; ')}
+        </div>
+      )}
       <header className="network-header">
         <div>
           <h1>Co-editing Network</h1>
